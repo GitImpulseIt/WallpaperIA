@@ -1,0 +1,46 @@
+# Configuration sensible
+api/ftp.json
+
+# Claude Code
+.claude/
+
+# Build directories
+app/build/
+**/build/
+
+# Miniatures générées (cache)
+api/miniatures/
+
+# Visual Studio files
+*.vcxproj.user
+*.suo
+*.sdf
+*.opensdf
+*.vs/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Compiled executables
+*.exe
+*.dll
+
+# Object files
+*.o
+*.obj
+
+# Qt generated files
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qm
+
+# Temporary files
+*~
+*.tmp
+*.temp
