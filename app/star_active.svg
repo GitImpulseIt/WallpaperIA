@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+     viewBox="0 0 24 24" style="enable-background:new 0 0 24 24;" xml:space="preserve">
+     
+<defs>
+    <!-- Dégradé doré pour l'étoile remplie -->
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+        <stop offset="50%" style="stop-color:#FFA500;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#FF8C00;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Dégradé pour l'ombre -->
+    <linearGradient id="shadowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#B8860B;stop-opacity:0.8" />
+        <stop offset="100%" style="stop-color:#8B4513;stop-opacity:0.3" />
+    </linearGradient>
+</defs>
+
+<!-- Ombre de l'étoile (décalée légèrement) -->
+<path d="M12.5,3.2 L14.8,8.1 L20.3,8.8 L16.4,12.6 L17.4,18.1 L12.5,15.6 L7.6,18.1 L8.6,12.6 L4.7,8.8 L10.2,8.1 Z"
+      fill="url(#shadowGradient)" opacity="0.3"/>
+
+<!-- Étoile principale -->
+<path d="M12,2.5 L14.3,7.4 L19.8,8.1 L15.9,11.9 L16.9,17.4 L12,14.9 L7.1,17.4 L8.1,11.9 L4.2,8.1 L9.7,7.4 Z"
+      fill="url(#goldGradient)" 
+      stroke="#DAA520" 
+      stroke-width="0.2"/>
+
+<!-- Effet de brillance -->
+<path d="M12,2.5 L14.3,7.4 L19.8,8.1 L15.9,11.9 L16.9,17.4 L12,14.9 L7.1,17.4 L8.1,11.9 L4.2,8.1 L9.7,7.4 Z"
+      fill="none" 
+      stroke="url(#goldGradient)" 
+      stroke-width="0.5" 
+      opacity="0.8"/>
+
+
+
+</svg>

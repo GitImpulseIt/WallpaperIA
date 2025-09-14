@@ -1,5 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>icon.png</file>
+        <file>red_cross.svg</file>
+        <file>star_active.png</file>
+        <file>star_inactive.png</file>
+        <file>disable_category.png</file>
     </qresource>
 </RCC>

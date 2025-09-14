@@ -6,16 +6,10 @@ echo  Compilation WallpaperIA avec Qt/MinGW
 echo ========================================
 echo.
 
-REM Charger l'environnement Visual Studio Build Tools
-echo Chargement de l'environnement Visual Studio Build Tools...
-call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat"
-
-if %errorlevel% neq 0 (
-    echo ERREUR: Impossible de charger l'environnement Visual Studio Build Tools
-    echo Verifiez que Visual Studio Build Tools est installe dans le bon repertoire
-    pause
-    exit /b 1
-)
+REM Arreter l'application si elle est en cours d'execution
+echo Arret de l'application en cours d'execution...
+powershell "Stop-Process -Name 'WallpaperIA' -Force -ErrorAction SilentlyContinue"
+echo.
 
 REM Ajouter Qt, MinGW et CMake au PATH
 echo Configuration de l'environnement Qt/MinGW...

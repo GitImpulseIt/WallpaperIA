@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+     viewBox="0 0 24 24" style="enable-background:new 0 0 24 24;" xml:space="preserve">
+     
+<defs>
+    <!-- Dégradé rouge pour le cercle -->
+    <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#FF4444;stop-opacity:1" />
+        <stop offset="50%" style="stop-color:#DC143C;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#B22222;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Dégradé pour l'ombre -->
+    <linearGradient id="redShadowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#8B0000;stop-opacity:0.6" />
+        <stop offset="100%" style="stop-color:#4B0000;stop-opacity:0.3" />
+    </linearGradient>
+    
+    <!-- Dégradé blanc pour la barre centrale -->
+    <linearGradient id="whiteGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+        <stop offset="50%" style="stop-color:#F8F8FF;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#F0F0F0;stop-opacity:1" />
+    </linearGradient>
+</defs>
+
+<!-- Ombre du cercle (décalée légèrement) -->
+<circle cx="12.3" cy="12.3" r="10.5" 
+        fill="url(#redShadowGradient)" opacity="0.3"/>
+
+<!-- Cercle rouge principal -->
+<circle cx="12" cy="12" r="10" 
+        fill="url(#redGradient)" 
+        stroke="#A52A2A" 
+        stroke-width="0.3"/>
+
+<!-- Effet de brillance sur le cercle -->
+<circle cx="12" cy="12" r="10" 
+        fill="none" 
+        stroke="url(#redGradient)" 
+        stroke-width="0.5" 
+        opacity="0.6"/>
+
+<!-- Ombre de la barre blanche (décalée légèrement) -->
+<rect x="4.3" y="10.8" width="15.4" height="2.4" 
+      rx="1.2" ry="1.2"
+      fill="url(#redShadowGradient)" opacity="0.4"/>
+
+<!-- Barre blanche horizontale -->
+<rect x="4" y="10.5" width="16" height="3" 
+      rx="1.5" ry="1.5"
+      fill="url(#whiteGradient)" 
+      stroke="#E0E0E0" 
+      stroke-width="0.1"/>
+
+<!-- Effet de brillance sur la barre -->
+<rect x="4" y="10.5" width="16" height="3" 
+      rx="1.5" ry="1.5"
+      fill="none" 
+      stroke="url(#whiteGradient)" 
+      stroke-width="0.3" 
+      opacity="0.7"/>
+
+<!-- Reflet lumineux sur le cercle (effet 3D) -->
+<ellipse cx="9" cy="8" rx="2" ry="1" 
+         fill="#FF6B6B" opacity="0.4"/>
+
+</svg>
