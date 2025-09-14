@@ -674,8 +674,8 @@ protected:
 
         // Supprimer spécifiquement l'ancienne icône "sens interdit" si elle existe
         QWidget *parentWidget = currentRating->parentWidget();
-        if (parentWidget) {
-            QLabel *oldDisableIcon = parentWidget->findChild<QLabel*>("disableIcon_" + categoryId);
+        if (parentWidget && parentWidget->parentWidget()) {
+            QLabel *oldDisableIcon = parentWidget->parentWidget()->findChild<QLabel*>("disableIcon_" + categoryId);
             if (oldDisableIcon) {
                 oldDisableIcon->setParent(nullptr);
                 delete oldDisableIcon;
@@ -684,20 +684,22 @@ protected:
 
         if (rating == -1) {
             // Affichage "sens interdit" au centre de la miniature (plus gros)
-            QLabel *disableIcon = new QLabel(currentRating->parentWidget());
+            QWidget *parentWidget = currentRating->parentWidget();
+            QLabel *disableIcon = new QLabel(parentWidget->parentWidget()); // Remonter d'un niveau pour être au-dessus du label
             disableIcon->setObjectName("disableIcon_" + categoryId); // Nom pour identification
-            disableIcon->setGeometry(62, 35, 40, 40); // Centré dans la miniature 165x90
+            disableIcon->setGeometry(65, 50, 70, 70); // Encore plus gros et parfaitement centré (165px largeur - 70px = 95px / 2 = 47px)
 
             QPixmap disablePixmap("disable_category.png");
             if (!disablePixmap.isNull()) {
-                disableIcon->setPixmap(disablePixmap.scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                disableIcon->setPixmap(disablePixmap.scaled(70, 70, Qt::KeepAspectRatio, Qt::SmoothTransformation));
                 disableIcon->setStyleSheet("background: transparent;"); // Pas de fond sombre
             } else {
                 disableIcon->setText("✗");
-                disableIcon->setStyleSheet("color: red; font-size: 24px; font-weight: bold; background: transparent;");
+                disableIcon->setStyleSheet("color: red; font-size: 40px; font-weight: bold; background: transparent;");
                 disableIcon->setAlignment(Qt::AlignCenter);
             }
             disableIcon->show();
+            disableIcon->raise(); // Mettre au premier plan devant tous les autres widgets
 
             // Masquer l'indicateur normal
             currentRating->hide();
