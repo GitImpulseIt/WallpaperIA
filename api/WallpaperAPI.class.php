@@ -182,6 +182,13 @@ class WallpaperAPI {
                 throw new Exception('GD extension is not installed');
             }
             
+            // Augmenter la limite de mémoire pour le traitement d'images
+            $current_limit = ini_get('memory_limit');
+            $required_memory = '512M';
+            if (intval($current_limit) < 512) {
+                ini_set('memory_limit', $required_memory);
+            }
+            
             if (!$this->ftp_config) {
                 throw new Exception('FTP configuration not loaded');
             }
@@ -194,7 +201,7 @@ class WallpaperAPI {
             // Check if thumbnail already exists - keep original format
             $thumbnail_dir = __DIR__ . '/miniatures/';
             $original_extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-            $thumbnail_filename = pathinfo($filename, PATHINFO_FILENAME) . '_thumb.' . $original_extension;
+            $thumbnail_filename = pathinfo($filename, PATHINFO_FILENAME) . "." . $original_extension;
             $thumbnail_path = $thumbnail_dir . $thumbnail_filename;
             
             // If thumbnail exists, return it
@@ -224,6 +231,21 @@ class WallpaperAPI {
                 throw new Exception('Cannot retrieve original image: ' . $original_result['error']);
             }
             
+            // Vérifier la taille de l'image pour estimer les besoins en mémoire
+            $image_info = getimagesizefromstring($original_result['content']);
+            if ($image_info === false) {
+                throw new Exception('Cannot get image information from content');
+            }
+            
+            // Estimer la mémoire nécessaire (width * height * 4 bytes per pixel * 3 for working copies)
+            $estimated_memory = ($image_info[0] * $image_info[1] * 4 * 3);
+            $memory_mb = round($estimated_memory / (1024 * 1024));
+            
+            // Si l'image est très grande, ajuster la limite de mémoire
+            if ($memory_mb > 256) {
+                ini_set('memory_limit', '1024M');
+            }
+            
             // Create image resource from content
             $original_image = @imagecreatefromstring($original_result['content']);
             if ($original_image === false) {
@@ -234,9 +256,9 @@ class WallpaperAPI {
             $original_width = imagesx($original_image);
             $original_height = imagesy($original_image);
             
-            // Calculate dimensions to maintain aspect ratio within 200x120
-            $target_width = 200;
-            $target_height = 120;
+            // Calculate dimensions to maintain aspect ratio within 204x115
+            $target_width = 204;
+            $target_height = 115;
             
             $ratio_w = $target_width / $original_width;
             $ratio_h = $target_height / $original_height;
@@ -245,37 +267,47 @@ class WallpaperAPI {
             $new_width = (int)($original_width * $ratio);
             $new_height = (int)($original_height * $ratio);
             
-            // Create thumbnail image
-            $thumbnail = imagecreatetruecolor($new_width, $new_height);
-            
-            // Enable alpha blending for PNG transparency
-            imagealphablending($thumbnail, false);
-            imagesavealpha($thumbnail, true);
-            
-            // Handle transparency properly for PNG
-            if ($original_extension === 'png') {
-                // Keep transparency for PNG
-                imagealphablending($thumbnail, false);
-                imagesavealpha($thumbnail, true);
-                $transparent = imagecolorallocatealpha($thumbnail, 0, 0, 0, 127);
-                imagefill($thumbnail, 0, 0, $transparent);
-                imagealphablending($thumbnail, true);
-            } else {
-                // Fill with white background for other formats
+            // Two-step progressive resizing for better quality
+            if ($ratio < 0.5) {
+                // First resize to 50% if target is smaller than 50%
+                $intermediate_width = (int)($original_width * 0.5);
+                $intermediate_height = (int)($original_height * 0.5);
+                
+                $intermediate = imagecreatetruecolor($intermediate_width, $intermediate_height);
+                $white_intermediate = imagecolorallocate($intermediate, 255, 255, 255);
+                imagefill($intermediate, 0, 0, $white_intermediate);
+                imagealphablending($intermediate, true);
+                
+                // First step: original -> 50%
+                imagecopyresampled($intermediate, $original_image, 0, 0, 0, 0,
+                                   $intermediate_width, $intermediate_height, $original_width, $original_height);
+                
+                // Then resize to final size from intermediate
+                $thumbnail = imagecreatetruecolor($new_width, $new_height);
                 $white = imagecolorallocate($thumbnail, 255, 255, 255);
                 imagefill($thumbnail, 0, 0, $white);
                 imagealphablending($thumbnail, true);
+                
+                // Second step: 50% -> final size
+                imagecopyresampled($thumbnail, $intermediate, 0, 0, 0, 0,
+                                   $new_width, $new_height, $intermediate_width, $intermediate_height);
+                
+                imagedestroy($intermediate);
+            } else {
+                // Direct resize if target is >= 50%
+                $thumbnail = imagecreatetruecolor($new_width, $new_height);
+                $white = imagecolorallocate($thumbnail, 255, 255, 255);
+                imagefill($thumbnail, 0, 0, $white);
+                imagealphablending($thumbnail, true);
+                
+                // Single step resize
+                imagecopyresampled($thumbnail, $original_image, 0, 0, 0, 0,
+                                   $new_width, $new_height, $original_width, $original_height);
             }
-            
-            // Resize image with high quality resampling
-            imagecopyresampled($thumbnail, $original_image, 0, 0, 0, 0, 
-                             $new_width, $new_height, $original_width, $original_height);
                              
-            // Apply sharpening filter for better clarity (if available)
+            // Apply enhanced sharpening filters (method 3 parameters)
             if (function_exists('imagefilter')) {
-                // Use a combination of filters for better quality
-                imagefilter($thumbnail, IMG_FILTER_CONTRAST, -10); // Slight contrast increase
-                imagefilter($thumbnail, IMG_FILTER_SMOOTH, -1); // Light sharpening
+                // No additional filters for two-step progressive - the technique itself provides better quality
             }
             
             // Save thumbnail in original format
@@ -312,9 +344,17 @@ class WallpaperAPI {
             }
             file_put_contents($thumbnail_path, $thumbnail_content);
             
-            // Clean up memory
+            // Clean up memory immediately
             imagedestroy($original_image);
             imagedestroy($thumbnail);
+            
+            // Libérer la mémoire des variables lourdes
+            unset($original_result);
+            
+            // Forcer le garbage collector si disponible
+            if (function_exists('gc_collect_cycles')) {
+                gc_collect_cycles();
+            }
             
             // Determine content type for response
             $content_types = [

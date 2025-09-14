@@ -548,7 +548,7 @@ protected:
         QWidget *currentRating = new QWidget(parent);
         currentRating->setObjectName("currentRating_" + categoryId);
         currentRating->setGeometry(5, 5, 60, 20);
-        currentRating->setStyleSheet("background: rgba(0,0,0,0.7); border-radius: 3px;");
+        currentRating->setStyleSheet("background: transparent;");
 
         // Initialiser avec 1 étoile par défaut
         categoryRatings[categoryId] = 1;
@@ -691,9 +691,10 @@ protected:
             QPixmap disablePixmap("disable_category.png");
             if (!disablePixmap.isNull()) {
                 disableIcon->setPixmap(disablePixmap.scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                disableIcon->setStyleSheet("background: transparent;"); // Pas de fond sombre
             } else {
                 disableIcon->setText("✗");
-                disableIcon->setStyleSheet("color: red; font-size: 24px; font-weight: bold;");
+                disableIcon->setStyleSheet("color: red; font-size: 24px; font-weight: bold; background: transparent;");
                 disableIcon->setAlignment(Qt::AlignCenter);
             }
             disableIcon->show();

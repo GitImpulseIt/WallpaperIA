@@ -111,7 +111,7 @@ switch ($request_method) {
                     'GET /wallpapers' => 'Get all wallpapers',
                     'GET /wallpapers?category={name}' => 'Get wallpapers by category',
                     'GET /get/{filename}' => 'Get file from FTP server',
-                    'GET /mini/{filename}' => 'Get thumbnail (200x120 in original format) - generates if not exists'
+                    'GET /mini/{filename}' => 'Get thumbnail (204x115 JPG) - generates if not exists'
                 ]
             ];
         } else {
