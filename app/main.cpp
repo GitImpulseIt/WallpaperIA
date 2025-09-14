@@ -29,6 +29,7 @@
 #include <QFileInfo>
 #include <QMap>
 #include <QEvent>
+#include <QTimer>
 #include <string>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -60,6 +61,10 @@ protected:
                     ratingWidget->show();
                     // Masquer l'affichage permanent pour éviter la superposition
                     if (currentRating) currentRating->hide();
+
+                    // Masquer aussi l'icône "sens interdit" si elle existe
+                    QLabel *disableIcon = m_categoryFrame->parentWidget()->findChild<QLabel*>("disableIcon_" + m_categoryId);
+                    if (disableIcon) disableIcon->hide();
                 }
             } else if (event->type() == QEvent::Leave) {
                 // Masquer les contrôles de notation
@@ -69,6 +74,14 @@ protected:
                     ratingWidget->hide();
                     // Réafficher l'affichage permanent
                     if (currentRating) currentRating->show();
+
+                    // Réafficher l'icône "sens interdit" si la catégorie est désactivée
+                    QVariant ratingVariant = m_parent->property(("rating_" + m_categoryId).toLocal8Bit().constData());
+                    int currentRating = ratingVariant.isValid() ? ratingVariant.toInt() : 1;
+                    if (currentRating == -1) {
+                        QLabel *disableIcon = m_categoryFrame->parentWidget()->findChild<QLabel*>("disableIcon_" + m_categoryId);
+                        if (disableIcon) disableIcon->show();
+                    }
                 }
             }
         }
@@ -549,11 +562,16 @@ protected:
         currentRating->setObjectName("currentRating_" + categoryId);
         currentRating->setGeometry(5, 5, 60, 20);
         currentRating->setStyleSheet("background: transparent;");
+        currentRating->show(); // S'assurer que le widget est visible
 
         // Initialiser avec 1 étoile par défaut
         categoryRatings[categoryId] = 1;
         setProperty(("rating_" + categoryId).toLocal8Bit().constData(), 1);
-        updateCategoryRatingDisplay(categoryId, 1);
+
+        // Appeler updateCategoryRatingDisplay après que tous les widgets soient configurés
+        QTimer::singleShot(0, [this, categoryId]() {
+            updateCategoryRatingDisplay(categoryId, 1);
+        });
 
         // Widget pour les contrôles interactifs (masqué par défaut)
         QWidget *ratingWidget = new QWidget(parent);
@@ -687,11 +705,11 @@ protected:
             QWidget *parentWidget = currentRating->parentWidget();
             QLabel *disableIcon = new QLabel(parentWidget->parentWidget()); // Remonter d'un niveau pour être au-dessus du label
             disableIcon->setObjectName("disableIcon_" + categoryId); // Nom pour identification
-            disableIcon->setGeometry(65, 50, 70, 70); // Encore plus gros et parfaitement centré (165px largeur - 70px = 95px / 2 = 47px)
+            disableIcon->setGeometry(55, 25, 100, 100); // Position centrée pour une icône plus grande
 
             QPixmap disablePixmap("disable_category.png");
             if (!disablePixmap.isNull()) {
-                disableIcon->setPixmap(disablePixmap.scaled(70, 70, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                disableIcon->setPixmap(disablePixmap.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation));
                 disableIcon->setStyleSheet("background: transparent;"); // Pas de fond sombre
             } else {
                 disableIcon->setText("✗");
