@@ -33,6 +33,9 @@
 #include <QComboBox>
 #include <QSpinBox>
 #include <QGroupBox>
+#include <QPainter>
+#include <QMouseEvent>
+#include <QPropertyAnimation>
 #include <string>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -234,6 +237,94 @@ private:
     QPushButton *m_disableBtn;
     QString m_categoryId;
     QWidget *m_parent;
+};
+
+// Classe pour créer un bouton à bascule personnalisé avec animation
+class ToggleSwitch : public QWidget
+{
+    Q_OBJECT
+    Q_PROPERTY(qreal animationProgress READ animationProgress WRITE setAnimationProgress)
+
+public:
+    ToggleSwitch(QWidget *parent = nullptr) : QWidget(parent), m_checked(false), m_animationProgress(0.0)
+    {
+        setFixedSize(54, 30);
+        setCursor(Qt::PointingHandCursor);
+
+        // Configuration de l'animation
+        m_animation = new QPropertyAnimation(this, "animationProgress");
+        m_animation->setDuration(200); // 200ms pour une animation fluide
+        m_animation->setEasingCurve(QEasingCurve::OutCubic);
+
+        connect(m_animation, &QPropertyAnimation::valueChanged, this, QOverload<>::of(&QWidget::update));
+    }
+
+    bool isChecked() const { return m_checked; }
+
+    void setChecked(bool checked)
+    {
+        if (m_checked != checked) {
+            m_checked = checked;
+
+            // Démarrer l'animation
+            m_animation->setStartValue(m_animationProgress);
+            m_animation->setEndValue(checked ? 1.0 : 0.0);
+            m_animation->start();
+
+            emit toggled(m_checked);
+        }
+    }
+
+    qreal animationProgress() const { return m_animationProgress; }
+    void setAnimationProgress(qreal progress)
+    {
+        m_animationProgress = progress;
+        update();
+    }
+
+signals:
+    void toggled(bool checked);
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        // Fond du switch avec interpolation de couleur
+        QRect switchRect = rect().adjusted(3, 3, -3, -3);
+
+        // Interpoler entre gris et bleu selon l'animation
+        QColor backgroundColor = QColor::fromRgb(
+            static_cast<int>(102 + (0 - 102) * m_animationProgress),     // Rouge: 102 -> 0
+            static_cast<int>(102 + (120 - 102) * m_animationProgress),   // Vert: 102 -> 120
+            static_cast<int>(102 + (212 - 102) * m_animationProgress)    // Bleu: 102 -> 212
+        );
+
+        painter.setBrush(backgroundColor);
+        painter.setPen(Qt::NoPen);
+        painter.drawRoundedRect(switchRect, 12, 12);
+
+        // Bouton circulaire avec position animée - plus petit pour plus d'espace
+        int buttonSize = switchRect.height() - 8;  // Plus d'espace autour (8 au lieu de 4)
+        int leftPos = switchRect.left() + 4;       // Plus de marge
+        int rightPos = switchRect.right() - buttonSize - 4;  // Plus de marge
+        int buttonX = static_cast<int>(leftPos + (rightPos - leftPos) * m_animationProgress);
+        int buttonY = switchRect.top() + (switchRect.height() - buttonSize) / 2;
+
+        painter.setBrush(QColor("#ffffff"));
+        painter.drawEllipse(buttonX, buttonY, buttonSize, buttonSize);
+    }
+
+    void mousePressEvent(QMouseEvent *) override
+    {
+        setChecked(!m_checked);
+    }
+
+private:
+    bool m_checked;
+    qreal m_animationProgress;
+    QPropertyAnimation *m_animation;
 };
 
 class ModernWindow : public QWidget
@@ -762,6 +853,74 @@ private:
         adjustmentLayout->addLayout(centeringLayout);
 
         settingsLayout->addWidget(adjustmentGroup);
+
+        // Groupe Options système
+        QGroupBox *systemGroup = new QGroupBox("Options système");
+        systemGroup->setStyleSheet(
+            "QGroupBox {"
+            "font-weight: 600;"
+            "font-size: 14px;"
+            "color: #ffffff;"
+            "border: 1px solid #555;"
+            "border-radius: 12px;"
+            "margin-top: 15px;"
+            "padding-top: 15px;"
+            "background-color: #3a3a3a;"
+            "}"
+            "QGroupBox::title {"
+            "subcontrol-origin: margin;"
+            "subcontrol-position: top left;"
+            "left: 15px;"
+            "padding: 5px 12px;"
+            "background-color: #2a2a2a;"
+            "border: 1px solid #555;"
+            "border-radius: 6px;"
+            "color: #ffffff;"
+            "}"
+        );
+
+        QVBoxLayout *systemLayout = new QVBoxLayout(systemGroup);
+        systemLayout->setSpacing(15);
+        systemLayout->setContentsMargins(15, 15, 15, 15);
+
+        // Option "Démarrer avec Windows"
+        QHBoxLayout *startupLayout = new QHBoxLayout();
+        QLabel *startupLabel = new QLabel("Démarrer avec Windows");
+        startupLabel->setStyleSheet("color: #ffffff; font-size: 13px; background-color: transparent;");
+
+        ToggleSwitch *startupToggle = new ToggleSwitch();
+        startupToggle->setObjectName("startupToggle");
+
+        startupLayout->addWidget(startupLabel);
+        startupLayout->addStretch();
+        startupLayout->addWidget(startupToggle);
+
+        systemLayout->addLayout(startupLayout);
+
+        // Option "Image différente sur chaque écran"
+        QHBoxLayout *multiScreenLayout = new QHBoxLayout();
+        QLabel *multiScreenLabel = new QLabel("Image différente sur chaque écran");
+        multiScreenLabel->setStyleSheet("color: #ffffff; font-size: 13px; background-color: transparent;");
+
+        ToggleSwitch *multiScreenToggle = new ToggleSwitch();
+        multiScreenToggle->setObjectName("multiScreenToggle");
+
+        multiScreenLayout->addWidget(multiScreenLabel);
+        multiScreenLayout->addStretch();
+        multiScreenLayout->addWidget(multiScreenToggle);
+
+        systemLayout->addLayout(multiScreenLayout);
+
+        // Connecter les signaux (pour l'instant juste des placeholders)
+        connect(startupToggle, &ToggleSwitch::toggled, [](bool checked) {
+            // TODO: Gérer le démarrage automatique avec Windows
+        });
+
+        connect(multiScreenToggle, &ToggleSwitch::toggled, [](bool checked) {
+            // TODO: Gérer l'option écrans multiples
+        });
+
+        settingsLayout->addWidget(systemGroup);
         settingsLayout->addStretch(); // Espacer vers le bas
 
         tabWidget->addTab(settingsTab, "Paramètres");
