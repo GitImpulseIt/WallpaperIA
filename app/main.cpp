@@ -333,7 +333,7 @@ class ModernWindow : public QWidget
     Q_OBJECT
 
 public:
-    ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this))
+    ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false)
     {
         setWindowTitle("WallpaperIA - Gestionnaire de Fonds d'écran");
         setWindowIcon(QIcon("icon.png"));
@@ -360,7 +360,9 @@ private slots:
     }
 
     void onSettingsChanged() {
-        applyButton->setEnabled(true); // Activer quand des changements sont détectés
+        if (!isLoadingSettings) {
+            applyButton->setEnabled(true); // Activer quand des changements sont détectés
+        }
     }
 
 private:
@@ -391,40 +393,6 @@ private:
         setupSettingsTab();
 
         mainLayout->addWidget(tabWidget);
-
-        // Bouton Appliquer en bas à droite de la fenêtre
-        QHBoxLayout *bottomLayout = new QHBoxLayout();
-        bottomLayout->addStretch();
-
-        applyButton = new QPushButton("Appliquer");
-        applyButton->setObjectName("applyButton");
-        applyButton->setFixedSize(120, 40);
-        applyButton->setEnabled(false); // Désactivé par défaut
-        applyButton->setStyleSheet(
-            "QPushButton {"
-            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4CAF50, stop:1 #45a049);"
-            "border: none;"
-            "border-radius: 8px;"
-            "color: white;"
-            "font-size: 13px;"
-            "font-weight: bold;"
-            "}"
-            "QPushButton:hover {"
-            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #5CBF60, stop:1 #4CAF50);"
-            "}"
-            "QPushButton:pressed {"
-            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3d8b40, stop:1 #2e7d32);"
-            "}"
-            "QPushButton:disabled {"
-            "background: #666666;"
-            "color: #999999;"
-            "}"
-        );
-
-        connect(applyButton, &QPushButton::clicked, this, &ModernWindow::onApplySettings);
-
-        bottomLayout->addWidget(applyButton);
-        mainLayout->addLayout(bottomLayout);
     }
 
     void setupApplicationTab()
@@ -1034,7 +1002,42 @@ private:
         mainSettingsLayout->addLayout(rightColumnLayout);
 
         settingsLayout->addLayout(mainSettingsLayout);
-        settingsLayout->addStretch(); // Espacer vers le bas
+        settingsLayout->addStretch(); // Pousser le bouton tout en bas
+
+        // Bouton Appliquer tout en bas à droite de l'onglet Paramètres
+        QHBoxLayout *applyLayout = new QHBoxLayout();
+        applyLayout->addStretch();
+
+        applyButton = new QPushButton("Appliquer");
+        applyButton->setObjectName("applyButton");
+        applyButton->setFixedSize(120, 40);
+        applyButton->setEnabled(false); // Désactivé par défaut
+        applyButton->setStyleSheet(
+            "QPushButton {"
+            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4CAF50, stop:1 #45a049);"
+            "border: none;"
+            "border-radius: 8px;"
+            "color: white;"
+            "font-size: 13px;"
+            "font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #5CBF60, stop:1 #4CAF50);"
+            "}"
+            "QPushButton:pressed {"
+            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3d8b40, stop:1 #2e7d32);"
+            "}"
+            "QPushButton:disabled {"
+            "background: #666666;"
+            "color: #999999;"
+            "}"
+        );
+
+        connect(applyButton, &QPushButton::clicked, this, &ModernWindow::onApplySettings);
+
+        applyLayout->addWidget(applyButton);
+
+        settingsLayout->addLayout(applyLayout);
 
         tabWidget->addTab(settingsTab, "Paramètres");
     }
@@ -1706,17 +1709,11 @@ private:
         // Sauvegarder les options système
         settings.setValue("system/startupToggle", startupToggle->isChecked());
         settings.setValue("system/multiScreen", multiScreenToggle->isChecked());
-
-        // Message de confirmation dans le bouton temporairement
-        QString originalText = applyButton->text();
-        applyButton->setText("Sauvegardé !");
-        QTimer::singleShot(2000, [this, originalText]() {
-            applyButton->setText(originalText);
-        });
     }
 
     void loadSettings()
     {
+        isLoadingSettings = true; // Empêcher l'activation du bouton pendant le chargement
         QSettings settings("WallpaperIA", "WallpaperSettings");
 
         // Charger la fréquence de changement
@@ -1745,6 +1742,8 @@ private:
 
         bool multiScreenEnabled = settings.value("system/multiScreen", true).toBool();
         multiScreenToggle->setChecked(multiScreenEnabled);
+
+        isLoadingSettings = false; // Réactiver la détection des changements
     }
 
     QSystemTrayIcon *trayIcon;
@@ -1766,6 +1765,7 @@ private:
     ToggleSwitch *startupToggle;
     ToggleSwitch *multiScreenToggle;
     QPushButton *applyButton;
+    bool isLoadingSettings;
 };
 
 int main(int argc, char *argv[])
