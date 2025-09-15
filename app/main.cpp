@@ -240,6 +240,124 @@ private:
     QWidget *m_parent;
 };
 
+// Classe pour afficher un compte à rebours avec camembert de progression
+class CountdownWidget : public QWidget
+{
+    Q_OBJECT
+
+public:
+    CountdownWidget(QWidget *parent = nullptr) : QWidget(parent), m_totalSeconds(3600), m_remainingSeconds(3600), m_isStartupMode(false)
+    {
+        setFixedSize(200, 200);
+
+        // Timer pour mise à jour chaque seconde
+        m_timer = new QTimer(this);
+        connect(m_timer, &QTimer::timeout, this, &CountdownWidget::updateCountdown);
+        m_timer->start(1000); // Mise à jour chaque seconde
+    }
+
+    void setDuration(int seconds)
+    {
+        m_totalSeconds = seconds;
+        m_remainingSeconds = seconds;
+        m_isStartupMode = (seconds == 0);
+        update();
+    }
+
+    void setRemainingTime(int seconds)
+    {
+        m_remainingSeconds = seconds;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        if (m_isStartupMode) {
+            // Mode "Au démarrage" : affichage textuel sans camembert
+            painter.setPen(QColor("#ffffff"));
+            painter.setFont(QFont("Segoe UI", 11, QFont::Bold));
+
+            QRect textRect = rect().adjusted(10, 10, -10, -10);
+            painter.drawText(textRect, Qt::AlignCenter | Qt::TextWordWrap,
+                "Changement de fond d'écran au prochain redémarrage de l'ordinateur");
+            return;
+        }
+
+        QRect circleRect = rect().adjusted(20, 20, -20, -20);
+
+        // Calculer le pourcentage de progression (0% = plein, 100% = vide)
+        double progressPercent = 0.0;
+        if (m_totalSeconds > 0) {
+            progressPercent = (double)(m_totalSeconds - m_remainingSeconds) / m_totalSeconds;
+        }
+
+        // Fond du cercle
+        painter.setBrush(QColor("#404040"));
+        painter.setPen(QPen(QColor("#555"), 2));
+        painter.drawEllipse(circleRect);
+
+        // Arc de progression (commence en haut, sens horaire)
+        if (progressPercent > 0) {
+            painter.setBrush(QColor("#0078d4"));
+            painter.setPen(QPen(QColor("#0078d4"), 3));
+
+            int startAngle = 90 * 16; // Commencer en haut (90 degrés)
+            int spanAngle = -(int)(progressPercent * 360 * 16); // Sens horaire (négatif)
+
+            painter.drawPie(circleRect, startAngle, spanAngle);
+        }
+
+        // Texte central - temps restant uniquement
+        painter.setPen(QColor("#ffffff"));
+        painter.setFont(QFont("Segoe UI", 12, QFont::Bold));
+
+        // Formatage du temps restant
+        int hours = m_remainingSeconds / 3600;
+        int minutes = (m_remainingSeconds % 3600) / 60;
+        int seconds = m_remainingSeconds % 60;
+
+        QString timeText;
+        if (hours > 0) {
+            timeText = QString("%1h %2m").arg(hours).arg(minutes);
+        } else if (minutes > 0) {
+            timeText = QString("%1m %2s").arg(minutes).arg(seconds);
+        } else {
+            timeText = QString("%1s").arg(seconds);
+        }
+
+        QRect textRect = circleRect.adjusted(10, -10, -10, 10);
+        painter.drawText(textRect, Qt::AlignCenter, timeText);
+    }
+
+private slots:
+    void updateCountdown()
+    {
+        if (m_isStartupMode) {
+            // Pas de countdown en mode démarrage
+            return;
+        }
+
+        if (m_remainingSeconds > 0) {
+            m_remainingSeconds--;
+            update();
+        } else {
+            // Temps écoulé, réinitialiser
+            m_remainingSeconds = m_totalSeconds;
+            update();
+        }
+    }
+
+private:
+    int m_totalSeconds;
+    int m_remainingSeconds;
+    bool m_isStartupMode;
+    QTimer *m_timer;
+};
+
 // Classe pour créer un bouton à bascule personnalisé avec animation
 class ToggleSwitch : public QWidget
 {
@@ -356,6 +474,7 @@ public:
 private slots:
     void onApplySettings() {
         saveSettings();
+        updateCountdownFromSettings(); // Mettre à jour le countdown uniquement lors de l'application
         applyButton->setEnabled(false); // Désactiver après avoir appliqué
     }
 
@@ -363,6 +482,37 @@ private slots:
         if (!isLoadingSettings) {
             applyButton->setEnabled(true); // Activer quand des changements sont détectés
         }
+    }
+
+    void updateCountdownFromSettings() {
+        if (!countdownWidget) return;
+
+        int seconds = 3600; // Valeur par défaut (1h)
+
+        // Calculer la durée en secondes selon la sélection
+        int frequencyIndex = frequencyCombo->currentIndex();
+        switch (frequencyIndex) {
+            case 0: seconds = 3600; break;     // 1h
+            case 1: seconds = 10800; break;    // 3h
+            case 2: seconds = 21600; break;    // 6h
+            case 3: seconds = 43200; break;    // 12h
+            case 4: seconds = 86400; break;    // 24h
+            case 5: seconds = 604800; break;   // 7j
+            case 6: seconds = 0; break;        // Au démarrage (pas de timer)
+            case 7: // Autre
+                {
+                    int value = customValueSpinBox->value();
+                    int unit = customUnitCombo->currentIndex();
+                    switch (unit) {
+                        case 0: seconds = value * 60; break;      // minutes
+                        case 1: seconds = value * 3600; break;    // heures
+                        case 2: seconds = value * 86400; break;   // jours
+                    }
+                }
+                break;
+        }
+
+        countdownWidget->setDuration(seconds);
     }
 
 private:
@@ -430,9 +580,17 @@ private:
         statusLabel->setStyleSheet("color: #ADD8E6; font-size: 11pt; margin: 10px;");
         applicationLayout->addWidget(statusLabel);
 
+        // Widget de compte à rebours
+        countdownWidget = new CountdownWidget();
+        QHBoxLayout *countdownLayout = new QHBoxLayout();
+        countdownLayout->addStretch();
+        countdownLayout->addWidget(countdownWidget);
+        countdownLayout->addStretch();
+        applicationLayout->addLayout(countdownLayout);
+
         applicationLayout->addStretch(); // Espacer vers le haut
 
-        tabWidget->addTab(applicationTab, "Application");
+        tabWidget->addTab(applicationTab, "Fond d'écran");
     }
 
     void setupCategoriesTab()
@@ -1107,7 +1265,7 @@ private:
                 border-top-right-radius: 8px;
                 color: #cccccc;
                 font-size: 11pt;
-                min-width: 80px;
+                width: 120px;
             }
 
             QTabBar::tab:hover {
@@ -1793,6 +1951,9 @@ private:
         settings.endGroup();
 
         isLoadingSettings = false; // Réactiver la détection des changements
+
+        // Initialiser le countdown avec les paramètres chargés
+        updateCountdownFromSettings();
     }
 
     void saveCategoryRating(const QString &categoryId, int rating)
@@ -1812,6 +1973,7 @@ private:
     QGridLayout *categoriesGridLayout;
     QPushButton *changeNowButton;
     QLabel *statusLabel;
+    CountdownWidget *countdownWidget;
     QMap<QString, int> categoryRatings; // Stockage des notations des catégories
 
     // Contrôles de paramètres pour la sauvegarde/chargement
