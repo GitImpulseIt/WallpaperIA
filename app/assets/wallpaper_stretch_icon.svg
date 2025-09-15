@@ -1,0 +1,14 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- Écran/cadre -->
+  <rect x="6" y="8" width="36" height="24" fill="#4CAF50" opacity="0.8" stroke="#333" stroke-width="2" rx="2"/>
+  
+  <!-- Image étirée déformée -->
+  <ellipse cx="16" cy="18" rx="4" ry="2.5" fill="#FFF" opacity="0.7"/>
+  <polygon points="28,24 32,19 36,21 40,17 40,24 28,24" fill="#FFF" opacity="0.5"/>
+  
+  <!-- Flèches pour montrer l'étirement -->
+  <path d="M10 6 L10 4 M10 4 L8 6 M10 4 L12 6" stroke="#666" stroke-width="1.5" fill="none"/>
+  <path d="M38 6 L38 4 M38 4 L36 6 M38 4 L40 6" stroke="#666" stroke-width="1.5" fill="none"/>
+  <path d="M4 20 L2 20 M2 20 L4 18 M2 20 L4 22" stroke="#666" stroke-width="1.5" fill="none"/>
+  <path d="M46 20 L44 20 M44 20 L46 18 M44 20 L46 22" stroke="#666" stroke-width="1.5" fill="none"/>
+</svg>

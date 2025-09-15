@@ -4,9 +4,10 @@ api/ftp.json
 # Claude Code
 .claude/
 
-# Build directories
+# Build/Release directories
 app/build/
 **/build/
+app/release/
 
 # Miniatures générées (cache)
 api/miniatures/

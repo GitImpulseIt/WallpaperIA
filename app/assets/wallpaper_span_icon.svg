@@ -1,0 +1,22 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- Premier écran -->
+  <rect x="4" y="10" width="18" height="12" fill="#4CAF50" opacity="0.8" stroke="#333" stroke-width="2" rx="2"/>
+  
+  <!-- Deuxième écran -->
+  <rect x="26" y="10" width="18" height="12" fill="#4CAF50" opacity="0.8" stroke="#333" stroke-width="2" rx="2"/>
+  
+  <!-- Image qui s'étend sur les deux écrans -->
+  <rect x="2" y="12" width="44" height="8" fill="#66BB6A" opacity="0.6"/>
+  
+  <!-- Motifs d'image -->
+  <circle cx="12" cy="15" r="1.5" fill="#FFF" opacity="0.7"/>
+  <circle cx="36" cy="15" r="1.5" fill="#FFF" opacity="0.7"/>
+  <polygon points="18,19 20,17 22,18 22,19 18,19" fill="#FFF" opacity="0.5"/>
+  <polygon points="30,19 32,17 34,18 34,19 30,19" fill="#FFF" opacity="0.5"/>
+  
+  <!-- Flèche montrant l'extension -->
+  <path d="M22 6 L26 6 M24 4 L24 8 M22 6 L24 4 M26 6 L24 4" stroke="#666" stroke-width="1.5" fill="none"/>
+  
+  <!-- Ligne de connexion entre les écrans -->
+  <line x1="22" y1="16" x2="26" y2="16" stroke="#333" stroke-width="1" stroke-dasharray="2,2"/>
+</svg>

@@ -30,6 +30,9 @@
 #include <QMap>
 #include <QEvent>
 #include <QTimer>
+#include <QComboBox>
+#include <QSpinBox>
+#include <QGroupBox>
 #include <string>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -358,13 +361,408 @@ private:
         settingsLayout->setContentsMargins(20, 20, 20, 20);
         settingsLayout->setSpacing(15);
 
-        // Placeholder pour les paramètres
-        QLabel *settingsPlaceholder = new QLabel("Paramètres à venir...");
-        settingsPlaceholder->setAlignment(Qt::AlignCenter);
-        settingsPlaceholder->setStyleSheet("color: #888; font-size: 12pt;");
-        settingsLayout->addWidget(settingsPlaceholder);
+        // Groupe Fréquence de changement
+        QGroupBox *frequencyGroup = new QGroupBox("Fréquence de changement");
+        frequencyGroup->setStyleSheet(
+            "QGroupBox {"
+            "font-weight: 600;"
+            "font-size: 14px;"
+            "color: #ffffff;"
+            "border: 1px solid #555;"
+            "border-radius: 12px;"
+            "margin-top: 15px;"
+            "padding-top: 15px;"
+            "background-color: #3a3a3a;"
+            "}"
+            "QGroupBox::title {"
+            "subcontrol-origin: margin;"
+            "subcontrol-position: top left;"
+            "left: 15px;"
+            "padding: 5px 12px;"
+            "background-color: #2a2a2a;"
+            "border: 1px solid #555;"
+            "border-radius: 6px;"
+            "color: #ffffff;"
+            "}"
+        );
 
-        settingsLayout->addStretch(); // Espacer vers le haut
+        QVBoxLayout *frequencyLayout = new QVBoxLayout(frequencyGroup);
+        frequencyLayout->setSpacing(15);
+
+        // ComboBox principal pour la fréquence
+        QComboBox *frequencyCombo = new QComboBox();
+        frequencyCombo->setObjectName("frequencyCombo");
+        frequencyCombo->addItems({
+            "1h",
+            "3h",
+            "6h",
+            "12h",
+            "24h",
+            "7j",
+            "Au démarrage de l'ordinateur",
+            "Autre"
+        });
+        frequencyCombo->setFixedHeight(32);
+        frequencyCombo->setStyleSheet(
+            "QComboBox {"
+            "border: 1px solid #555;"
+            "border-radius: 8px;"
+            "padding: 8px 16px;"
+            "background: #2a2a2a;"
+            "font-size: 13px;"
+            "color: #ffffff;"
+            "selection-background-color: #0078d4;"
+            "}"
+            "QComboBox:hover {"
+            "border-color: #777;"
+            "background: #333;"
+            "}"
+            "QComboBox:focus {"
+            "border-color: #0078d4;"
+            "outline: none;"
+            "box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.3);"
+            "}"
+            "QComboBox::drop-down {"
+            "subcontrol-origin: padding;"
+            "subcontrol-position: top right;"
+            "width: 30px;"
+            "border-left: 1px solid #555;"
+            "border-top-right-radius: 8px;"
+            "border-bottom-right-radius: 8px;"
+            "background: #444;"
+            "}"
+            "QComboBox::drop-down:hover {"
+            "background: #555;"
+            "}"
+            "QComboBox::down-arrow {"
+            "image: none;"
+            "border: 2px solid #ccc;"
+            "width: 6px;"
+            "height: 6px;"
+            "border-top: none;"
+            "border-left: none;"
+            "margin-top: -2px;"
+            "transform: rotate(45deg);"
+            "}"
+            "QComboBox QAbstractItemView {"
+            "border: 1px solid #555;"
+            "border-radius: 6px;"
+            "background: #2a2a2a;"
+            "outline: none;"
+            "selection-background-color: #0078d4;"
+            "selection-color: #ffffff;"
+            "color: #ffffff;"
+            "padding: 4px;"
+            "}"
+        );
+
+        frequencyLayout->addWidget(frequencyCombo);
+
+        // Widget pour l'option "Autre" (masqué par défaut)
+        QWidget *customFrequencyWidget = new QWidget();
+        customFrequencyWidget->setObjectName("customFrequencyWidget");
+        customFrequencyWidget->hide();
+
+        QHBoxLayout *customLayout = new QHBoxLayout(customFrequencyWidget);
+        customLayout->setContentsMargins(0, 0, 0, 0);
+        customLayout->setSpacing(10);
+
+        // SpinBox pour la valeur numérique
+        QSpinBox *customValueSpinBox = new QSpinBox();
+        customValueSpinBox->setObjectName("customValueSpinBox");
+        customValueSpinBox->setMinimum(1);
+        customValueSpinBox->setMaximum(9999);
+        customValueSpinBox->setValue(30);
+        customValueSpinBox->setFixedHeight(32);
+        customValueSpinBox->setFixedWidth(100);
+        customValueSpinBox->setStyleSheet(
+            "QSpinBox {"
+            "border: 1px solid #555;"
+            "border-radius: 8px;"
+            "padding: 8px 12px;"
+            "background: #2a2a2a;"
+            "font-size: 13px;"
+            "color: #ffffff;"
+            "}"
+            "QSpinBox:hover {"
+            "border-color: #777;"
+            "background: #333;"
+            "}"
+            "QSpinBox:focus {"
+            "border-color: #0078d4;"
+            "outline: none;"
+            "box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.3);"
+            "}"
+            "QSpinBox::up-button {"
+            "subcontrol-origin: border;"
+            "subcontrol-position: top right;"
+            "width: 25px;"
+            "border-left: 1px solid #555;"
+            "border-top-right-radius: 8px;"
+            "background: #444;"
+            "}"
+            "QSpinBox::up-button:hover {"
+            "background: #555;"
+            "}"
+            "QSpinBox::down-button {"
+            "subcontrol-origin: border;"
+            "subcontrol-position: bottom right;"
+            "width: 25px;"
+            "border-left: 1px solid #555;"
+            "border-bottom-right-radius: 8px;"
+            "background: #444;"
+            "}"
+            "QSpinBox::down-button:hover {"
+            "background: #555;"
+            "}"
+            "QSpinBox::up-arrow {"
+            "image: none;"
+            "border: 2px solid #ccc;"
+            "width: 4px;"
+            "height: 4px;"
+            "border-bottom: none;"
+            "border-right: none;"
+            "margin-bottom: -1px;"
+            "transform: rotate(45deg);"
+            "}"
+            "QSpinBox::down-arrow {"
+            "image: none;"
+            "border: 2px solid #ccc;"
+            "width: 4px;"
+            "height: 4px;"
+            "border-top: none;"
+            "border-left: none;"
+            "margin-top: -1px;"
+            "transform: rotate(45deg);"
+            "}"
+        );
+
+        // ComboBox pour l'unité de temps
+        QComboBox *customUnitCombo = new QComboBox();
+        customUnitCombo->setObjectName("customUnitCombo");
+        customUnitCombo->addItems({"minutes", "heures", "jours"});
+        customUnitCombo->setFixedHeight(32);
+        customUnitCombo->setFixedWidth(120);
+        customUnitCombo->setStyleSheet(
+            "QComboBox {"
+            "border: 1px solid #555;"
+            "border-radius: 8px;"
+            "padding: 8px 16px;"
+            "background: #2a2a2a;"
+            "font-size: 13px;"
+            "color: #ffffff;"
+            "selection-background-color: #0078d4;"
+            "}"
+            "QComboBox:hover {"
+            "border-color: #777;"
+            "background: #333;"
+            "}"
+            "QComboBox:focus {"
+            "border-color: #0078d4;"
+            "outline: none;"
+            "box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.3);"
+            "}"
+            "QComboBox::drop-down {"
+            "subcontrol-origin: padding;"
+            "subcontrol-position: top right;"
+            "width: 25px;"
+            "border-left: 1px solid #555;"
+            "border-top-right-radius: 8px;"
+            "border-bottom-right-radius: 8px;"
+            "background: #444;"
+            "}"
+            "QComboBox::drop-down:hover {"
+            "background: #555;"
+            "}"
+            "QComboBox::down-arrow {"
+            "image: none;"
+            "border: 2px solid #ccc;"
+            "width: 6px;"
+            "height: 6px;"
+            "border-top: none;"
+            "border-left: none;"
+            "margin-top: -2px;"
+            "transform: rotate(45deg);"
+            "}"
+            "QComboBox QAbstractItemView {"
+            "border: 1px solid #555;"
+            "border-radius: 6px;"
+            "background: #2a2a2a;"
+            "outline: none;"
+            "selection-background-color: #0078d4;"
+            "selection-color: #ffffff;"
+            "color: #ffffff;"
+            "padding: 4px;"
+            "}"
+        );
+
+        customLayout->addWidget(customValueSpinBox);
+        customLayout->addWidget(customUnitCombo);
+        customLayout->addStretch();
+
+        frequencyLayout->addWidget(customFrequencyWidget);
+
+        // Connexion pour afficher/masquer l'option personnalisée
+        connect(frequencyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [customFrequencyWidget](int index) {
+            if (index == 7) { // Index de "Autre"
+                customFrequencyWidget->show();
+            } else {
+                customFrequencyWidget->hide();
+            }
+        });
+
+        settingsLayout->addWidget(frequencyGroup);
+
+        // Groupe Mode d'ajustement de l'image
+        QGroupBox *adjustmentGroup = new QGroupBox("Mode d'ajustement de l'image");
+        adjustmentGroup->setStyleSheet(
+            "QGroupBox {"
+            "font-weight: 600;"
+            "font-size: 14px;"
+            "color: #ffffff;"
+            "border: 1px solid #555;"
+            "border-radius: 12px;"
+            "margin-top: 15px;"
+            "padding-top: 15px;"
+            "background-color: #3a3a3a;"
+            "}"
+            "QGroupBox::title {"
+            "subcontrol-origin: margin;"
+            "subcontrol-position: top left;"
+            "left: 15px;"
+            "padding: 5px 12px;"
+            "background-color: #2a2a2a;"
+            "border: 1px solid #555;"
+            "border-radius: 6px;"
+            "color: #ffffff;"
+            "}"
+        );
+
+        QVBoxLayout *adjustmentLayout = new QVBoxLayout(adjustmentGroup);
+        adjustmentLayout->setSpacing(15);
+        adjustmentLayout->setContentsMargins(15, 15, 15, 15);
+
+        // Layout horizontal pour centrer les éléments
+        QHBoxLayout *centeringLayout = new QHBoxLayout();
+        centeringLayout->addStretch(); // Espacement à gauche
+
+        // Widget container pour le sélecteur et l'image
+        QWidget *selectorWidget = new QWidget();
+        QVBoxLayout *selectorLayout = new QVBoxLayout(selectorWidget);
+        selectorLayout->setSpacing(15);
+        selectorLayout->setAlignment(Qt::AlignCenter);
+
+        // ComboBox pour sélectionner le mode
+        QComboBox *adjustmentCombo = new QComboBox();
+        adjustmentCombo->setObjectName("adjustmentCombo");
+        adjustmentCombo->addItem("Remplir", "fill");
+        adjustmentCombo->addItem("Ajuster", "fit");
+        adjustmentCombo->addItem("Étendre", "span");
+        adjustmentCombo->addItem("Étirer", "stretch");
+        adjustmentCombo->addItem("Mosaïque", "tile");
+        adjustmentCombo->setFixedHeight(32);
+        adjustmentCombo->setFixedWidth(150);
+        adjustmentCombo->setStyleSheet(
+            "QComboBox {"
+            "border: 1px solid #555;"
+            "border-radius: 8px;"
+            "padding: 8px 16px;"
+            "background: #2a2a2a;"
+            "font-size: 13px;"
+            "color: #ffffff;"
+            "selection-background-color: #0078d4;"
+            "}"
+            "QComboBox:hover {"
+            "border-color: #777;"
+            "background: #333;"
+            "}"
+            "QComboBox:focus {"
+            "border-color: #0078d4;"
+            "outline: none;"
+            "box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.3);"
+            "}"
+            "QComboBox::drop-down {"
+            "subcontrol-origin: padding;"
+            "subcontrol-position: top right;"
+            "width: 30px;"
+            "border-left: 1px solid #555;"
+            "border-top-right-radius: 8px;"
+            "border-bottom-right-radius: 8px;"
+            "background: #444;"
+            "}"
+            "QComboBox::drop-down:hover {"
+            "background: #555;"
+            "}"
+            "QComboBox::down-arrow {"
+            "image: none;"
+            "border: 2px solid #ccc;"
+            "width: 6px;"
+            "height: 6px;"
+            "border-top: none;"
+            "border-left: none;"
+            "margin-top: -2px;"
+            "transform: rotate(45deg);"
+            "}"
+            "QComboBox QAbstractItemView {"
+            "border: 1px solid #555;"
+            "border-radius: 6px;"
+            "background: #2a2a2a;"
+            "outline: none;"
+            "selection-background-color: #0078d4;"
+            "selection-color: #ffffff;"
+            "color: #ffffff;"
+            "padding: 4px;"
+            "}"
+        );
+
+        // Label pour afficher l'image du mode sélectionné
+        QLabel *adjustmentImageLabel = new QLabel();
+        adjustmentImageLabel->setObjectName("adjustmentImageLabel");
+        adjustmentImageLabel->setFixedSize(140, 120);
+        adjustmentImageLabel->setAlignment(Qt::AlignCenter);
+        adjustmentImageLabel->setStyleSheet(
+            "QLabel {"
+            "border: 1px solid #555;"
+            "border-radius: 8px;"
+            "background-color: #e8e8e8;"
+            "padding-top: 0px;"
+            "}"
+        );
+
+        // Afficher l'image par défaut (fill)
+        QPixmap defaultPixmap("wallpaper_fill_icon.png");
+        if (!defaultPixmap.isNull()) {
+            // Utiliser une taille beaucoup plus grande pour remplir vraiment l'espace
+            adjustmentImageLabel->setPixmap(defaultPixmap.scaled(136, 150, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        } else {
+            adjustmentImageLabel->setText("Remplir");
+            adjustmentImageLabel->setStyleSheet("QLabel { border: 1px solid #555; border-radius: 8px; background-color: #e8e8e8; padding: 0px; color: #333333; font-weight: bold; }");
+        }
+
+        // Connecter le changement de sélection
+        connect(adjustmentCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, adjustmentCombo, adjustmentImageLabel](int index) {
+            QString mode = adjustmentCombo->itemData(index).toString();
+            QPixmap modePixmap(QString("wallpaper_%1_icon.png").arg(mode));
+            if (!modePixmap.isNull()) {
+                // Utiliser une taille beaucoup plus grande pour remplir vraiment l'espace
+                adjustmentImageLabel->setPixmap(modePixmap.scaled(136, 150, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            } else {
+                adjustmentImageLabel->setText(adjustmentCombo->currentText());
+                adjustmentImageLabel->setStyleSheet("QLabel { border: 1px solid #555; border-radius: 8px; background-color: #e8e8e8; padding: 0px; color: #333333; font-weight: bold; }");
+            }
+            // TODO: Sauvegarder le mode d'ajustement sélectionné
+        });
+
+        selectorLayout->addWidget(adjustmentCombo, 0, Qt::AlignCenter);
+        selectorLayout->addWidget(adjustmentImageLabel, 0, Qt::AlignCenter);
+
+        centeringLayout->addWidget(selectorWidget);
+        centeringLayout->addStretch(); // Espacement à droite
+
+        adjustmentLayout->addLayout(centeringLayout);
+
+        settingsLayout->addWidget(adjustmentGroup);
+        settingsLayout->addStretch(); // Espacer vers le bas
 
         tabWidget->addTab(settingsTab, "Paramètres");
     }

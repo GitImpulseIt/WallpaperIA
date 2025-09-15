@@ -1,0 +1,32 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- Écran/cadre -->
+  <rect x="6" y="8" width="36" height="24" fill="#f0f0f0" stroke="#333" stroke-width="2" rx="2"/>
+  
+  <!-- Grille de vignettes -->
+  <g opacity="0.8">
+    <!-- Ligne du haut -->
+    <rect x="8" y="10" width="10" height="6" fill="#4CAF50" rx="1"/>
+    <rect x="19" y="10" width="10" height="6" fill="#4CAF50" rx="1"/>
+    <rect x="30" y="10" width="10" height="6" fill="#4CAF50" rx="1"/>
+    
+    <!-- Ligne du milieu -->
+    <rect x="8" y="17" width="10" height="6" fill="#4CAF50" rx="1"/>
+    <rect x="19" y="17" width="10" height="6" fill="#4CAF50" rx="1"/>
+    <rect x="30" y="17" width="10" height="6" fill="#4CAF50" rx="1"/>
+    
+    <!-- Ligne du bas -->
+    <rect x="8" y="24" width="10" height="6" fill="#4CAF50" rx="1"/>
+    <rect x="19" y="24" width="10" height="6" fill="#4CAF50" rx="1"/>
+    <rect x="30" y="24" width="10" height="6" fill="#4CAF50" rx="1"/>
+  </g>
+  
+  <!-- Petits motifs dans chaque vignette -->
+  <g fill="#FFF" opacity="0.6">
+    <circle cx="11" cy="12" r="1"/>
+    <circle cx="22" cy="12" r="1"/>
+    <circle cx="33" cy="12" r="1"/>
+    <circle cx="11" cy="19" r="1"/>
+    <circle cx="22" cy="19" r="1"/>
+    <circle cx="33" cy="19" r="1"/>
+  </g>
+</svg>

@@ -59,14 +59,43 @@ if %errorlevel% neq 0 (
 )
 
 echo.
+echo Creation du repertoire release...
+REM Revenir au repertoire parent pour creer release
+cd ..
+
+REM Supprimer et recreer le repertoire release
+if exist "release" (
+    echo Suppression de l'ancien repertoire release...
+    rmdir /s /q "release"
+)
+mkdir release
+
+echo Copie de l'executable...
+copy "build\WallpaperIA.exe" "release\"
+
+echo Copie des dependances Qt (DLL uniquement)...
+copy "build\*.dll" "release\"
+
+echo Copie des plugins Qt necessaires...
+if exist "build\platforms" xcopy "build\platforms" "release\platforms\" /s /e /y /i
+if exist "build\imageformats" xcopy "build\imageformats" "release\imageformats\" /s /e /y /i
+if exist "build\iconengines" xcopy "build\iconengines" "release\iconengines\" /s /e /y /i
+if exist "build\styles" xcopy "build\styles" "release\styles\" /s /e /y /i
+
+echo Copie des images PNG...
+REM Copier uniquement les fichiers PNG du repertoire assets vers la racine de release
+copy "assets\*.png" "release\"
+
+echo.
 echo ========================================
 echo  COMPILATION REUSSIE !
 echo ========================================
 echo.
-echo L'executable se trouve dans: build\WallpaperIA.exe
+echo L'application complete se trouve dans: release\
+echo Executable principal: release\WallpaperIA.exe
+echo Images PNG: release\*.png
 echo.
 
-REM Revenir au repertoire parent
-cd ..
+REM Rester dans le repertoire courant
 
 pause
