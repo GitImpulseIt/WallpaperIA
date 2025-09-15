@@ -810,6 +810,7 @@ private:
 
         // Widget container pour le sélecteur et l'image
         QWidget *selectorWidget = new QWidget();
+        selectorWidget->setStyleSheet("QWidget { background-color: #3a3a3a; }");
         QVBoxLayout *selectorLayout = new QVBoxLayout(selectorWidget);
         selectorLayout->setSpacing(15);
         selectorLayout->setAlignment(Qt::AlignCenter);
@@ -1088,6 +1089,41 @@ private:
             #thumbnailLabel {
                 background-color: transparent;
                 border: none;
+            }
+
+            QTabWidget::pane {
+                border: 1px solid #555;
+                border-radius: 8px;
+                background-color: #2b2b2b;
+                margin-top: -1px;
+            }
+
+            QTabBar::tab {
+                background-color: #404040;
+                border: 1px solid #555;
+                padding: 8px 16px;
+                margin-right: 2px;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                color: #cccccc;
+                font-size: 11pt;
+                min-width: 80px;
+            }
+
+            QTabBar::tab:hover {
+                background-color: #4a4a4a;
+                color: #ffffff;
+            }
+
+            QTabBar::tab:selected {
+                background-color: #0078d4;
+                color: #ffffff;
+                border-color: #0078d4;
+                font-weight: bold;
+            }
+
+            QTabBar::tab:!selected {
+                margin-top: 2px;
             }
         )");
     }
