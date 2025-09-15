@@ -1237,13 +1237,14 @@ protected:
         currentRating->setStyleSheet("background: transparent;");
         currentRating->show(); // S'assurer que le widget est visible
 
-        // Initialiser avec 1 étoile par défaut
-        categoryRatings[categoryId] = 1;
-        setProperty(("rating_" + categoryId).toLocal8Bit().constData(), 1);
+        // Utiliser la notation sauvegardée ou 1 par défaut si aucune sauvegarde
+        int savedRating = categoryRatings.value(categoryId, 1);
+        categoryRatings[categoryId] = savedRating;
+        setProperty(("rating_" + categoryId).toLocal8Bit().constData(), savedRating);
 
         // Appeler updateCategoryRatingDisplay après que tous les widgets soient configurés
-        QTimer::singleShot(0, [this, categoryId]() {
-            updateCategoryRatingDisplay(categoryId, 1);
+        QTimer::singleShot(0, [this, categoryId, savedRating]() {
+            updateCategoryRatingDisplay(categoryId, savedRating);
         });
 
         // Widget pour les contrôles interactifs (masqué par défaut)
@@ -1314,6 +1315,9 @@ protected:
 
         // Mettre à jour l'affichage permanent
         updateCategoryRatingDisplay(categoryId, rating);
+
+        // Sauvegarder immédiatement la notation
+        saveCategoryRating(categoryId, rating);
 
         // Mettre à jour aussi les étoiles interactives si elles sont visibles
         QWidget *ratingWidget = findChild<QWidget*>("ratingWidget_" + categoryId);
@@ -1743,7 +1747,24 @@ private:
         bool multiScreenEnabled = settings.value("system/multiScreen", true).toBool();
         multiScreenToggle->setChecked(multiScreenEnabled);
 
+        // Charger les notations des catégories
+        settings.beginGroup("categoryRatings");
+        QStringList categoryKeys = settings.childKeys();
+        for (const QString &categoryId : categoryKeys) {
+            int rating = settings.value(categoryId, 1).toInt();
+            categoryRatings[categoryId] = rating;
+        }
+        settings.endGroup();
+
         isLoadingSettings = false; // Réactiver la détection des changements
+    }
+
+    void saveCategoryRating(const QString &categoryId, int rating)
+    {
+        QSettings settings("WallpaperIA", "WallpaperSettings");
+        settings.beginGroup("categoryRatings");
+        settings.setValue(categoryId, rating);
+        settings.endGroup();
     }
 
     QSystemTrayIcon *trayIcon;
