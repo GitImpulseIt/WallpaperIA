@@ -552,6 +552,7 @@ private:
         // Widget pour l'option "Autre" (masqué par défaut)
         QWidget *customFrequencyWidget = new QWidget();
         customFrequencyWidget->setObjectName("customFrequencyWidget");
+        customFrequencyWidget->setStyleSheet("QWidget { background-color: #3a3a3a; }");
         customFrequencyWidget->hide();
 
         QHBoxLayout *customLayout = new QHBoxLayout(customFrequencyWidget);
@@ -626,6 +627,25 @@ private:
             "margin-top: -1px;"
             "transform: rotate(45deg);"
             "}"
+            "QSpinBox:disabled {"
+            "border-color: #333;"
+            "background: #1a1a1a;"
+            "color: #555;"
+            "}"
+            "QSpinBox::up-button:disabled {"
+            "background: #222;"
+            "border-left-color: #333;"
+            "}"
+            "QSpinBox::down-button:disabled {"
+            "background: #222;"
+            "border-left-color: #333;"
+            "}"
+            "QSpinBox::up-arrow:disabled {"
+            "border-color: #555;"
+            "}"
+            "QSpinBox::down-arrow:disabled {"
+            "border-color: #555;"
+            "}"
         );
 
         // ComboBox pour l'unité de temps
@@ -685,6 +705,18 @@ private:
             "color: #ffffff;"
             "padding: 4px;"
             "}"
+            "QComboBox:disabled {"
+            "border-color: #333;"
+            "background: #1a1a1a;"
+            "color: #555;"
+            "}"
+            "QComboBox::drop-down:disabled {"
+            "background: #222;"
+            "border-left-color: #333;"
+            "}"
+            "QComboBox::down-arrow:disabled {"
+            "border-color: #555;"
+            "}"
         );
 
         customLayout->addWidget(customValueSpinBox);
@@ -693,19 +725,37 @@ private:
 
         frequencyLayout->addWidget(customFrequencyWidget);
 
-        // Connexion pour afficher/masquer l'option personnalisée
-        connect(frequencyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [customFrequencyWidget](int index) {
+        // S'assurer que le widget est visible et initialiser les contrôles comme désactivés
+        customFrequencyWidget->show();
+        customValueSpinBox->setEnabled(false);
+        customUnitCombo->setEnabled(false);
+
+        // Connexion pour activer/désactiver l'option personnalisée
+        connect(frequencyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [customValueSpinBox, customUnitCombo](int index) {
             if (index == 7) { // Index de "Autre"
-                customFrequencyWidget->show();
+                // Activer les contrôles
+                customValueSpinBox->setEnabled(true);
+                customUnitCombo->setEnabled(true);
             } else {
-                customFrequencyWidget->hide();
+                // Désactiver les contrôles sans les vider
+                customValueSpinBox->setEnabled(false);
+                customUnitCombo->setEnabled(false);
             }
         });
 
-        settingsLayout->addWidget(frequencyGroup);
+        // Layout horizontal principal pour organiser en deux colonnes
+        QHBoxLayout *mainSettingsLayout = new QHBoxLayout();
+        mainSettingsLayout->setSpacing(20);
+
+        // Colonne de gauche (Fréquence + Options système)
+        QVBoxLayout *leftColumnLayout = new QVBoxLayout();
+        leftColumnLayout->setSpacing(15);
+
+        leftColumnLayout->addWidget(frequencyGroup);
 
         // Groupe Mode d'ajustement de l'image
         QGroupBox *adjustmentGroup = new QGroupBox("Mode d'ajustement de l'image");
+        adjustmentGroup->setMinimumHeight(282); // Hauteur minimale pour alignement avec les deux cadres de gauche
         adjustmentGroup->setStyleSheet(
             "QGroupBox {"
             "font-weight: 600;"
@@ -852,8 +902,6 @@ private:
 
         adjustmentLayout->addLayout(centeringLayout);
 
-        settingsLayout->addWidget(adjustmentGroup);
-
         // Groupe Options système
         QGroupBox *systemGroup = new QGroupBox("Options système");
         systemGroup->setStyleSheet(
@@ -890,6 +938,7 @@ private:
 
         ToggleSwitch *startupToggle = new ToggleSwitch();
         startupToggle->setObjectName("startupToggle");
+        startupToggle->setChecked(true); // Activé par défaut
 
         startupLayout->addWidget(startupLabel);
         startupLayout->addStretch();
@@ -904,6 +953,7 @@ private:
 
         ToggleSwitch *multiScreenToggle = new ToggleSwitch();
         multiScreenToggle->setObjectName("multiScreenToggle");
+        multiScreenToggle->setChecked(true); // Activé par défaut
 
         multiScreenLayout->addWidget(multiScreenLabel);
         multiScreenLayout->addStretch();
@@ -920,7 +970,19 @@ private:
             // TODO: Gérer l'option écrans multiples
         });
 
-        settingsLayout->addWidget(systemGroup);
+        leftColumnLayout->addWidget(systemGroup);
+        leftColumnLayout->addStretch();
+
+        // Colonne de droite (Mode d'ajustement de l'image)
+        QVBoxLayout *rightColumnLayout = new QVBoxLayout();
+        rightColumnLayout->addWidget(adjustmentGroup);
+        rightColumnLayout->addStretch();
+
+        // Ajouter les deux colonnes au layout principal
+        mainSettingsLayout->addLayout(leftColumnLayout);
+        mainSettingsLayout->addLayout(rightColumnLayout);
+
+        settingsLayout->addLayout(mainSettingsLayout);
         settingsLayout->addStretch(); // Espacer vers le bas
 
         tabWidget->addTab(settingsTab, "Paramètres");
