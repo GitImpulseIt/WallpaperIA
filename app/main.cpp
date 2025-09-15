@@ -36,6 +36,7 @@
 #include <QPainter>
 #include <QMouseEvent>
 #include <QPropertyAnimation>
+#include <QSettings>
 #include <string>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -345,10 +346,21 @@ public:
         applyModernStyle();
         setupSystemTray();
         loadCategories();
+        loadSettings();
     }
 
     int getCategoryRating(const QString &categoryId) {
         return categoryRatings.value(categoryId, 1); // Retourne 1 par défaut
+    }
+
+private slots:
+    void onApplySettings() {
+        saveSettings();
+        applyButton->setEnabled(false); // Désactiver après avoir appliqué
+    }
+
+    void onSettingsChanged() {
+        applyButton->setEnabled(true); // Activer quand des changements sont détectés
     }
 
 private:
@@ -379,6 +391,40 @@ private:
         setupSettingsTab();
 
         mainLayout->addWidget(tabWidget);
+
+        // Bouton Appliquer en bas à droite de la fenêtre
+        QHBoxLayout *bottomLayout = new QHBoxLayout();
+        bottomLayout->addStretch();
+
+        applyButton = new QPushButton("Appliquer");
+        applyButton->setObjectName("applyButton");
+        applyButton->setFixedSize(120, 40);
+        applyButton->setEnabled(false); // Désactivé par défaut
+        applyButton->setStyleSheet(
+            "QPushButton {"
+            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4CAF50, stop:1 #45a049);"
+            "border: none;"
+            "border-radius: 8px;"
+            "color: white;"
+            "font-size: 13px;"
+            "font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #5CBF60, stop:1 #4CAF50);"
+            "}"
+            "QPushButton:pressed {"
+            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3d8b40, stop:1 #2e7d32);"
+            "}"
+            "QPushButton:disabled {"
+            "background: #666666;"
+            "color: #999999;"
+            "}"
+        );
+
+        connect(applyButton, &QPushButton::clicked, this, &ModernWindow::onApplySettings);
+
+        bottomLayout->addWidget(applyButton);
+        mainLayout->addLayout(bottomLayout);
     }
 
     void setupApplicationTab()
@@ -481,7 +527,7 @@ private:
         frequencyLayout->setSpacing(15);
 
         // ComboBox principal pour la fréquence
-        QComboBox *frequencyCombo = new QComboBox();
+        frequencyCombo = new QComboBox();
         frequencyCombo->setObjectName("frequencyCombo");
         frequencyCombo->addItems({
             "1h",
@@ -549,6 +595,9 @@ private:
 
         frequencyLayout->addWidget(frequencyCombo);
 
+        // Connecter au détecteur de changements
+        connect(frequencyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ModernWindow::onSettingsChanged);
+
         // Widget pour l'option "Autre" (masqué par défaut)
         QWidget *customFrequencyWidget = new QWidget();
         customFrequencyWidget->setObjectName("customFrequencyWidget");
@@ -560,7 +609,7 @@ private:
         customLayout->setSpacing(10);
 
         // SpinBox pour la valeur numérique
-        QSpinBox *customValueSpinBox = new QSpinBox();
+        customValueSpinBox = new QSpinBox();
         customValueSpinBox->setObjectName("customValueSpinBox");
         customValueSpinBox->setMinimum(1);
         customValueSpinBox->setMaximum(9999);
@@ -649,7 +698,7 @@ private:
         );
 
         // ComboBox pour l'unité de temps
-        QComboBox *customUnitCombo = new QComboBox();
+        customUnitCombo = new QComboBox();
         customUnitCombo->setObjectName("customUnitCombo");
         customUnitCombo->addItems({"minutes", "heures", "jours"});
         customUnitCombo->setFixedHeight(32);
@@ -723,6 +772,10 @@ private:
         customLayout->addWidget(customUnitCombo);
         customLayout->addStretch();
 
+        // Connecter les contrôles personnalisés au détecteur de changements
+        connect(customValueSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &ModernWindow::onSettingsChanged);
+        connect(customUnitCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ModernWindow::onSettingsChanged);
+
         frequencyLayout->addWidget(customFrequencyWidget);
 
         // S'assurer que le widget est visible et initialiser les contrôles comme désactivés
@@ -731,15 +784,15 @@ private:
         customUnitCombo->setEnabled(false);
 
         // Connexion pour activer/désactiver l'option personnalisée
-        connect(frequencyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [customValueSpinBox, customUnitCombo](int index) {
+        connect(frequencyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index) {
             if (index == 7) { // Index de "Autre"
                 // Activer les contrôles
-                customValueSpinBox->setEnabled(true);
-                customUnitCombo->setEnabled(true);
+                this->customValueSpinBox->setEnabled(true);
+                this->customUnitCombo->setEnabled(true);
             } else {
                 // Désactiver les contrôles sans les vider
-                customValueSpinBox->setEnabled(false);
-                customUnitCombo->setEnabled(false);
+                this->customValueSpinBox->setEnabled(false);
+                this->customUnitCombo->setEnabled(false);
             }
         });
 
@@ -794,7 +847,7 @@ private:
         selectorLayout->setAlignment(Qt::AlignCenter);
 
         // ComboBox pour sélectionner le mode
-        QComboBox *adjustmentCombo = new QComboBox();
+        adjustmentCombo = new QComboBox();
         adjustmentCombo->setObjectName("adjustmentCombo");
         adjustmentCombo->addItem("Remplir", "fill");
         adjustmentCombo->addItem("Ajuster", "fit");
@@ -881,8 +934,8 @@ private:
         }
 
         // Connecter le changement de sélection
-        connect(adjustmentCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, adjustmentCombo, adjustmentImageLabel](int index) {
-            QString mode = adjustmentCombo->itemData(index).toString();
+        connect(adjustmentCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, adjustmentImageLabel](int index) {
+            QString mode = this->adjustmentCombo->itemData(index).toString();
             QPixmap modePixmap(QString("wallpaper_%1_icon.png").arg(mode));
             if (!modePixmap.isNull()) {
                 // Utiliser une taille beaucoup plus grande pour remplir vraiment l'espace
@@ -896,6 +949,9 @@ private:
 
         selectorLayout->addWidget(adjustmentCombo, 0, Qt::AlignCenter);
         selectorLayout->addWidget(adjustmentImageLabel, 0, Qt::AlignCenter);
+
+        // Connecter au détecteur de changements (en plus de la connexion existante)
+        connect(adjustmentCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ModernWindow::onSettingsChanged);
 
         centeringLayout->addWidget(selectorWidget);
         centeringLayout->addStretch(); // Espacement à droite
@@ -936,7 +992,7 @@ private:
         QLabel *startupLabel = new QLabel("Démarrer avec Windows");
         startupLabel->setStyleSheet("color: #ffffff; font-size: 13px; background-color: transparent;");
 
-        ToggleSwitch *startupToggle = new ToggleSwitch();
+        startupToggle = new ToggleSwitch();
         startupToggle->setObjectName("startupToggle");
         startupToggle->setChecked(true); // Activé par défaut
 
@@ -951,7 +1007,7 @@ private:
         QLabel *multiScreenLabel = new QLabel("Image différente sur chaque écran");
         multiScreenLabel->setStyleSheet("color: #ffffff; font-size: 13px; background-color: transparent;");
 
-        ToggleSwitch *multiScreenToggle = new ToggleSwitch();
+        multiScreenToggle = new ToggleSwitch();
         multiScreenToggle->setObjectName("multiScreenToggle");
         multiScreenToggle->setChecked(true); // Activé par défaut
 
@@ -961,14 +1017,9 @@ private:
 
         systemLayout->addLayout(multiScreenLayout);
 
-        // Connecter les signaux (pour l'instant juste des placeholders)
-        connect(startupToggle, &ToggleSwitch::toggled, [](bool checked) {
-            // TODO: Gérer le démarrage automatique avec Windows
-        });
-
-        connect(multiScreenToggle, &ToggleSwitch::toggled, [](bool checked) {
-            // TODO: Gérer l'option écrans multiples
-        });
+        // Connecter les signaux
+        connect(startupToggle, &ToggleSwitch::toggled, this, &ModernWindow::onSettingsChanged);
+        connect(multiScreenToggle, &ToggleSwitch::toggled, this, &ModernWindow::onSettingsChanged);
 
         leftColumnLayout->addWidget(systemGroup);
         leftColumnLayout->addStretch();
@@ -1640,6 +1691,62 @@ private:
         }
     }
 
+    void saveSettings()
+    {
+        QSettings settings("WallpaperIA", "WallpaperSettings");
+
+        // Sauvegarder la fréquence de changement
+        settings.setValue("frequency/combo", frequencyCombo->currentIndex());
+        settings.setValue("frequency/customValue", customValueSpinBox->value());
+        settings.setValue("frequency/customUnit", customUnitCombo->currentIndex());
+
+        // Sauvegarder le mode d'ajustement
+        settings.setValue("adjustment/mode", adjustmentCombo->currentIndex());
+
+        // Sauvegarder les options système
+        settings.setValue("system/startupToggle", startupToggle->isChecked());
+        settings.setValue("system/multiScreen", multiScreenToggle->isChecked());
+
+        // Message de confirmation dans le bouton temporairement
+        QString originalText = applyButton->text();
+        applyButton->setText("Sauvegardé !");
+        QTimer::singleShot(2000, [this, originalText]() {
+            applyButton->setText(originalText);
+        });
+    }
+
+    void loadSettings()
+    {
+        QSettings settings("WallpaperIA", "WallpaperSettings");
+
+        // Charger la fréquence de changement
+        int frequencyIndex = settings.value("frequency/combo", 0).toInt();
+        if (frequencyIndex >= 0 && frequencyIndex < frequencyCombo->count()) {
+            frequencyCombo->setCurrentIndex(frequencyIndex);
+        }
+
+        int customValue = settings.value("frequency/customValue", 30).toInt();
+        customValueSpinBox->setValue(customValue);
+
+        int customUnitIndex = settings.value("frequency/customUnit", 0).toInt();
+        if (customUnitIndex >= 0 && customUnitIndex < customUnitCombo->count()) {
+            customUnitCombo->setCurrentIndex(customUnitIndex);
+        }
+
+        // Charger le mode d'ajustement
+        int adjustmentIndex = settings.value("adjustment/mode", 0).toInt();
+        if (adjustmentIndex >= 0 && adjustmentIndex < adjustmentCombo->count()) {
+            adjustmentCombo->setCurrentIndex(adjustmentIndex);
+        }
+
+        // Charger les options système
+        bool startupEnabled = settings.value("system/startupToggle", true).toBool();
+        startupToggle->setChecked(startupEnabled);
+
+        bool multiScreenEnabled = settings.value("system/multiScreen", true).toBool();
+        multiScreenToggle->setChecked(multiScreenEnabled);
+    }
+
     QSystemTrayIcon *trayIcon;
     QMenu *trayMenu;
     QNetworkAccessManager *networkManager;
@@ -1650,6 +1757,15 @@ private:
     QPushButton *changeNowButton;
     QLabel *statusLabel;
     QMap<QString, int> categoryRatings; // Stockage des notations des catégories
+
+    // Contrôles de paramètres pour la sauvegarde/chargement
+    QComboBox *frequencyCombo;
+    QSpinBox *customValueSpinBox;
+    QComboBox *customUnitCombo;
+    QComboBox *adjustmentCombo;
+    ToggleSwitch *startupToggle;
+    ToggleSwitch *multiScreenToggle;
+    QPushButton *applyButton;
 };
 
 int main(int argc, char *argv[])
