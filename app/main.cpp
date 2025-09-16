@@ -37,6 +37,7 @@
 #include <QMouseEvent>
 #include <QPropertyAnimation>
 #include <QSettings>
+#include <QPainterPath>
 #include <string>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -238,6 +239,120 @@ private:
     QPushButton *m_disableBtn;
     QString m_categoryId;
     QWidget *m_parent;
+};
+
+// Classe pour le sélecteur d'écran avec esthétique moderne
+class ScreenSelector : public QWidget
+{
+    Q_OBJECT
+
+public:
+    ScreenSelector(QWidget *parent = nullptr) : QWidget(parent), m_currentScreen(0)
+    {
+        setFixedHeight(35);
+        setupScreens();
+        setupUI();
+    }
+
+    void setCurrentScreen(int screenIndex)
+    {
+        if (screenIndex >= 0 && screenIndex < m_screenCount && screenIndex != m_currentScreen) {
+            m_currentScreen = screenIndex;
+            update();
+            emit screenChanged(screenIndex);
+        }
+    }
+
+    int currentScreen() const { return m_currentScreen; }
+    int screenCount() const { return m_screenCount; }
+
+signals:
+    void screenChanged(int screenIndex);
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        int tabWidth = width() / m_screenCount;
+        int borderRadius = 6;
+
+        // Dessiner d'abord le fond global avec coins arrondis
+        QRect globalRect(0, 0, width(), height());
+        painter.setBrush(QColor("#8b4513")); // Couleur de fond par défaut
+        painter.setPen(Qt::NoPen);
+        painter.drawRoundedRect(globalRect, borderRadius, borderRadius);
+
+        // Puis dessiner l'onglet actif par-dessus avec clipping pour respecter les coins arrondis
+        painter.save();
+
+        // Créer un chemin de clipping avec les coins arrondis
+        QPainterPath clipPath;
+        clipPath.addRoundedRect(globalRect, borderRadius, borderRadius);
+        painter.setClipPath(clipPath);
+
+        for (int i = 0; i < m_screenCount; i++) {
+            QRect tabRect(i * tabWidth, 0, tabWidth, height());
+
+            // Dessiner seulement l'onglet actif avec une couleur différente
+            if (i == m_currentScreen) {
+                painter.setBrush(QColor("#d14836")); // Rouge-orange actif
+                painter.setPen(Qt::NoPen);
+                painter.drawRect(tabRect);
+            }
+        }
+
+        painter.restore();
+
+        // Dessiner les séparateurs entre les onglets
+        painter.setPen(QPen(QColor("#5a3a1a"), 1)); // Ligne de séparation plus foncée
+        for (int i = 1; i < m_screenCount; i++) {
+            int x = i * tabWidth;
+            painter.drawLine(x, 2, x, height() - 2);
+        }
+
+        // Dessiner le texte pour tous les onglets
+        painter.setPen(QColor("#ffffff"));
+        painter.setFont(QFont("Segoe UI", 9, QFont::Bold));
+        for (int i = 0; i < m_screenCount; i++) {
+            QRect tabRect(i * tabWidth, 0, tabWidth, height());
+            QString text = QString("Écran %1").arg(i + 1);
+            painter.drawText(tabRect, Qt::AlignCenter, text);
+        }
+    }
+
+    void mousePressEvent(QMouseEvent *event) override
+    {
+        if (event->button() == Qt::LeftButton) {
+            int tabWidth = width() / m_screenCount;
+            int clickedScreen = static_cast<int>(event->position().x()) / tabWidth;
+            if (clickedScreen >= 0 && clickedScreen < m_screenCount) {
+                setCurrentScreen(clickedScreen);
+            }
+        }
+    }
+
+private:
+    void setupScreens()
+    {
+        // Détecter le nombre d'écrans
+        m_screenCount = QApplication::screens().count();
+        if (m_screenCount < 1) {
+            m_screenCount = 1; // Au moins un écran par défaut
+        }
+    }
+
+    void setupUI()
+    {
+        // Calculer la largeur optimale basée sur le nombre d'écrans
+        int optimalWidth = m_screenCount * 80; // 80px par onglet
+        setFixedSize(optimalWidth, 35);
+    }
+
+private:
+    int m_currentScreen;
+    int m_screenCount;
 };
 
 // Classe pour afficher un compte à rebours avec camembert de progression
@@ -484,6 +599,20 @@ private slots:
         }
     }
 
+    void onMultiScreenToggled(bool enabled) {
+        if (screenSelector) {
+            if (enabled && screenSelector->screenCount() > 1) {
+                screenSelector->show();
+                // Mettre à jour le statut pour indiquer l'écran sélectionné
+                statusLabel->setText(QString("Écran sélectionné : %1").arg(screenSelector->currentScreen() + 1));
+            } else {
+                screenSelector->hide();
+                // Remettre le statut par défaut
+                statusLabel->setText("Cliquez pour changer le fond d'écran");
+            }
+        }
+    }
+
     void updateCountdownFromSettings() {
         if (!countdownWidget) return;
 
@@ -552,9 +681,13 @@ private:
         applicationLayout->setContentsMargins(20, 20, 20, 20);
         applicationLayout->setSpacing(20);
 
+        // Layout horizontal pour le bouton et le sélecteur d'écran
+        QHBoxLayout *buttonLayout = new QHBoxLayout();
+        buttonLayout->setSpacing(15);
+
         // Bouton "Changer Maintenant"
         changeNowButton = new QPushButton("🖼️ Changer Maintenant");
-        changeNowButton->setFixedHeight(50);
+        changeNowButton->setFixedSize(260, 50); // Largeur encore augmentée pour éviter la troncature
         changeNowButton->setStyleSheet(
             "QPushButton {"
             "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2196F3, stop:1 #1976D2);"
@@ -563,6 +696,7 @@ private:
             "border-radius: 8px;"
             "font-size: 14pt;"
             "font-weight: bold;"
+            "padding: 8px 20px;" // Ajout du padding horizontal
             "}"
             "QPushButton:hover {"
             "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #42A5F5, stop:1 #2196F3);"
@@ -572,7 +706,17 @@ private:
             "}"
         );
         connect(changeNowButton, &QPushButton::clicked, this, &ModernWindow::onChangeNowClicked);
-        applicationLayout->addWidget(changeNowButton);
+
+        // Sélecteur d'écran (initialement masqué)
+        screenSelector = new ScreenSelector();
+        screenSelector->hide(); // Masqué par défaut
+        connect(screenSelector, &ScreenSelector::screenChanged, this, &ModernWindow::onScreenChanged);
+
+        buttonLayout->addWidget(changeNowButton);
+        buttonLayout->addWidget(screenSelector, 0, Qt::AlignVCenter);
+        buttonLayout->addStretch(); // Pousser vers la gauche
+
+        applicationLayout->addLayout(buttonLayout);
 
         // Label pour le statut
         statusLabel = new QLabel("Cliquez pour changer le fond d'écran");
@@ -1147,6 +1291,7 @@ private:
         // Connecter les signaux
         connect(startupToggle, &ToggleSwitch::toggled, this, &ModernWindow::onSettingsChanged);
         connect(multiScreenToggle, &ToggleSwitch::toggled, this, &ModernWindow::onSettingsChanged);
+        connect(multiScreenToggle, &ToggleSwitch::toggled, this, &ModernWindow::onMultiScreenToggled);
 
         leftColumnLayout->addWidget(systemGroup);
         leftColumnLayout->addStretch();
@@ -1732,6 +1877,14 @@ private slots:
     }
 
 private slots:
+    void onScreenChanged(int screenIndex)
+    {
+        // Mettre à jour le statut pour indiquer l'écran sélectionné
+        if (screenSelector->screenCount() > 1) {
+            statusLabel->setText(QString("Écran sélectionné : %1").arg(screenIndex + 1));
+        }
+    }
+
     void onChangeNowClicked()
     {
         // Désactiver le bouton pendant le processus
@@ -1954,6 +2107,11 @@ private:
 
         // Initialiser le countdown avec les paramètres chargés
         updateCountdownFromSettings();
+
+        // Initialiser l'affichage du sélecteur d'écran
+        if (screenSelector) {
+            onMultiScreenToggled(multiScreenToggle->isChecked());
+        }
     }
 
     void saveCategoryRating(const QString &categoryId, int rating)
@@ -1975,6 +2133,7 @@ private:
     QLabel *statusLabel;
     CountdownWidget *countdownWidget;
     QMap<QString, int> categoryRatings; // Stockage des notations des catégories
+    ScreenSelector *screenSelector; // Sélecteur d'écran
 
     // Contrôles de paramètres pour la sauvegarde/chargement
     QComboBox *frequencyCombo;
