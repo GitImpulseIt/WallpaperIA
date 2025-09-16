@@ -347,7 +347,9 @@ private:
     {
         // Calculer la largeur optimale basée sur le nombre d'écrans
         int optimalWidth = m_screenCount * 80; // 80px par onglet
-        setFixedSize(optimalWidth, 35);
+        setMinimumSize(optimalWidth, 35);
+        setMaximumHeight(35);
+        // Permettre l'expansion horizontale pour l'alignement justifié
     }
 
 private:
@@ -681,13 +683,32 @@ private:
         applicationLayout->setContentsMargins(20, 20, 20, 20);
         applicationLayout->setSpacing(20);
 
-        // Layout horizontal pour le bouton et le sélecteur d'écran
-        QHBoxLayout *buttonLayout = new QHBoxLayout();
-        buttonLayout->setSpacing(15);
+        // Layout principal horizontal : zone gauche (contrôles) + zone droite (countdown)
+        QHBoxLayout *mainLayout = new QHBoxLayout();
+        mainLayout->setSpacing(60); // Espacement réduit entre les groupes
 
-        // Bouton "Changer Maintenant"
+        // === ZONE GAUCHE : Contrôles ===
+        QVBoxLayout *leftControlsLayout = new QVBoxLayout();
+        leftControlsLayout->setSpacing(10); // Espacement réduit pour un meilleur alignement
+        leftControlsLayout->setAlignment(Qt::AlignTop);
+
+        // Container avec largeur fixe pour justification
+        QWidget *controlsContainer = new QWidget();
+        controlsContainer->setFixedWidth(280); // Largeur fixe pour alignement justifié
+        QVBoxLayout *containerLayout = new QVBoxLayout(controlsContainer);
+        containerLayout->setContentsMargins(0, 0, 0, 0);
+        containerLayout->setSpacing(10);
+
+        // Sélecteur d'écran en haut
+        screenSelector = new ScreenSelector();
+        screenSelector->hide(); // Masqué par défaut
+        screenSelector->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed); // Expansion horizontale
+        connect(screenSelector, &ScreenSelector::screenChanged, this, &ModernWindow::onScreenChanged);
+        containerLayout->addWidget(screenSelector);
+
+        // Bouton "Changer Maintenant" sous le sélecteur, prend toute la largeur disponible
         changeNowButton = new QPushButton("🖼️ Changer Maintenant");
-        changeNowButton->setFixedSize(260, 50); // Largeur encore augmentée pour éviter la troncature
+        changeNowButton->setFixedHeight(50);
         changeNowButton->setStyleSheet(
             "QPushButton {"
             "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2196F3, stop:1 #1976D2);"
@@ -696,7 +717,7 @@ private:
             "border-radius: 8px;"
             "font-size: 14pt;"
             "font-weight: bold;"
-            "padding: 8px 20px;" // Ajout du padding horizontal
+            "padding: 8px 20px;"
             "}"
             "QPushButton:hover {"
             "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #42A5F5, stop:1 #2196F3);"
@@ -706,33 +727,42 @@ private:
             "}"
         );
         connect(changeNowButton, &QPushButton::clicked, this, &ModernWindow::onChangeNowClicked);
+        containerLayout->addWidget(changeNowButton);
 
-        // Sélecteur d'écran (initialement masqué)
-        screenSelector = new ScreenSelector();
-        screenSelector->hide(); // Masqué par défaut
-        connect(screenSelector, &ScreenSelector::screenChanged, this, &ModernWindow::onScreenChanged);
-
-        buttonLayout->addWidget(changeNowButton);
-        buttonLayout->addWidget(screenSelector, 0, Qt::AlignVCenter);
-        buttonLayout->addStretch(); // Pousser vers la gauche
-
-        applicationLayout->addLayout(buttonLayout);
-
-        // Label pour le statut
+        // Label pour le statut sous le bouton
         statusLabel = new QLabel("Cliquez pour changer le fond d'écran");
-        statusLabel->setAlignment(Qt::AlignCenter);
-        statusLabel->setStyleSheet("color: #ADD8E6; font-size: 11pt; margin: 10px;");
-        applicationLayout->addWidget(statusLabel);
+        statusLabel->setAlignment(Qt::AlignLeft);
+        statusLabel->setStyleSheet("color: #ADD8E6; font-size: 11pt; margin: 10px 0px;");
+        containerLayout->addWidget(statusLabel);
+
+        // Ajouter le container au layout principal
+        leftControlsLayout->addWidget(controlsContainer);
+
+        // === ZONE DROITE : Countdown ===
+        QVBoxLayout *rightCountdownLayout = new QVBoxLayout();
+        rightCountdownLayout->setSpacing(0); // Même espacement que les contrôles de gauche
+        rightCountdownLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
+
+        // Titre pour le countdown
+        QLabel *countdownTitle = new QLabel("Prochain Changement");
+        countdownTitle->setAlignment(Qt::AlignCenter);
+        countdownTitle->setStyleSheet("color: #ffffff; font-size: 12pt; font-weight: bold;"); // Suppression du margin-bottom
+        rightCountdownLayout->addWidget(countdownTitle);
 
         // Widget de compte à rebours
         countdownWidget = new CountdownWidget();
-        QHBoxLayout *countdownLayout = new QHBoxLayout();
-        countdownLayout->addStretch();
-        countdownLayout->addWidget(countdownWidget);
-        countdownLayout->addStretch();
-        applicationLayout->addLayout(countdownLayout);
+        rightCountdownLayout->addWidget(countdownWidget, 0, Qt::AlignCenter);
 
-        applicationLayout->addStretch(); // Espacer vers le haut
+        // Assemblage du layout principal - centrer les groupes
+        mainLayout->addStretch(); // Espacement à gauche pour centrer
+        mainLayout->addLayout(leftControlsLayout);
+        mainLayout->addLayout(rightCountdownLayout);
+        mainLayout->addStretch(); // Espacement à droite pour centrer
+
+        applicationLayout->addLayout(mainLayout);
+
+        // Espace pour le futur carrousel
+        applicationLayout->addStretch();
 
         tabWidget->addTab(applicationTab, "Fond d'écran");
     }
