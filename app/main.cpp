@@ -12,6 +12,7 @@
 #include <QEvent>
 #include <QScrollArea>
 #include <QLabel>
+#include <QMessageBox>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
@@ -38,6 +39,8 @@
 #include <QPropertyAnimation>
 #include <QSettings>
 #include <QPainterPath>
+#include <QCryptographicHash>
+#include <QDateTime>
 #include <string>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -46,6 +49,64 @@
 #include <objidl.h>
 #include <shlguid.h>
 #include <shobjidl.h>
+
+// Définitions pour IDesktopWallpaper si non disponibles dans MinGW
+#ifndef __IDesktopWallpaper_INTERFACE_DEFINED__
+#define __IDesktopWallpaper_INTERFACE_DEFINED__
+
+DEFINE_GUID(CLSID_DesktopWallpaper, 0xC2CF3110, 0x460E, 0x4fc1, 0xB9, 0xD0, 0x8A, 0x1C, 0x0C, 0x9C, 0xC4, 0xBD);
+
+// Énumérations pour les positions de fond d'écran
+typedef enum DESKTOP_WALLPAPER_POSITION {
+    DWPOS_CENTER = 0,
+    DWPOS_TILE = 1,
+    DWPOS_STRETCH = 2,
+    DWPOS_FIT = 3,
+    DWPOS_FILL = 4,
+    DWPOS_SPAN = 5
+} DESKTOP_WALLPAPER_POSITION;
+
+interface IDesktopWallpaper : public IUnknown
+{
+public:
+    virtual HRESULT STDMETHODCALLTYPE SetWallpaper(LPCWSTR monitorID, LPCWSTR wallpaper) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetWallpaper(LPCWSTR monitorID, LPWSTR *wallpaper) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetMonitorDevicePathAt(UINT monitorIndex, LPWSTR *monitorID) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetMonitorDevicePathCount(UINT *count) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetMonitorRECT(LPCWSTR monitorID, RECT *displayRect) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetBackgroundColor(COLORREF color) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetBackgroundColor(COLORREF *color) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetPosition(DESKTOP_WALLPAPER_POSITION position) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetPosition(DESKTOP_WALLPAPER_POSITION *position) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetSlideshow(IShellItemArray *items) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetSlideshow(IShellItemArray **items) = 0;
+    virtual HRESULT STDMETHODCALLTYPE SetSlideshowOptions(DESKTOP_SLIDESHOW_OPTIONS options, UINT slideshowTick) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetSlideshowOptions(DESKTOP_SLIDESHOW_OPTIONS *options, UINT *slideshowTick) = 0;
+    virtual HRESULT STDMETHODCALLTYPE AdvanceSlideshow(LPCWSTR monitorID, DESKTOP_SLIDESHOW_DIRECTION direction) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetStatus(DESKTOP_SLIDESHOW_STATE *state) = 0;
+    virtual HRESULT STDMETHODCALLTYPE Enable(BOOL enable) = 0;
+};
+
+// Énumérations supplémentaires pour le slideshow
+typedef enum DESKTOP_SLIDESHOW_OPTIONS {
+    DSO_SHUFFLEIMAGES = 0x01
+} DESKTOP_SLIDESHOW_OPTIONS;
+
+typedef enum DESKTOP_SLIDESHOW_STATE {
+    DSS_ENABLED = 0x01,
+    DSS_SLIDESHOW = 0x02,
+    DSS_DISABLED_BY_REMOTE_SESSION = 0x04
+} DESKTOP_SLIDESHOW_STATE;
+
+typedef enum DESKTOP_SLIDESHOW_DIRECTION {
+    DSD_FORWARD = 0,
+    DSD_BACKWARD = 1
+} DESKTOP_SLIDESHOW_DIRECTION;
+
+static const IID IID_IDesktopWallpaper = {0xB92B56A9, 0x8B55, 0x4E14, {0x9A, 0x89, 0x01, 0x99, 0xBB, 0xB6, 0xF9, 0x3B}};
+
+#endif // __IDesktopWallpaper_INTERFACE_DEFINED__
+
 #endif
 
 // Classe pour gérer les événements de survol des catégories
@@ -247,27 +308,58 @@ class ScreenSelector : public QWidget
     Q_OBJECT
 
 public:
-    ScreenSelector(QWidget *parent = nullptr) : QWidget(parent), m_currentScreen(0)
+    ScreenSelector(QWidget *parent = nullptr) : QWidget(parent), m_screenCount(0)
     {
         setFixedHeight(35);
         setupScreens();
         setupUI();
-    }
-
-    void setCurrentScreen(int screenIndex)
-    {
-        if (screenIndex >= 0 && screenIndex < m_screenCount && screenIndex != m_currentScreen) {
-            m_currentScreen = screenIndex;
-            update();
-            emit screenChanged(screenIndex);
+        // Sélectionner tous les écrans par défaut
+        for (int i = 0; i < m_screenCount; i++) {
+            m_selectedScreens[i] = true;
         }
     }
 
-    int currentScreen() const { return m_currentScreen; }
+    void setScreenSelected(int screenIndex, bool selected)
+    {
+        if (screenIndex >= 0 && screenIndex < m_screenCount) {
+            m_selectedScreens[screenIndex] = selected;
+            update();
+            emit screenSelectionChanged(getSelectedScreens());
+        }
+    }
+
+    bool isScreenSelected(int screenIndex) const
+    {
+        return m_selectedScreens.value(screenIndex, false);
+    }
+
+    QList<int> getSelectedScreens() const
+    {
+        QList<int> selected;
+        for (auto it = m_selectedScreens.constBegin(); it != m_selectedScreens.constEnd(); ++it) {
+            if (it.value()) {
+                selected.append(it.key());
+            }
+        }
+        return selected;
+    }
+
+    void setScreenCanBeDeselected(int screenIndex, bool canDeselect)
+    {
+        m_canBeDeselected[screenIndex] = canDeselect;
+        update();
+    }
+
+    bool canScreenBeDeselected(int screenIndex) const
+    {
+        return m_canBeDeselected.value(screenIndex, false);
+    }
+
     int screenCount() const { return m_screenCount; }
 
 signals:
-    void screenChanged(int screenIndex);
+    void screenSelectionChanged(const QList<int> &selectedScreens);
+    void screenDeselectionBlocked(int screenIndex);
 
 protected:
     void paintEvent(QPaintEvent *) override
@@ -284,7 +376,7 @@ protected:
         painter.setPen(Qt::NoPen);
         painter.drawRoundedRect(globalRect, borderRadius, borderRadius);
 
-        // Puis dessiner l'onglet actif par-dessus avec clipping pour respecter les coins arrondis
+        // Puis dessiner les onglets sélectionnés par-dessus avec clipping pour respecter les coins arrondis
         painter.save();
 
         // Créer un chemin de clipping avec les coins arrondis
@@ -295,9 +387,9 @@ protected:
         for (int i = 0; i < m_screenCount; i++) {
             QRect tabRect(i * tabWidth, 0, tabWidth, height());
 
-            // Dessiner seulement l'onglet actif avec une couleur différente
-            if (i == m_currentScreen) {
-                painter.setBrush(QColor("#d14836")); // Rouge-orange actif
+            // Dessiner les onglets sélectionnés
+            if (isScreenSelected(i)) {
+                painter.setBrush(QColor("#d14836")); // Rouge-orange pour sélectionnés
                 painter.setPen(Qt::NoPen);
                 painter.drawRect(tabRect);
             }
@@ -313,12 +405,27 @@ protected:
         }
 
         // Dessiner le texte pour tous les onglets
-        painter.setPen(QColor("#ffffff"));
         painter.setFont(QFont("Segoe UI", 9, QFont::Bold));
         for (int i = 0; i < m_screenCount; i++) {
             QRect tabRect(i * tabWidth, 0, tabWidth, height());
             QString text = QString("Écran %1").arg(i + 1);
+
+            // Couleur du texte selon l'état
+            if (isScreenSelected(i)) {
+                painter.setPen(QColor("#ffffff")); // Blanc pour sélectionnés
+            } else {
+                painter.setPen(QColor("#cccccc")); // Gris pour non-sélectionnés
+            }
+
             painter.drawText(tabRect, Qt::AlignCenter, text);
+
+            // Dessiner un petit indicateur si l'écran ne peut pas être désélectionné
+            if (!canScreenBeDeselected(i) && isScreenSelected(i)) {
+                painter.setPen(QColor("#ffffff"));
+                painter.setFont(QFont("Segoe UI", 7));
+                QRect lockRect = tabRect.adjusted(2, tabRect.height() - 12, -2, -2);
+                painter.drawText(lockRect, Qt::AlignRight, "🔒");
+            }
         }
     }
 
@@ -328,7 +435,20 @@ protected:
             int tabWidth = width() / m_screenCount;
             int clickedScreen = static_cast<int>(event->position().x()) / tabWidth;
             if (clickedScreen >= 0 && clickedScreen < m_screenCount) {
-                setCurrentScreen(clickedScreen);
+                bool currentlySelected = isScreenSelected(clickedScreen);
+
+                if (currentlySelected) {
+                    // Tentative de désélection
+                    if (canScreenBeDeselected(clickedScreen)) {
+                        setScreenSelected(clickedScreen, false);
+                    } else {
+                        // Émission du signal de blocage pour afficher le message
+                        emit screenDeselectionBlocked(clickedScreen);
+                    }
+                } else {
+                    // Sélection
+                    setScreenSelected(clickedScreen, true);
+                }
             }
         }
     }
@@ -353,8 +473,9 @@ private:
     }
 
 private:
-    int m_currentScreen;
     int m_screenCount;
+    QMap<int, bool> m_selectedScreens;      // Écrans sélectionnés
+    QMap<int, bool> m_canBeDeselected;      // Écrans qui peuvent être désélectionnés
 };
 
 // Classe pour afficher un compte à rebours avec camembert de progression
@@ -605,8 +726,8 @@ private slots:
         if (screenSelector) {
             if (enabled && screenSelector->screenCount() > 1) {
                 screenSelector->show();
-                // Mettre à jour le statut pour indiquer l'écran sélectionné
-                statusLabel->setText(QString("Écran sélectionné : %1").arg(screenSelector->currentScreen() + 1));
+                // Mettre à jour le statut pour indiquer les écrans sélectionnés
+                onScreenSelectionChanged(screenSelector->getSelectedScreens());
             } else {
                 screenSelector->hide();
                 // Remettre le statut par défaut
@@ -703,7 +824,8 @@ private:
         screenSelector = new ScreenSelector();
         screenSelector->hide(); // Masqué par défaut
         screenSelector->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed); // Expansion horizontale
-        connect(screenSelector, &ScreenSelector::screenChanged, this, &ModernWindow::onScreenChanged);
+        connect(screenSelector, &ScreenSelector::screenSelectionChanged, this, &ModernWindow::onScreenSelectionChanged);
+        connect(screenSelector, &ScreenSelector::screenDeselectionBlocked, this, &ModernWindow::onScreenDeselectionBlocked);
         containerLayout->addWidget(screenSelector);
 
         // Bouton "Changer Maintenant" sous le sélecteur, prend toute la largeur disponible
@@ -1907,12 +2029,54 @@ private slots:
     }
 
 private slots:
-    void onScreenChanged(int screenIndex)
+    void onScreenSelectionChanged(const QList<int> &selectedScreens)
     {
-        // Mettre à jour le statut pour indiquer l'écran sélectionné
+        // Mettre à jour le statut pour indiquer les écrans sélectionnés
         if (screenSelector->screenCount() > 1) {
-            statusLabel->setText(QString("Écran sélectionné : %1").arg(screenIndex + 1));
+            if (selectedScreens.size() == 1) {
+                statusLabel->setText(QString("Écran sélectionné : %1").arg(selectedScreens.first() + 1));
+            } else if (selectedScreens.size() > 1) {
+                QStringList screenNumbers;
+                for (int screen : selectedScreens) {
+                    screenNumbers.append(QString::number(screen + 1));
+                }
+                statusLabel->setText(QString("Écrans sélectionnés : %1").arg(screenNumbers.join(", ")));
+            } else {
+                statusLabel->setText("Aucun écran sélectionné");
+            }
         }
+    }
+
+    void onScreenDeselectionBlocked(int screenIndex)
+    {
+        // Afficher un message explicatif quand l'utilisateur essaie de désélectionner un écran sans historique
+        QString message = QString("L'écran %1 ne peut pas être désélectionné car il n'a pas encore d'historique de fonds d'écran.\n\n"
+                                 "Appliquez d'abord au moins un fond d'écran sur cet écran pour pouvoir le désélectionner.")
+                         .arg(screenIndex + 1);
+
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle("Écran sans historique");
+        msgBox.setText(message);
+        msgBox.setIcon(QMessageBox::Information);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setStyleSheet(
+            "QMessageBox {"
+            "background-color: #2b2b2b;"
+            "color: #ffffff;"
+            "}"
+            "QMessageBox QPushButton {"
+            "background-color: #0078d4;"
+            "color: white;"
+            "border: none;"
+            "border-radius: 4px;"
+            "padding: 8px 16px;"
+            "min-width: 80px;"
+            "}"
+            "QMessageBox QPushButton:hover {"
+            "background-color: #106ebe;"
+            "}"
+        );
+        msgBox.exec();
     }
 
     void onChangeNowClicked()
@@ -1920,13 +2084,301 @@ private slots:
         // Désactiver le bouton pendant le processus
         changeNowButton->setEnabled(false);
         changeNowButton->setText("🔄 Changement en cours...");
-        statusLabel->setText("Récupération d'une image aléatoire...");
 
-        // Obtenir toutes les catégories et choisir une image au hasard
-        getRandomWallpaper();
+        // Déterminer combien d'images sont nécessaires
+        QList<int> targetScreens;
+        if (multiScreenToggle->isChecked() && screenSelector && screenSelector->screenCount() > 1) {
+            targetScreens = screenSelector->getSelectedScreens();
+        } else {
+            targetScreens.append(-1); // Mode classique : une seule image pour tous
+        }
+
+        if (targetScreens.contains(-1) || targetScreens.size() == 1) {
+            // Une seule image nécessaire
+            statusLabel->setText("Récupération d'une image aléatoire...");
+            getRandomWallpaper();
+        } else {
+            // Plusieurs images nécessaires
+            statusLabel->setText(QString("Récupération de %1 images aléatoires...").arg(targetScreens.size()));
+            getMultipleRandomWallpapers(targetScreens);
+        }
     }
 
 private:
+    // Structures pour gérer le téléchargement multiple
+    struct MultiWallpaperDownload {
+        QList<int> targetScreens;
+        QMap<int, QString> downloadedImages; // screenIndex -> imagePath
+        int pendingDownloads;
+        int completedDownloads;
+    };
+    MultiWallpaperDownload *currentMultiDownload = nullptr;
+
+    void getMultipleRandomWallpapers(const QList<int> &targetScreens)
+    {
+        // Nettoyer un téléchargement précédent si nécessaire
+        if (currentMultiDownload) {
+            delete currentMultiDownload;
+        }
+
+        // Initialiser la structure de téléchargement multiple
+        currentMultiDownload = new MultiWallpaperDownload();
+        currentMultiDownload->targetScreens = targetScreens;
+        currentMultiDownload->pendingDownloads = targetScreens.size();
+        currentMultiDownload->completedDownloads = 0;
+
+        // Lancer le téléchargement pour chaque écran
+        for (int screenIndex : targetScreens) {
+            getRandomWallpaperForScreen(screenIndex);
+        }
+    }
+
+    void getRandomWallpaperForScreen(int screenIndex)
+    {
+        QNetworkRequest request(QUrl("http://localhost:8080/WallpaperIA/api/categories"));
+        QNetworkReply *reply = networkManager->get(request);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, screenIndex]() {
+            // Vérifier que le téléchargement multi-écrans est toujours actif
+            if (!currentMultiDownload) {
+                reply->deleteLater();
+                return;
+            }
+
+            if (reply->error() == QNetworkReply::NoError) {
+                QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+                QJsonObject obj = doc.object();
+
+                if (obj["success"].toBool()) {
+                    QJsonArray categories = obj["data"].toArray();
+                    if (!categories.isEmpty()) {
+                        // Choisir une catégorie au hasard
+                        int randomCategoryIndex = QRandomGenerator::global()->bounded(categories.size());
+                        QString categoryId = categories[randomCategoryIndex].toObject()["id"].toString();
+
+                        // Obtenir une image de cette catégorie pour cet écran
+                        getRandomImageFromCategoryForScreen(categoryId, screenIndex);
+                    } else {
+                        handleMultiDownloadError(QString("Aucune catégorie disponible pour écran %1").arg(screenIndex + 1));
+                    }
+                } else {
+                    handleMultiDownloadError(QString("Erreur API catégories pour écran %1: %2").arg(screenIndex + 1).arg(obj["message"].toString()));
+                }
+            } else {
+                handleMultiDownloadError(QString("Erreur de connexion catégories pour écran %1: %2").arg(screenIndex + 1).arg(reply->errorString()));
+            }
+            reply->deleteLater();
+        });
+    }
+
+    void getRandomImageFromCategoryForScreen(const QString &categoryId, int screenIndex)
+    {
+        QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1").arg(categoryId)));
+        QNetworkReply *reply = networkManager->get(request);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, screenIndex]() {
+            // Vérifier que le téléchargement multi-écrans est toujours actif
+            if (!currentMultiDownload) {
+                reply->deleteLater();
+                return;
+            }
+
+            if (reply->error() == QNetworkReply::NoError) {
+                QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+                QJsonObject obj = doc.object();
+
+                if (obj["success"].toBool()) {
+                    QJsonArray wallpapers = obj["data"].toArray();
+                    if (!wallpapers.isEmpty()) {
+                        // Choisir une image au hasard
+                        int randomIndex = QRandomGenerator::global()->bounded(wallpapers.size());
+                        QJsonObject wallpaper = wallpapers[randomIndex].toObject();
+                        QString filename = wallpaper["filename"].toString();
+
+                        // Vérifier que le filename n'est pas vide avant le téléchargement
+                        if (filename.isEmpty()) {
+                            handleMultiDownloadError(QString("Filename d'image vide pour écran %1").arg(screenIndex + 1));
+                        } else {
+                            // Construire l'URL complète pour le téléchargement
+                            QString imageUrl = QString("http://localhost:8080/WallpaperIA/api/get/%1").arg(filename);
+
+                            // Télécharger cette image pour cet écran
+                            downloadImageForScreen(imageUrl, screenIndex);
+                        }
+                    } else {
+                        handleMultiDownloadError(QString("Aucune image disponible pour écran %1").arg(screenIndex + 1));
+                    }
+                } else {
+                    handleMultiDownloadError(QString("Erreur API wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(obj["message"].toString()));
+                }
+            } else {
+                handleMultiDownloadError(QString("Erreur de connexion wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(reply->errorString()));
+            }
+            reply->deleteLater();
+        });
+    }
+
+    void downloadImageForScreen(const QString &imageUrl, int screenIndex)
+    {
+        // Vérification supplémentaire de l'URL
+        if (imageUrl.isEmpty()) {
+            handleMultiDownloadError(QString("URL vide passée à downloadImageForScreen pour écran %1").arg(screenIndex + 1));
+            return;
+        }
+
+        QUrl url(imageUrl);
+        if (!url.isValid() || url.scheme().isEmpty()) {
+            handleMultiDownloadError(QString("URL invalide pour écran %1: %2").arg(screenIndex + 1).arg(imageUrl));
+            return;
+        }
+
+        QNetworkRequest request;
+        request.setUrl(url);
+        QNetworkReply *reply = networkManager->get(request);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, screenIndex, imageUrl]() {
+            // Vérifier que le téléchargement multi-écrans est toujours actif
+            if (!currentMultiDownload) {
+                reply->deleteLater();
+                return;
+            }
+
+            if (reply->error() == QNetworkReply::NoError) {
+                QByteArray imageData = reply->readAll();
+
+                // Sauvegarder l'image temporairement
+                QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+                QDir().mkpath(tempDir);
+
+                QString filename = QUrl(imageUrl).fileName();
+                if (filename.isEmpty()) {
+                    filename = QString("wallpaper_screen%1_%2.jpg").arg(screenIndex).arg(QDateTime::currentMSecsSinceEpoch());
+                }
+
+                QString tempFilePath = tempDir + "/" + filename;
+                QFile tempFile(tempFilePath);
+
+                if (tempFile.open(QIODevice::WriteOnly)) {
+                    tempFile.write(imageData);
+                    tempFile.close();
+
+                    // Marquer cette image comme téléchargée pour cet écran
+                    if (currentMultiDownload) {
+                        currentMultiDownload->downloadedImages[screenIndex] = tempFilePath;
+                        currentMultiDownload->completedDownloads++;
+
+                        // Mettre à jour le statut
+                        statusLabel->setText(QString("Images téléchargées: %1/%2")
+                                           .arg(currentMultiDownload->completedDownloads)
+                                           .arg(currentMultiDownload->pendingDownloads));
+
+                        // Vérifier si tous les téléchargements sont terminés
+                        if (currentMultiDownload->completedDownloads >= currentMultiDownload->pendingDownloads) {
+                            applyMultipleWallpapers();
+                        }
+                    } else {
+                        // La structure a été détruite (probablement à cause d'une erreur précédente)
+                        // Nettoyer le fichier temporaire et ne rien faire d'autre
+                        QFile::remove(tempFilePath);
+                    }
+                } else {
+                    handleMultiDownloadError(QString("Erreur de sauvegarde pour écran %1").arg(screenIndex + 1));
+                }
+            } else {
+                handleMultiDownloadError(QString("Erreur de téléchargement d'image pour écran %1: %2").arg(screenIndex + 1).arg(reply->errorString()));
+            }
+            reply->deleteLater();
+        });
+    }
+
+    void applyMultipleWallpapers()
+    {
+        if (!currentMultiDownload) return;
+
+        statusLabel->setText("Application des fonds d'écran...");
+
+        // Créer une image composite avec les différentes images pour chaque écran
+        if (setMultipleWallpapers(currentMultiDownload->downloadedImages)) {
+            // Mettre à jour l'historique pour chaque écran
+            for (auto it = currentMultiDownload->downloadedImages.constBegin();
+                 it != currentMultiDownload->downloadedImages.constEnd(); ++it) {
+                int screenIndex = it.key();
+                QString imagePath = it.value();
+
+                addToScreenHistory(screenIndex, imagePath);
+                screenSelector->setScreenCanBeDeselected(screenIndex, true);
+            }
+
+            // Afficher le statut final
+            QStringList screenNumbers;
+            for (int screen : currentMultiDownload->targetScreens) {
+                screenNumbers.append(QString::number(screen + 1));
+            }
+            statusLabel->setText(QString("Fonds d'écran appliqués sur les écrans %1").arg(screenNumbers.join(", ")));
+            restoreButton("Succès !");
+        } else {
+            restoreButton("Erreur lors de l'application");
+        }
+
+        // Nettoyer
+        delete currentMultiDownload;
+        currentMultiDownload = nullptr;
+    }
+
+    void handleMultiDownloadError(const QString &error)
+    {
+        QString detailedError = QString("Erreur multi-écrans: %1").arg(error);
+        if (currentMultiDownload) {
+            detailedError += QString("\n\nProgression: %1/%2 écrans complétés")
+                            .arg(currentMultiDownload->completedDownloads)
+                            .arg(currentMultiDownload->pendingDownloads);
+
+            // Lister les écrans ciblés
+            QStringList screenNumbers;
+            for (int screen : currentMultiDownload->targetScreens) {
+                screenNumbers.append(QString::number(screen + 1));
+            }
+            detailedError += QString("\nÉcrans ciblés: %1").arg(screenNumbers.join(", "));
+
+            delete currentMultiDownload;
+            currentMultiDownload = nullptr;
+        }
+
+        // Afficher une boîte de dialogue avec le message complet
+        QMessageBox errorBox(this);
+        errorBox.setWindowTitle("Erreur de téléchargement");
+        errorBox.setText("Une erreur s'est produite lors du téléchargement des fonds d'écran.");
+        errorBox.setDetailedText(detailedError);
+        errorBox.setIcon(QMessageBox::Warning);
+        errorBox.setStandardButtons(QMessageBox::Ok);
+        errorBox.setStyleSheet(
+            "QMessageBox {"
+            "background-color: #2b2b2b;"
+            "color: #ffffff;"
+            "}"
+            "QMessageBox QPushButton {"
+            "background-color: #d14836;"
+            "color: white;"
+            "border: none;"
+            "border-radius: 4px;"
+            "padding: 8px 16px;"
+            "min-width: 80px;"
+            "}"
+            "QMessageBox QPushButton:hover {"
+            "background-color: #b8392a;"
+            "}"
+            "QMessageBox QTextEdit {"
+            "background-color: #3b3b3b;"
+            "color: #ffffff;"
+            "border: 1px solid #555555;"
+            "}"
+        );
+        errorBox.exec();
+
+        // Aussi mettre un message court dans le statut
+        restoreButton("Erreur de téléchargement - Voir détails");
+    }
+
     void getRandomWallpaper()
     {
         QNetworkRequest request(QUrl("http://localhost:8080/WallpaperIA/api/categories"));
@@ -2027,9 +2479,43 @@ private:
 
                 statusLabel->setText("Application du fond d'écran...");
 
+                // Déterminer quels écrans utiliser
+                QList<int> targetScreens;
+
+                // Si le multi-écran est activé et qu'il y a plusieurs écrans, utiliser les écrans sélectionnés
+                if (multiScreenToggle->isChecked() && screenSelector && screenSelector->screenCount() > 1) {
+                    targetScreens = screenSelector->getSelectedScreens();
+                } else {
+                    // Mode classique : tous les écrans
+                    targetScreens.append(-1); // -1 = tous les écrans
+                }
+
                 // Appliquer le fond d'écran
-                if (setWindowsWallpaper(tempFilePath)) {
-                    statusLabel->setText(QString("Fond d'écran: %1").arg(filename));
+                if (setWindowsWallpaperMultiScreen(tempFilePath, targetScreens, filename)) {
+                    // Mettre à jour l'historique pour chaque écran concerné
+                    if (targetScreens.contains(-1)) {
+                        // Tous les écrans
+                        for (int i = 0; i < screenSelector->screenCount(); i++) {
+                            addToScreenHistory(i, tempFilePath);
+                            screenSelector->setScreenCanBeDeselected(i, true);
+                        }
+                        statusLabel->setText(QString("Fond d'écran: %1").arg(filename));
+                    } else {
+                        // Écrans spécifiques
+                        for (int screen : targetScreens) {
+                            addToScreenHistory(screen, tempFilePath);
+                            screenSelector->setScreenCanBeDeselected(screen, true);
+                        }
+                        if (targetScreens.size() == 1) {
+                            statusLabel->setText(QString("Fond d'écran écran %1: %2").arg(targetScreens.first() + 1).arg(filename));
+                        } else {
+                            QStringList screenNumbers;
+                            for (int screen : targetScreens) {
+                                screenNumbers.append(QString::number(screen + 1));
+                            }
+                            statusLabel->setText(QString("Fond d'écran écrans %1: %2").arg(screenNumbers.join(", ")).arg(filename));
+                        }
+                    }
                     restoreButton("Succès !");
                 } else {
                     restoreButton("Erreur lors de l'application");
@@ -2041,9 +2527,284 @@ private:
         });
     }
 
-    bool setWindowsWallpaper(const QString &imagePath)
+    bool setWindowsWallpaper(const QString &imagePath, int screenIndex = -1)
     {
         #ifdef Q_OS_WIN
+        QFileInfo fileInfo(imagePath);
+        if (!fileInfo.exists() || !fileInfo.isFile()) {
+            return false;
+        }
+
+        // Si screenIndex est -1 ou qu'il n'y a qu'un écran, utiliser la méthode traditionnelle
+        if (screenIndex == -1 || QApplication::screens().count() <= 1) {
+            // Convertir le chemin pour Windows
+            std::wstring wImagePath = imagePath.toStdWString();
+
+            // Utiliser la version Unicode comme Firefox pour plus de compatibilité
+            BOOL result = SystemParametersInfoW(
+                SPI_SETDESKWALLPAPER,
+                0,
+                (PVOID)wImagePath.c_str(),
+                SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+            );
+
+            return (result != FALSE);
+        }
+
+        // Pour un écran spécifique, utiliser IDesktopWallpaper (Windows 8+)
+        return setWallpaperForSpecificScreen(imagePath, screenIndex);
+        #else
+        return false;
+        #endif
+    }
+
+    bool setWallpaperForSpecificScreen(const QString &imagePath, int screenIndex)
+    {
+        #ifdef Q_OS_WIN
+        // Méthode DualMonitorTools : Composer une image pour tous les écrans
+        // mais changer seulement l'écran spécifié
+        return setWallpaperUsingComposition(imagePath, screenIndex);
+        #else
+        return false;
+        #endif
+    }
+
+    bool setWallpaperUsingComposition(const QString &imagePath, int targetScreenIndex)
+    {
+        #ifdef Q_OS_WIN
+        // Obtenir les informations sur tous les écrans
+        QList<QScreen*> screens = QApplication::screens();
+        if (targetScreenIndex >= screens.count()) {
+            return false;
+        }
+
+        // Calculer le rectangle virtuel total (comme les écrans sont disposés)
+        QRect virtualDesktop = getVirtualDesktopRect(screens);
+
+        // Créer une image composite qui couvre tous les écrans
+        QPixmap compositeImage = createCompositeWallpaper(imagePath, targetScreenIndex, screens, virtualDesktop);
+
+        if (compositeImage.isNull()) {
+            return false;
+        }
+
+        // Sauvegarder l'image composite
+        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+        QDir().mkpath(tempDir);
+        QString compositePath = tempDir + "/wallpaper_composite.bmp";
+
+        if (!compositeImage.save(compositePath, "BMP")) {
+            return false;
+        }
+
+        // Configurer le registre pour le mode "tiled"
+        if (!setTiledWallpaperMode()) {
+            return false;
+        }
+
+        // Appliquer le fond d'écran composite
+        std::wstring wCompositePath = compositePath.toStdWString();
+        BOOL result = SystemParametersInfoW(
+            SPI_SETDESKWALLPAPER,
+            0,
+            (PVOID)wCompositePath.c_str(),
+            SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+        );
+
+        return (result != FALSE);
+        #else
+        return false;
+        #endif
+    }
+
+    QRect getVirtualDesktopRect(const QList<QScreen*> &screens)
+    {
+        QRect virtualRect;
+        for (QScreen* screen : screens) {
+            if (virtualRect.isNull()) {
+                virtualRect = screen->geometry();
+            } else {
+                virtualRect = virtualRect.united(screen->geometry());
+            }
+        }
+        return virtualRect;
+    }
+
+    QPixmap createCompositeWallpaper(const QString &newImagePath, int targetScreenIndex,
+                                    const QList<QScreen*> &screens, const QRect &virtualDesktop)
+    {
+        // Capturer le fond d'écran actuel en premier
+        QPixmap currentWallpaper = captureCurrentWallpaper(virtualDesktop);
+
+        // Créer une image de la taille du bureau virtuel
+        QPixmap composite(virtualDesktop.size());
+
+        // Si on a capturé le fond actuel, l'utiliser comme base
+        if (!currentWallpaper.isNull()) {
+            composite = currentWallpaper;
+        } else {
+            composite.fill(Qt::black); // Fallback vers noir
+        }
+
+        QPainter painter(&composite);
+
+        // Charger la nouvelle image
+        QPixmap newImage(newImagePath);
+        if (newImage.isNull()) {
+            return QPixmap();
+        }
+
+        // Appliquer la nouvelle image seulement sur l'écran cible
+        if (targetScreenIndex >= 0 && targetScreenIndex < screens.count()) {
+            QScreen* targetScreen = screens[targetScreenIndex];
+            QRect screenRect = targetScreen->geometry();
+
+            // Calculer la position relative dans l'image composite
+            QRect relativeRect = screenRect.translated(-virtualDesktop.topLeft());
+
+            // Appliquer la nouvelle image sur l'écran cible
+            QPixmap scaledImage = newImage.scaled(relativeRect.size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+
+            // Centrer l'image si elle dépasse
+            QRect sourceRect = QRect(0, 0, relativeRect.width(), relativeRect.height());
+            if (scaledImage.width() > relativeRect.width()) {
+                sourceRect.setX((scaledImage.width() - relativeRect.width()) / 2);
+                sourceRect.setWidth(relativeRect.width());
+            }
+            if (scaledImage.height() > relativeRect.height()) {
+                sourceRect.setY((scaledImage.height() - relativeRect.height()) / 2);
+                sourceRect.setHeight(relativeRect.height());
+            }
+
+            painter.drawPixmap(relativeRect, scaledImage, sourceRect);
+        }
+
+        painter.end();
+        return composite;
+    }
+
+    QPixmap captureCurrentWallpaper(const QRect &virtualDesktop)
+    {
+        #ifdef Q_OS_WIN
+        // Capturer une screenshot de tout le bureau virtuel
+        QPixmap screenshot = QApplication::primaryScreen()->grabWindow(0,
+                                                                      virtualDesktop.x(),
+                                                                      virtualDesktop.y(),
+                                                                      virtualDesktop.width(),
+                                                                      virtualDesktop.height());
+        return screenshot;
+        #else
+        return QPixmap();
+        #endif
+    }
+
+    bool setTiledWallpaperMode()
+    {
+        #ifdef Q_OS_WIN
+        // Modifier le registre pour forcer le mode "Tiled"
+        HKEY hkey;
+        LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Control Panel\\Desktop", 0, KEY_SET_VALUE, &hkey);
+
+        if (result != ERROR_SUCCESS) {
+            return false;
+        }
+
+        // Configurer TileWallpaper = "1" et WallpaperStyle = "0"
+        const wchar_t* tileValue = L"1";
+        const wchar_t* styleValue = L"0";
+
+        bool success = true;
+
+        result = RegSetValueExW(hkey, L"TileWallpaper", 0, REG_SZ,
+                               (const BYTE*)tileValue, (wcslen(tileValue) + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            success = false;
+        }
+
+        result = RegSetValueExW(hkey, L"WallpaperStyle", 0, REG_SZ,
+                               (const BYTE*)styleValue, (wcslen(styleValue) + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            success = false;
+        }
+
+        RegCloseKey(hkey);
+        return success;
+        #else
+        return false;
+        #endif
+    }
+
+    bool trySetWallpaperWithIDesktopWallpaper(const QString &imagePath, int screenIndex)
+    {
+        #ifdef Q_OS_WIN
+        // Initialiser COM
+        HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        if (FAILED(hr) && hr != RPC_E_CHANGED_MODE) {
+            return false;
+        }
+
+        bool success = false;
+        IDesktopWallpaper* pDesktopWallpaper = nullptr;
+
+        // Créer l'interface IDesktopWallpaper
+        hr = CoCreateInstance(CLSID_DesktopWallpaper, nullptr, CLSCTX_INPROC_SERVER,
+                             IID_IDesktopWallpaper, (void**)&pDesktopWallpaper);
+
+        if (SUCCEEDED(hr) && pDesktopWallpaper) {
+            // D'abord, s'assurer que le mode n'est pas "span" (qui synchronise tous les écrans)
+            DESKTOP_WALLPAPER_POSITION currentPosition;
+            hr = pDesktopWallpaper->GetPosition(&currentPosition);
+            if (SUCCEEDED(hr) && currentPosition == DWPOS_SPAN) {
+                // Changer vers FILL pour permettre des fonds d'écran différents par moniteur
+                pDesktopWallpaper->SetPosition(DWPOS_FILL);
+            }
+
+            // Obtenir la liste des moniteurs
+            UINT monitorCount = 0;
+            hr = pDesktopWallpaper->GetMonitorDevicePathCount(&monitorCount);
+
+            if (SUCCEEDED(hr) && screenIndex >= 0 && screenIndex < (int)monitorCount) {
+                // Obtenir le chemin du moniteur spécifique
+                LPWSTR monitorId = nullptr;
+                hr = pDesktopWallpaper->GetMonitorDevicePathAt(screenIndex, &monitorId);
+
+                if (SUCCEEDED(hr) && monitorId) {
+                    // Convertir le chemin de l'image
+                    std::wstring wImagePath = imagePath.toStdWString();
+
+                    // Définir le fond d'écran pour ce moniteur spécifique
+                    hr = pDesktopWallpaper->SetWallpaper(monitorId, wImagePath.c_str());
+
+                    if (SUCCEEDED(hr)) {
+                        success = true;
+                    }
+
+                    // Libérer la mémoire du monitorId
+                    CoTaskMemFree(monitorId);
+                }
+            }
+
+            // Libérer l'interface
+            pDesktopWallpaper->Release();
+        }
+
+        // Nettoyer COM seulement si on l'a initialisé
+        if (hr != RPC_E_CHANGED_MODE) {
+            CoUninitialize();
+        }
+
+        return success;
+        #else
+        return false;
+        #endif
+    }
+
+    bool trySetWallpaperWithSystemParameters(const QString &imagePath, int screenIndex)
+    {
+        #ifdef Q_OS_WIN
+        // Fallback: Si IDesktopWallpaper échoue, utiliser la méthode traditionnelle
+        // Note: Cette méthode changera tous les écrans, mais c'est mieux que rien
+
         QFileInfo fileInfo(imagePath);
         if (!fileInfo.exists() || !fileInfo.isFile()) {
             return false;
@@ -2052,7 +2813,7 @@ private:
         // Convertir le chemin pour Windows
         std::wstring wImagePath = imagePath.toStdWString();
 
-        // Utiliser la version Unicode comme Firefox pour plus de compatibilité
+        // Utiliser la version Unicode
         BOOL result = SystemParametersInfoW(
             SPI_SETDESKWALLPAPER,
             0,
@@ -2075,6 +2836,354 @@ private:
         }
     }
 
+    bool setWindowsWallpaperMultiScreen(const QString &imagePath, const QList<int> &targetScreens, const QString &filename)
+    {
+        if (targetScreens.contains(-1)) {
+            // Mode classique : tous les écrans
+            return setWindowsWallpaper(imagePath, -1);
+        } else {
+            // Mode multi-écran : composer une image avec l'historique
+            return setWallpaperUsingHistoryComposition(imagePath, targetScreens);
+        }
+    }
+
+    bool setMultipleWallpapers(const QMap<int, QString> &screenImages)
+    {
+        #ifdef Q_OS_WIN
+        // Obtenir les informations sur tous les écrans
+        QList<QScreen*> screens = QApplication::screens();
+
+        // Calculer le rectangle virtuel total
+        QRect virtualDesktop = getVirtualDesktopRect(screens);
+
+        // Créer une image composite avec les différentes images
+        QPixmap compositeImage = createCompositeWallpaperFromMultipleImages(screenImages, screens, virtualDesktop);
+
+        if (compositeImage.isNull()) {
+            return false;
+        }
+
+        // Sauvegarder l'image composite
+        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+        QDir().mkpath(tempDir);
+        QString compositePath = tempDir + "/wallpaper_multi_composite.bmp";
+
+        if (!compositeImage.save(compositePath, "BMP")) {
+            return false;
+        }
+
+        // Configurer le registre pour le mode "tiled"
+        if (!setTiledWallpaperMode()) {
+            return false;
+        }
+
+        // Appliquer le fond d'écran composite
+        std::wstring wCompositePath = compositePath.toStdWString();
+        BOOL result = SystemParametersInfoW(
+            SPI_SETDESKWALLPAPER,
+            0,
+            (PVOID)wCompositePath.c_str(),
+            SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+        );
+
+        return (result != FALSE);
+        #else
+        return false;
+        #endif
+    }
+
+    QPixmap createCompositeWallpaperFromMultipleImages(const QMap<int, QString> &screenImages,
+                                                       const QList<QScreen*> &screens, const QRect &virtualDesktop)
+    {
+        // Créer une image de la taille du bureau virtuel
+        QPixmap composite(virtualDesktop.size());
+        composite.fill(Qt::black);
+
+        QPainter painter(&composite);
+
+        for (int i = 0; i < screens.count(); ++i) {
+            QScreen* screen = screens[i];
+            QRect screenRect = screen->geometry();
+
+            // Calculer la position relative dans l'image composite
+            QRect relativeRect = screenRect.translated(-virtualDesktop.topLeft());
+
+            QString imagePath;
+            if (screenImages.contains(i)) {
+                // Nouvelle image pour cet écran
+                imagePath = screenImages[i];
+            } else {
+                // Utiliser l'historique pour les autres écrans
+                imagePath = getLastWallpaperFromHistory(i);
+            }
+
+            if (!imagePath.isEmpty()) {
+                QPixmap screenImage(imagePath);
+                if (!screenImage.isNull()) {
+                    QPixmap scaledImage = screenImage.scaled(relativeRect.size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+
+                    // Centrer l'image si elle dépasse
+                    QRect sourceRect = QRect(0, 0, relativeRect.width(), relativeRect.height());
+                    if (scaledImage.width() > relativeRect.width()) {
+                        sourceRect.setX((scaledImage.width() - relativeRect.width()) / 2);
+                        sourceRect.setWidth(relativeRect.width());
+                    }
+                    if (scaledImage.height() > relativeRect.height()) {
+                        sourceRect.setY((scaledImage.height() - relativeRect.height()) / 2);
+                        sourceRect.setHeight(relativeRect.height());
+                    }
+
+                    painter.drawPixmap(relativeRect, scaledImage, sourceRect);
+                } else {
+                    // Image corrompue ou inaccessible, utiliser du noir
+                    painter.fillRect(relativeRect, Qt::black);
+                }
+            } else {
+                // Pas d'image, utiliser du noir
+                painter.fillRect(relativeRect, Qt::black);
+            }
+        }
+
+        painter.end();
+        return composite;
+    }
+
+    bool setWallpaperUsingHistoryComposition(const QString &newImagePath, const QList<int> &targetScreens)
+    {
+        #ifdef Q_OS_WIN
+        // Obtenir les informations sur tous les écrans
+        QList<QScreen*> screens = QApplication::screens();
+
+        // Calculer le rectangle virtuel total
+        QRect virtualDesktop = getVirtualDesktopRect(screens);
+
+        // Créer une image composite qui utilise l'historique
+        QPixmap compositeImage = createCompositeWallpaperWithHistory(newImagePath, targetScreens, screens, virtualDesktop);
+
+        if (compositeImage.isNull()) {
+            return false;
+        }
+
+        // Sauvegarder l'image composite
+        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+        QDir().mkpath(tempDir);
+        QString compositePath = tempDir + "/wallpaper_composite.bmp";
+
+        if (!compositeImage.save(compositePath, "BMP")) {
+            return false;
+        }
+
+        // Configurer le registre pour le mode "tiled"
+        if (!setTiledWallpaperMode()) {
+            return false;
+        }
+
+        // Appliquer le fond d'écran composite
+        std::wstring wCompositePath = compositePath.toStdWString();
+        BOOL result = SystemParametersInfoW(
+            SPI_SETDESKWALLPAPER,
+            0,
+            (PVOID)wCompositePath.c_str(),
+            SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+        );
+
+        return (result != FALSE);
+        #else
+        return false;
+        #endif
+    }
+
+    QPixmap createCompositeWallpaperWithHistory(const QString &newImagePath, const QList<int> &targetScreens,
+                                              const QList<QScreen*> &screens, const QRect &virtualDesktop)
+    {
+        // Créer une image de la taille du bureau virtuel
+        QPixmap composite(virtualDesktop.size());
+        composite.fill(Qt::black);
+
+        QPainter painter(&composite);
+
+        // Charger la nouvelle image
+        QPixmap newImage(newImagePath);
+        if (newImage.isNull()) {
+            return QPixmap();
+        }
+
+        for (int i = 0; i < screens.count(); ++i) {
+            QScreen* screen = screens[i];
+            QRect screenRect = screen->geometry();
+
+            // Calculer la position relative dans l'image composite
+            QRect relativeRect = screenRect.translated(-virtualDesktop.topLeft());
+
+            if (targetScreens.contains(i)) {
+                // Appliquer la nouvelle image sur les écrans cibles
+                QPixmap scaledImage = newImage.scaled(relativeRect.size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+
+                // Centrer l'image si elle dépasse
+                QRect sourceRect = QRect(0, 0, relativeRect.width(), relativeRect.height());
+                if (scaledImage.width() > relativeRect.width()) {
+                    sourceRect.setX((scaledImage.width() - relativeRect.width()) / 2);
+                    sourceRect.setWidth(relativeRect.width());
+                }
+                if (scaledImage.height() > relativeRect.height()) {
+                    sourceRect.setY((scaledImage.height() - relativeRect.height()) / 2);
+                    sourceRect.setHeight(relativeRect.height());
+                }
+
+                painter.drawPixmap(relativeRect, scaledImage, sourceRect);
+            } else {
+                // Utiliser l'historique pour les autres écrans
+                QString lastWallpaper = getLastWallpaperFromHistory(i);
+                if (!lastWallpaper.isEmpty()) {
+                    QPixmap historyImage(lastWallpaper);
+                    if (!historyImage.isNull()) {
+                        QPixmap scaledHistoryImage = historyImage.scaled(relativeRect.size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+
+                        QRect sourceRect = QRect(0, 0, relativeRect.width(), relativeRect.height());
+                        if (scaledHistoryImage.width() > relativeRect.width()) {
+                            sourceRect.setX((scaledHistoryImage.width() - relativeRect.width()) / 2);
+                            sourceRect.setWidth(relativeRect.width());
+                        }
+                        if (scaledHistoryImage.height() > relativeRect.height()) {
+                            sourceRect.setY((scaledHistoryImage.height() - relativeRect.height()) / 2);
+                            sourceRect.setHeight(relativeRect.height());
+                        }
+
+                        painter.drawPixmap(relativeRect, scaledHistoryImage, sourceRect);
+                    } else {
+                        // Fallback vers noir si l'image de l'historique n'est plus disponible
+                        painter.fillRect(relativeRect, Qt::black);
+                    }
+                } else {
+                    // Pas d'historique, utiliser du noir
+                    painter.fillRect(relativeRect, Qt::black);
+                }
+            }
+        }
+
+        painter.end();
+        return composite;
+    }
+
+    void addToScreenHistory(int screenIndex, const QString &imagePath)
+    {
+        if (screenIndex < 0) return;
+
+        // Copier l'image dans l'historique local
+        QString localImagePath = copyImageToHistory(imagePath);
+        if (localImagePath.isEmpty()) {
+            return; // Échec de la copie
+        }
+
+        // Ajouter au début de la liste
+        screenWallpaperHistory[screenIndex].prepend(localImagePath);
+
+        // Limiter à MAX_HISTORY_SIZE
+        if (screenWallpaperHistory[screenIndex].size() > MAX_HISTORY_SIZE) {
+            QString removedPath = screenWallpaperHistory[screenIndex].takeLast();
+            // Supprimer le fichier de l'historique s'il n'est plus utilisé
+            removeUnusedHistoryFile(removedPath);
+        }
+
+        // Nettoyer le répertoire d'historique si nécessaire
+        cleanupHistoryDirectory();
+
+        // Sauvegarder l'historique
+        saveHistoryToSettings();
+    }
+
+    QString copyImageToHistory(const QString &sourcePath)
+    {
+        QString historyDir = getHistoryDirectory();
+
+        // Générer un nom de fichier unique basé sur le hash du contenu
+        QFile sourceFile(sourcePath);
+        if (!sourceFile.open(QIODevice::ReadOnly)) {
+            return QString();
+        }
+
+        QByteArray imageData = sourceFile.readAll();
+        sourceFile.close();
+
+        // Créer un hash pour le nom de fichier
+        QCryptographicHash hash(QCryptographicHash::Md5);
+        hash.addData(imageData);
+        QString hashString = hash.result().toHex();
+
+        // Conserver l'extension originale
+        QFileInfo sourceInfo(sourcePath);
+        QString extension = sourceInfo.suffix();
+        QString localFileName = QString("%1.%2").arg(hashString, extension);
+        QString localPath = historyDir + "/" + localFileName;
+
+        // Si le fichier existe déjà, pas besoin de le copier à nouveau
+        if (QFile::exists(localPath)) {
+            return localPath;
+        }
+
+        // Copier le fichier
+        if (QFile::copy(sourcePath, localPath)) {
+            return localPath;
+        }
+
+        return QString();
+    }
+
+    void removeUnusedHistoryFile(const QString &filePath)
+    {
+        // Vérifier si le fichier est encore utilisé dans l'historique d'autres écrans
+        for (auto it = screenWallpaperHistory.constBegin(); it != screenWallpaperHistory.constEnd(); ++it) {
+            if (it.value().contains(filePath)) {
+                return; // Encore utilisé, ne pas supprimer
+            }
+        }
+
+        // Plus utilisé, on peut supprimer
+        QFile::remove(filePath);
+    }
+
+    void cleanupHistoryDirectory()
+    {
+        QString historyDir = getHistoryDirectory();
+        QDir dir(historyDir);
+
+        // Calculer la taille totale du répertoire
+        qint64 totalSize = 0;
+        QFileInfoList files = dir.entryInfoList(QDir::Files, QDir::Time);
+
+        for (const QFileInfo &fileInfo : files) {
+            totalSize += fileInfo.size();
+        }
+
+        // Si on dépasse la limite, supprimer les plus anciens fichiers
+        while (totalSize > MAX_HISTORY_DIR_SIZE && !files.isEmpty()) {
+            QFileInfo oldestFile = files.takeLast();
+
+            // Vérifier que le fichier n'est pas dans l'historique actuel
+            QString oldestPath = oldestFile.absoluteFilePath();
+            bool inUse = false;
+            for (auto it = screenWallpaperHistory.constBegin(); it != screenWallpaperHistory.constEnd(); ++it) {
+                if (it.value().contains(oldestPath)) {
+                    inUse = true;
+                    break;
+                }
+            }
+
+            if (!inUse) {
+                totalSize -= oldestFile.size();
+                QFile::remove(oldestPath);
+            }
+        }
+    }
+
+    QString getLastWallpaperFromHistory(int screenIndex) const
+    {
+        if (screenWallpaperHistory.contains(screenIndex) && !screenWallpaperHistory[screenIndex].isEmpty()) {
+            return screenWallpaperHistory[screenIndex].first();
+        }
+        return QString();
+    }
+
     void saveSettings()
     {
         QSettings settings("WallpaperIA", "WallpaperSettings");
@@ -2090,6 +3199,32 @@ private:
         // Sauvegarder les options système
         settings.setValue("system/startupToggle", startupToggle->isChecked());
         settings.setValue("system/multiScreen", multiScreenToggle->isChecked());
+
+        // Sauvegarder l'historique des fonds d'écran
+        saveHistoryToSettings();
+    }
+
+    void saveHistoryToSettings()
+    {
+        QSettings settings("WallpaperIA", "WallpaperSettings");
+
+        // Effacer l'historique précédent
+        settings.remove("ScreenHistory");
+
+        // Sauvegarder l'historique par écran
+        settings.beginGroup("ScreenHistory");
+        for (auto it = screenWallpaperHistory.constBegin(); it != screenWallpaperHistory.constEnd(); ++it) {
+            int screenIndex = it.key();
+            const QStringList &history = it.value();
+
+            settings.beginWriteArray(QString("Screen%1").arg(screenIndex));
+            for (int i = 0; i < history.size(); ++i) {
+                settings.setArrayIndex(i);
+                settings.setValue("imagePath", history[i]);
+            }
+            settings.endArray();
+        }
+        settings.endGroup();
     }
 
     void loadSettings()
@@ -2133,6 +3268,9 @@ private:
         }
         settings.endGroup();
 
+        // Charger l'historique des fonds d'écran
+        loadHistoryFromSettings();
+
         isLoadingSettings = false; // Réactiver la détection des changements
 
         // Initialiser le countdown avec les paramètres chargés
@@ -2142,6 +3280,48 @@ private:
         if (screenSelector) {
             onMultiScreenToggled(multiScreenToggle->isChecked());
         }
+    }
+
+    void loadHistoryFromSettings()
+    {
+        QSettings settings("WallpaperIA", "WallpaperSettings");
+
+        // Charger l'historique par écran
+        settings.beginGroup("ScreenHistory");
+        QStringList screenGroups = settings.childGroups();
+
+        for (const QString &screenGroup : screenGroups) {
+            // Extraire l'index de l'écran (ex: "Screen0" -> 0)
+            if (screenGroup.startsWith("Screen")) {
+                bool ok;
+                int screenIndex = screenGroup.mid(6).toInt(&ok); // "Screen" = 6 caractères
+
+                if (ok) {
+                    QStringList history;
+                    int size = settings.beginReadArray(screenGroup);
+
+                    for (int i = 0; i < size; ++i) {
+                        settings.setArrayIndex(i);
+                        QString imagePath = settings.value("imagePath").toString();
+
+                        // Vérifier que le fichier existe encore
+                        if (QFile::exists(imagePath)) {
+                            history.append(imagePath);
+                        }
+                    }
+                    settings.endArray();
+
+                    if (!history.isEmpty()) {
+                        screenWallpaperHistory[screenIndex] = history;
+                        // Marquer cet écran comme pouvant être désélectionné
+                        if (screenSelector) {
+                            screenSelector->setScreenCanBeDeselected(screenIndex, true);
+                        }
+                    }
+                }
+            }
+        }
+        settings.endGroup();
     }
 
     void saveCategoryRating(const QString &categoryId, int rating)
@@ -2164,6 +3344,18 @@ private:
     CountdownWidget *countdownWidget;
     QMap<QString, int> categoryRatings; // Stockage des notations des catégories
     ScreenSelector *screenSelector; // Sélecteur d'écran
+
+    // Historique des fonds d'écran par écran (max 8 images)
+    QMap<int, QStringList> screenWallpaperHistory;
+    static const int MAX_HISTORY_SIZE = 8;
+    static const qint64 MAX_HISTORY_DIR_SIZE = 3 * 1024 * 1024; // 3 Mo
+
+    QString getHistoryDirectory() const
+    {
+        QString historyDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/WallpaperIA/history";
+        QDir().mkpath(historyDir);
+        return historyDir;
+    }
 
     // Contrôles de paramètres pour la sauvegarde/chargement
     QComboBox *frequencyCombo;
