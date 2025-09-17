@@ -2698,6 +2698,42 @@ private:
         #endif
     }
 
+    bool setSpanWallpaperMode()
+    {
+        #ifdef Q_OS_WIN
+        // Modifier le registre pour forcer le mode "Span" (meilleur pour multi-écrans)
+        HKEY hkey;
+        LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Control Panel\\Desktop", 0, KEY_SET_VALUE, &hkey);
+
+        if (result != ERROR_SUCCESS) {
+            return false;
+        }
+
+        // Configurer TileWallpaper = "0" et WallpaperStyle = "22" (Span)
+        const wchar_t* tileValue = L"0";
+        const wchar_t* styleValue = L"22";
+
+        bool success = true;
+
+        result = RegSetValueExW(hkey, L"TileWallpaper", 0, REG_SZ,
+                               (const BYTE*)tileValue, (wcslen(tileValue) + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            success = false;
+        }
+
+        result = RegSetValueExW(hkey, L"WallpaperStyle", 0, REG_SZ,
+                               (const BYTE*)styleValue, (wcslen(styleValue) + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            success = false;
+        }
+
+        RegCloseKey(hkey);
+        return success;
+        #else
+        return false;
+        #endif
+    }
+
     bool setTiledWallpaperMode()
     {
         #ifdef Q_OS_WIN
@@ -2847,50 +2883,255 @@ private:
         }
     }
 
-    bool setMultipleWallpapers(const QMap<int, QString> &screenImages)
+    bool setMultipleWallpapers(const QMap<int, QString> &imagePaths)
     {
-        #ifdef Q_OS_WIN
-        // Obtenir les informations sur tous les écrans
-        QList<QScreen*> screens = QApplication::screens();
+        // Utiliser le nouveau système de mapping sophistiqué
 
-        // Calculer le rectangle virtuel total
-        QRect virtualDesktop = getVirtualDesktopRect(screens);
+        // 1. Calculer les dimensions du bureau virtuel
+        QRect virtualDesktop = calculateVirtualDesktopBounds();
 
-        // Créer une image composite avec les différentes images
-        QPixmap compositeImage = createCompositeWallpaperFromMultipleImages(screenImages, screens, virtualDesktop);
+        // 2. Générer les mappings pour chaque écran
+        QList<ScreenMapping> mappings = generateScreenMappings(imagePaths);
 
-        if (compositeImage.isNull()) {
+        if (mappings.isEmpty()) {
             return false;
         }
 
-        // Sauvegarder l'image composite
+        // 3. Créer l'image composite avec mapping précis
+        QPixmap composite = createCompositeImageFromMappings(mappings, virtualDesktop);
+
+        // 4. Appliquer le wrapping des coordonnées Windows si nécessaire
+        QPixmap finalImage = wrapCoordinatesForWindows(composite, virtualDesktop);
+
+        // 5. Sauvegarder et appliquer
         QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
         QDir().mkpath(tempDir);
-        QString compositePath = tempDir + "/wallpaper_multi_composite.bmp";
+        QString compositePath = tempDir + "/composite_wallpaper.bmp";
 
-        if (!compositeImage.save(compositePath, "BMP")) {
+        if (finalImage.save(compositePath, "BMP")) {
+            // Utiliser le mode Tile avec wrapping comme DualMonitorTools
+            setTiledWallpaperMode();
+
+            #ifdef Q_OS_WIN
+            std::wstring wImagePath = compositePath.toStdWString();
+            BOOL result = SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, (LPVOID)wImagePath.c_str(), SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+            return result != 0;
+            #else
             return false;
+            #endif
         }
 
-        // Configurer le registre pour le mode "tiled"
-        if (!setTiledWallpaperMode()) {
-            return false;
-        }
-
-        // Appliquer le fond d'écran composite
-        std::wstring wCompositePath = compositePath.toStdWString();
-        BOOL result = SystemParametersInfoW(
-            SPI_SETDESKWALLPAPER,
-            0,
-            (PVOID)wCompositePath.c_str(),
-            SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
-        );
-
-        return (result != FALSE);
-        #else
         return false;
-        #endif
     }
+
+    // Structure de mapping sophistiquée inspirée de DualMonitorTools
+    struct ScreenMapping {
+        QRect screenRect;           // Rectangle de l'écran dans le bureau virtuel
+        QRect sourceRect;           // Rectangle dans l'image source à utiliser
+        QRect destRect;             // Rectangle de destination dans l'image composite
+        QString imagePath;          // Chemin vers l'image source
+        bool isPrimary;             // Écran principal
+
+        ScreenMapping() : isPrimary(false) {}
+    };
+
+    QRect calculateVirtualDesktopBounds()
+    {
+        QList<QScreen*> screens = QApplication::screens();
+        if (screens.isEmpty()) return QRect();
+
+        QRect bounds = screens[0]->geometry();
+        for (int i = 1; i < screens.size(); i++) {
+            bounds = bounds.united(screens[i]->geometry());
+        }
+
+        // Debug des dimensions avec détails Windows
+        qDebug() << "=== DEBUG VIRTUAL DESKTOP ===";
+        qDebug() << "Nombre d'écrans:" << screens.size();
+
+        QScreen* qtPrimaryScreen = QApplication::primaryScreen();
+        qDebug() << "Écran principal détecté par Qt:" << (qtPrimaryScreen ? qtPrimaryScreen->name() : "AUCUN");
+
+        for (int i = 0; i < screens.size(); i++) {
+            QScreen* screen = screens[i];
+            bool isQtPrimary = (screen == qtPrimaryScreen);
+            qDebug() << QString("Écran %1: %2x%3 à (%4,%5) - Qt Primary: %6 - Name: %7")
+                        .arg(i)
+                        .arg(screen->geometry().width())
+                        .arg(screen->geometry().height())
+                        .arg(screen->geometry().x())
+                        .arg(screen->geometry().y())
+                        .arg(isQtPrimary ? "YES" : "NO")
+                        .arg(screen->name());
+        }
+        qDebug() << QString("Bureau virtuel calculé: %1x%2 à (%3,%4)")
+                    .arg(bounds.width())
+                    .arg(bounds.height())
+                    .arg(bounds.x())
+                    .arg(bounds.y());
+
+        // Vérification si wrapping sera nécessaire
+        bool needsWrap = (bounds.left() < 0 || bounds.top() < 0);
+        qDebug() << QString("Wrapping nécessaire: %1 (left=%2, top=%3)")
+                    .arg(needsWrap ? "OUI" : "NON")
+                    .arg(bounds.left())
+                    .arg(bounds.top());
+        qDebug() << "===========================";
+
+        return bounds;
+    }
+
+    QList<ScreenMapping> generateScreenMappings(const QMap<int, QString> &imagePaths)
+    {
+        QList<QScreen*> screens = QApplication::screens();
+        QList<ScreenMapping> mappings;
+        QRect virtualDesktop = calculateVirtualDesktopBounds();
+
+        for (auto it = imagePaths.constBegin(); it != imagePaths.constEnd(); ++it) {
+            int screenIndex = it.key();
+            QString imagePath = it.value();
+
+            if (screenIndex >= 0 && screenIndex < screens.size()) {
+                QScreen* screen = screens[screenIndex];
+                ScreenMapping mapping;
+
+                mapping.screenRect = screen->geometry();
+                mapping.imagePath = imagePath;
+                mapping.isPrimary = (screen == QApplication::primaryScreen());
+
+                // Calculer destRect (position dans l'image composite finale)
+                mapping.destRect = mapping.screenRect;
+                mapping.destRect.translate(-virtualDesktop.topLeft());
+
+                qDebug() << QString("Mapping écran %1: screenRect(%2,%3,%4,%5) -> destRect(%6,%7,%8,%9)")
+                            .arg(screenIndex)
+                            .arg(mapping.screenRect.x()).arg(mapping.screenRect.y())
+                            .arg(mapping.screenRect.width()).arg(mapping.screenRect.height())
+                            .arg(mapping.destRect.x()).arg(mapping.destRect.y())
+                            .arg(mapping.destRect.width()).arg(mapping.destRect.height());
+
+                // Pour l'instant, utiliser toute l'image source
+                QPixmap sourceImage(imagePath);
+                if (!sourceImage.isNull()) {
+                    mapping.sourceRect = QRect(0, 0, sourceImage.width(), sourceImage.height());
+                }
+
+                mappings.append(mapping);
+            }
+        }
+
+        return mappings;
+    }
+
+    QPixmap createCompositeImageFromMappings(const QList<ScreenMapping> &mappings, const QRect &virtualDesktop)
+    {
+        QPixmap composite(virtualDesktop.size());
+        composite.fill(Qt::black);
+
+        QPainter painter(&composite);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        qDebug() << QString("=== CRÉATION COMPOSITE ===");
+        qDebug() << QString("Taille composite: %1x%2").arg(composite.width()).arg(composite.height());
+
+        for (const ScreenMapping &mapping : mappings) {
+            QPixmap sourceImage(mapping.imagePath);
+            if (!sourceImage.isNull()) {
+                qDebug() << QString("Traitement image pour écran - destRect: (%1,%2,%3,%4)")
+                            .arg(mapping.destRect.x()).arg(mapping.destRect.y())
+                            .arg(mapping.destRect.width()).arg(mapping.destRect.height());
+
+                // Appliquer un scaling de haute qualité pour remplir parfaitement l'écran
+                QPixmap scaledImage = sourceImage.scaled(mapping.destRect.size(),
+                                                         Qt::IgnoreAspectRatio,
+                                                         Qt::SmoothTransformation);
+
+                painter.drawPixmap(mapping.destRect, scaledImage);
+            }
+        }
+
+        painter.end();
+        qDebug() << "=== FIN CRÉATION COMPOSITE ===";
+        return composite;
+    }
+
+    bool needsCoordinateWrapping(const QRect &virtualDesktop)
+    {
+        // Windows < 8 nécessite que (0,0) corresponde à l'écran principal
+        // Windows >= 8 supporte les coordonnées virtuelles directement
+        return (virtualDesktop.left() < 0 || virtualDesktop.top() < 0);
+    }
+
+    QPixmap wrapCoordinatesForWindows(const QPixmap &sourceImage, const QRect &virtualDesktop)
+    {
+        if (!needsCoordinateWrapping(virtualDesktop)) {
+            return sourceImage; // Pas besoin de wrapping
+        }
+
+        qDebug() << "=== WRAPPING NÉCESSAIRE ===";
+        qDebug() << QString("Offset virtuel: (%1,%2)").arg(virtualDesktop.left()).arg(virtualDesktop.top());
+
+        // Créer une nouvelle image avec les coordonnées wrappées
+        QPixmap wrappedImage(sourceImage.size());
+        wrappedImage.fill(Qt::black);
+
+        QPainter painter(&wrappedImage);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+
+        int xWrap = -virtualDesktop.left();
+        int yWrap = -virtualDesktop.top();
+        int xNotWrap = sourceImage.width() - xWrap;
+        int yNotWrap = sourceImage.height() - yWrap;
+
+        qDebug() << QString("Paramètres wrapping - xWrap:%1, yWrap:%2, xNotWrap:%3, yNotWrap:%4")
+                    .arg(xWrap).arg(yWrap).arg(xNotWrap).arg(yNotWrap);
+
+        // Quadrant en haut à droite (a)
+        if (xWrap > 0 && yWrap > 0) {
+            QRect srcRect(0, 0, xWrap, yWrap);
+            QRect destRect(xNotWrap, yNotWrap, xWrap, yWrap);
+            painter.drawPixmap(destRect, sourceImage, srcRect);
+            qDebug() << QString("Quadrant A: src(%1,%2,%3,%4) -> dest(%5,%6,%7,%8)")
+                        .arg(srcRect.x()).arg(srcRect.y()).arg(srcRect.width()).arg(srcRect.height())
+                        .arg(destRect.x()).arg(destRect.y()).arg(destRect.width()).arg(destRect.height());
+        }
+
+        // Quadrant en haut à gauche (b)
+        if (yWrap > 0 && xNotWrap > 0) {
+            QRect srcRect(xWrap, 0, xNotWrap, yWrap);
+            QRect destRect(0, yNotWrap, xNotWrap, yWrap);
+            painter.drawPixmap(destRect, sourceImage, srcRect);
+            qDebug() << QString("Quadrant B: src(%1,%2,%3,%4) -> dest(%5,%6,%7,%8)")
+                        .arg(srcRect.x()).arg(srcRect.y()).arg(srcRect.width()).arg(srcRect.height())
+                        .arg(destRect.x()).arg(destRect.y()).arg(destRect.width()).arg(destRect.height());
+        }
+
+        // Quadrant en bas à droite (c)
+        if (xWrap > 0 && yNotWrap > 0) {
+            QRect srcRect(0, yWrap, xWrap, yNotWrap);
+            QRect destRect(xNotWrap, 0, xWrap, yNotWrap);
+            painter.drawPixmap(destRect, sourceImage, srcRect);
+            qDebug() << QString("Quadrant C: src(%1,%2,%3,%4) -> dest(%5,%6,%7,%8)")
+                        .arg(srcRect.x()).arg(srcRect.y()).arg(srcRect.width()).arg(srcRect.height())
+                        .arg(destRect.x()).arg(destRect.y()).arg(destRect.width()).arg(destRect.height());
+        }
+
+        // Quadrant en bas à gauche (d) - écran principal
+        if (xNotWrap > 0 && yNotWrap > 0) {
+            QRect srcRect(xWrap, yWrap, xNotWrap, yNotWrap);
+            QRect destRect(0, 0, xNotWrap, yNotWrap);
+            painter.drawPixmap(destRect, sourceImage, srcRect);
+            qDebug() << QString("Quadrant D (principal): src(%1,%2,%3,%4) -> dest(%5,%6,%7,%8)")
+                        .arg(srcRect.x()).arg(srcRect.y()).arg(srcRect.width()).arg(srcRect.height())
+                        .arg(destRect.x()).arg(destRect.y()).arg(destRect.width()).arg(destRect.height());
+        }
+
+        painter.end();
+        qDebug() << "=== FIN WRAPPING ===";
+        return wrappedImage;
+    }
+
 
     QPixmap createCompositeWallpaperFromMultipleImages(const QMap<int, QString> &screenImages,
                                                        const QList<QScreen*> &screens, const QRect &virtualDesktop)
