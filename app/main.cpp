@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QWidget>
 #include <QVBoxLayout>
+#include <QOperatingSystemVersion>
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QPushButton>
@@ -2597,7 +2598,7 @@ private:
             return false;
         }
 
-        // Configurer le registre pour le mode "tiled"
+        // Configurer le registre pour le mode "tile"
         if (!setTiledWallpaperMode()) {
             return false;
         }
@@ -2695,6 +2696,42 @@ private:
         return screenshot;
         #else
         return QPixmap();
+        #endif
+    }
+
+    bool setFillWallpaperMode()
+    {
+        #ifdef Q_OS_WIN
+        // Modifier le registre pour forcer le mode "Fill" (meilleur pour images composites multi-écrans)
+        HKEY hkey;
+        LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Control Panel\\Desktop", 0, KEY_SET_VALUE, &hkey);
+
+        if (result != ERROR_SUCCESS) {
+            return false;
+        }
+
+        // Configurer TileWallpaper = "0" et WallpaperStyle = "10" (Fill)
+        const wchar_t* tileValue = L"0";
+        const wchar_t* styleValue = L"10";
+
+        bool success = true;
+
+        result = RegSetValueExW(hkey, L"TileWallpaper", 0, REG_SZ,
+                               (const BYTE*)tileValue, (wcslen(tileValue) + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            success = false;
+        }
+
+        result = RegSetValueExW(hkey, L"WallpaperStyle", 0, REG_SZ,
+                               (const BYTE*)styleValue, (wcslen(styleValue) + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            success = false;
+        }
+
+        RegCloseKey(hkey);
+        return success;
+        #else
+        return false;
         #endif
     }
 
@@ -2900,7 +2937,7 @@ private:
         // 3. Créer l'image composite avec mapping précis
         QPixmap composite = createCompositeImageFromMappings(mappings, virtualDesktop);
 
-        // 4. Appliquer le wrapping des coordonnées Windows si nécessaire
+        // 4. Appliquer le wrapping selon la logique DMT (Windows < 8 uniquement)
         QPixmap finalImage = wrapCoordinatesForWindows(composite, virtualDesktop);
 
         // 5. Sauvegarder et appliquer
@@ -2909,7 +2946,7 @@ private:
         QString compositePath = tempDir + "/composite_wallpaper.bmp";
 
         if (finalImage.save(compositePath, "BMP")) {
-            // Utiliser le mode Tile avec wrapping comme DualMonitorTools
+            // Utiliser le mode Tile avec calculs précis comme DualMonitorTools
             setTiledWallpaperMode();
 
             #ifdef Q_OS_WIN
@@ -2940,31 +2977,44 @@ private:
         QList<QScreen*> screens = QApplication::screens();
         if (screens.isEmpty()) return QRect();
 
-        QRect bounds = screens[0]->geometry();
-        for (int i = 1; i < screens.size(); i++) {
-            bounds = bounds.united(screens[i]->geometry());
-        }
-
-        // Debug des dimensions avec détails Windows
-        qDebug() << "=== DEBUG VIRTUAL DESKTOP ===";
-        qDebug() << "Nombre d'écrans:" << screens.size();
+        // Calculer avec résolutions natives comme dans screenmap.cpp
+        int minX = 0, minY = 0, maxX = 0, maxY = 0;
 
         QScreen* qtPrimaryScreen = QApplication::primaryScreen();
+        qDebug() << "=== DEBUG VIRTUAL DESKTOP (NATIVES) ===";
+        qDebug() << "Nombre d'écrans:" << screens.size();
         qDebug() << "Écran principal détecté par Qt:" << (qtPrimaryScreen ? qtPrimaryScreen->name() : "AUCUN");
 
         for (int i = 0; i < screens.size(); i++) {
             QScreen* screen = screens[i];
+            QRect geom = screen->geometry();
+            QSize realSize = screen->size() * screen->devicePixelRatio();
             bool isQtPrimary = (screen == qtPrimaryScreen);
-            qDebug() << QString("Écran %1: %2x%3 à (%4,%5) - Qt Primary: %6 - Name: %7")
+
+            // Coordonnées : garder telles quelles (pas de scaling)
+            int realX = geom.x();
+            int realY = geom.y();
+
+            // Tailles : utiliser résolutions réelles
+            int realW = realSize.width();
+            int realH = realSize.height();
+
+            if (realX < minX) minX = realX;
+            if (realY < minY) minY = realY;
+            if (realX + realW > maxX) maxX = realX + realW;
+            if (realY + realH > maxY) maxY = realY + realH;
+
+            qDebug() << QString("Écran %1: geom=%2x%3 à (%4,%5) real=%6x%7 - Qt Primary: %8 - Name: %9")
                         .arg(i)
-                        .arg(screen->geometry().width())
-                        .arg(screen->geometry().height())
-                        .arg(screen->geometry().x())
-                        .arg(screen->geometry().y())
+                        .arg(geom.width()).arg(geom.height())
+                        .arg(geom.x()).arg(geom.y())
+                        .arg(realW).arg(realH)
                         .arg(isQtPrimary ? "YES" : "NO")
                         .arg(screen->name());
         }
-        qDebug() << QString("Bureau virtuel calculé: %1x%2 à (%3,%4)")
+
+        QRect bounds(minX, minY, maxX - minX, maxY - minY);
+        qDebug() << QString("Bureau virtuel avec résolutions natives: %1x%2 à (%3,%4)")
                     .arg(bounds.width())
                     .arg(bounds.height())
                     .arg(bounds.x())
@@ -2976,49 +3026,82 @@ private:
                     .arg(needsWrap ? "OUI" : "NON")
                     .arg(bounds.left())
                     .arg(bounds.top());
-        qDebug() << "===========================";
+        qDebug() << "=========================================";
 
         return bounds;
     }
 
     QList<ScreenMapping> generateScreenMappings(const QMap<int, QString> &imagePaths)
     {
-        QList<QScreen*> screens = QApplication::screens();
         QList<ScreenMapping> mappings;
-        QRect virtualDesktop = calculateVirtualDesktopBounds();
+        QList<QScreen*> screens = QApplication::screens();
 
+        if (screens.isEmpty()) {
+            return mappings;
+        }
+
+        // Calculer les dimensions totales avec résolution réelle comme dans screenmap.cpp
+        int minX = 0, minY = 0, maxX = 0, maxY = 0;
+
+        for (QScreen* screen : screens) {
+            QRect geom = screen->geometry();
+            QSize realSize = screen->size() * screen->devicePixelRatio();
+
+            // Coordonnées : garder telles quelles (pas de scaling)
+            int realX = geom.x();
+            int realY = geom.y();
+
+            // Tailles : utiliser résolutions réelles
+            int realW = realSize.width();
+            int realH = realSize.height();
+
+            if (realX < minX) minX = realX;
+            if (realY < minY) minY = realY;
+            if (realX + realW > maxX) maxX = realX + realW;
+            if (realY + realH > maxY) maxY = realY + realH;
+        }
+
+        qDebug() << "=== GENERATESCREENMAPPINGS DEBUG ===";
+        qDebug() << QString("Zone totale avec résolutions natives: %1x%2 offset=(%3,%4)")
+                    .arg(maxX - minX).arg(maxY - minY).arg(-minX).arg(-minY);
+
+        // Créer les mappings pour chaque écran avec ses images
         for (auto it = imagePaths.constBegin(); it != imagePaths.constEnd(); ++it) {
             int screenIndex = it.key();
             QString imagePath = it.value();
 
             if (screenIndex >= 0 && screenIndex < screens.size()) {
                 QScreen* screen = screens[screenIndex];
-                ScreenMapping mapping;
+                QRect geom = screen->geometry();
+                QSize realSize = screen->size() * screen->devicePixelRatio();
 
-                mapping.screenRect = screen->geometry();
+                ScreenMapping mapping;
+                mapping.screenRect = QRect(geom.x(), geom.y(), realSize.width(), realSize.height());
                 mapping.imagePath = imagePath;
                 mapping.isPrimary = (screen == QApplication::primaryScreen());
+                mapping.destRect = QRect(geom.x() - minX, geom.y() - minY, realSize.width(), realSize.height());
 
-                // Calculer destRect (position dans l'image composite finale)
-                mapping.destRect = mapping.screenRect;
-                mapping.destRect.translate(-virtualDesktop.topLeft());
-
-                qDebug() << QString("Mapping écran %1: screenRect(%2,%3,%4,%5) -> destRect(%6,%7,%8,%9)")
-                            .arg(screenIndex)
-                            .arg(mapping.screenRect.x()).arg(mapping.screenRect.y())
-                            .arg(mapping.screenRect.width()).arg(mapping.screenRect.height())
-                            .arg(mapping.destRect.x()).arg(mapping.destRect.y())
-                            .arg(mapping.destRect.width()).arg(mapping.destRect.height());
-
-                // Pour l'instant, utiliser toute l'image source
+                // Pour l'image source, utiliser toute l'image
                 QPixmap sourceImage(imagePath);
                 if (!sourceImage.isNull()) {
                     mapping.sourceRect = QRect(0, 0, sourceImage.width(), sourceImage.height());
+                } else {
+                    mapping.sourceRect = QRect(0, 0, realSize.width(), realSize.height());
                 }
 
                 mappings.append(mapping);
+
+                qDebug() << QString("Écran %1: geom=%2x%3 à (%4,%5) real=%6x%7 dest=(%8,%9)")
+                            .arg(screenIndex)
+                            .arg(geom.width()).arg(geom.height())
+                            .arg(geom.x()).arg(geom.y())
+                            .arg(realSize.width()).arg(realSize.height())
+                            .arg(mapping.destRect.x()).arg(mapping.destRect.y());
             }
         }
+
+        qDebug() << QString("Mappings générés: %1").arg(mappings.size());
+        qDebug() << "====================================";
 
         return mappings;
     }
@@ -3056,11 +3139,31 @@ private:
         return composite;
     }
 
+    bool isWindows8OrLater()
+    {
+        #ifdef Q_OS_WIN
+        // Utiliser QSysInfo pour détecter la version Windows
+        QOperatingSystemVersion current = QOperatingSystemVersion::current();
+
+        // Windows 8 = version 6.2, Windows 7 = version 6.1
+        // Windows 8 et plus récent supportent les coordonnées virtuelles directement
+        return (current.majorVersion() > 6) ||
+               (current.majorVersion() == 6 && current.minorVersion() >= 2);
+        #else
+        return true; // Non-Windows, assumer le support moderne
+        #endif
+    }
+
     bool needsCoordinateWrapping(const QRect &virtualDesktop)
     {
-        // Windows < 8 nécessite que (0,0) corresponde à l'écran principal
-        // Windows >= 8 supporte les coordonnées virtuelles directement
-        return (virtualDesktop.left() < 0 || virtualDesktop.top() < 0);
+        // Logique DMT : wrapping nécessaire seulement si Windows < 8 ET coordonnées négatives
+        bool hasNegativeCoords = (virtualDesktop.left() < 0 || virtualDesktop.top() < 0);
+        bool isOldWindows = !isWindows8OrLater();
+
+        qDebug() << QString("Version Windows >= 8: %1, Coords négatives: %2")
+                    .arg(!isOldWindows).arg(hasNegativeCoords);
+
+        return hasNegativeCoords && isOldWindows;
     }
 
     QPixmap wrapCoordinatesForWindows(const QPixmap &sourceImage, const QRect &virtualDesktop)
@@ -3069,8 +3172,9 @@ private:
             return sourceImage; // Pas besoin de wrapping
         }
 
-        qDebug() << "=== WRAPPING NÉCESSAIRE ===";
+        qDebug() << "=== WRAPPING NÉCESSAIRE (Windows < 8) ===";
         qDebug() << QString("Offset virtuel: (%1,%2)").arg(virtualDesktop.left()).arg(virtualDesktop.top());
+        qDebug() << QString("Taille image source: %1x%2").arg(sourceImage.width()).arg(sourceImage.height());
 
         // Créer une nouvelle image avec les coordonnées wrappées
         QPixmap wrappedImage(sourceImage.size());
@@ -3214,7 +3318,7 @@ private:
             return false;
         }
 
-        // Configurer le registre pour le mode "tiled"
+        // Configurer le registre pour le mode "tile"
         if (!setTiledWallpaperMode()) {
             return false;
         }
