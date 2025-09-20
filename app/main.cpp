@@ -43,6 +43,7 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QStandardItemModel>
+#include <QRegularExpression>
 #include <string>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -51,6 +52,7 @@
 #include <objidl.h>
 #include <shlguid.h>
 #include <shobjidl.h>
+#include <wingdi.h>
 #include <QCoreApplication>
 #include <QDir>
 
@@ -911,7 +913,10 @@ private slots:
         if (launchedAtStartup && frequencyCombo && frequencyCombo->currentIndex() == 7) {
             // Index 7 = "Au démarrage de l'ordinateur"
             // Déclencher le changement de fond d'écran
-            QTimer::singleShot(2000, this, &ModernWindow::onChangeNowClicked); // Délai de 2s pour laisser le système démarrer
+            QTimer::singleShot(2000, [this]() {
+                currentTriggerMode = "Démarrage";
+                onChangeNowClicked();
+            }); // Délai de 2s pour laisser le système démarrer
         }
     }
 
@@ -1151,7 +1156,10 @@ private:
 
         // Widget de compte à rebours
         countdownWidget = new CountdownWidget();
-        connect(countdownWidget, &CountdownWidget::countdownExpired, this, &ModernWindow::onChangeNowClicked);
+        connect(countdownWidget, &CountdownWidget::countdownExpired, [this]() {
+            currentTriggerMode = "Automatique";
+            onChangeNowClicked();
+        });
         rightCountdownLayout->addWidget(countdownWidget, 0, Qt::AlignCenter);
 
         // Assemblage du layout principal - centrer les groupes
@@ -2404,6 +2412,11 @@ private slots:
 
     void onChangeNowClicked()
     {
+        // Par défaut, mode manuel si pas défini
+        if (currentTriggerMode.isEmpty()) {
+            currentTriggerMode = "Manuel";
+        }
+
         // Désactiver le bouton pendant le processus
         changeNowButton->setEnabled(false);
         changeNowButton->setText("🔄 Changement en cours...");
@@ -2628,8 +2641,7 @@ private:
                 int screenIndex = it.key();
                 QString imagePath = it.value();
 
-                addToScreenHistory(screenIndex, imagePath);
-                screenSelector->setScreenCanBeDeselected(screenIndex, true);
+                addToScreenHistory(screenIndex, imagePath, currentTriggerMode.isEmpty() ? "Manuel" : currentTriggerMode);
             }
 
             // Afficher le statut final
@@ -2819,15 +2831,13 @@ private:
                     if (targetScreens.contains(-1)) {
                         // Tous les écrans
                         for (int i = 0; i < screenSelector->screenCount(); i++) {
-                            addToScreenHistory(i, tempFilePath);
-                            screenSelector->setScreenCanBeDeselected(i, true);
+                            addToScreenHistory(i, tempFilePath, currentTriggerMode.isEmpty() ? "Manuel" : currentTriggerMode);
                         }
                         statusLabel->setText(QString("Fond d'écran: %1").arg(filename));
                     } else {
                         // Écrans spécifiques
                         for (int screen : targetScreens) {
-                            addToScreenHistory(screen, tempFilePath);
-                            screenSelector->setScreenCanBeDeselected(screen, true);
+                            addToScreenHistory(screen, tempFilePath, currentTriggerMode.isEmpty() ? "Manuel" : currentTriggerMode);
                         }
                         if (targetScreens.size() == 1) {
                             statusLabel->setText(QString("Fond d'écran écran %1: %2").arg(targetScreens.first() + 1).arg(filename));
@@ -3194,6 +3204,9 @@ private:
         if (!message.isEmpty()) {
             statusLabel->setText(message);
         }
+
+        // Réinitialiser le mode de déclenchement pour le prochain changement
+        currentTriggerMode = "Manuel";
     }
 
     bool setWindowsWallpaperMultiScreen(const QString &imagePath, const QList<int> &targetScreens, const QString &filename)
@@ -3760,17 +3773,34 @@ private:
         return composite;
     }
 
-    void addToScreenHistory(int screenIndex, const QString &imagePath)
+    void addToScreenHistory(int screenIndex, const QString &imagePath, const QString &triggerMode = "Manuel")
     {
         if (screenIndex < 0) return;
 
-        // Copier l'image dans l'historique local
-        QString localImagePath = copyImageToHistory(imagePath);
+        // Copier l'image dans le répertoire wallpapers
+        QString localImagePath = copyImageToWallpapers(imagePath, screenIndex);
         if (localImagePath.isEmpty()) {
             return; // Échec de la copie
         }
 
-        // Ajouter au début de la liste
+        // Obtenir le mode d'ajustement actuel
+        QString adjustMode = "Remplir"; // Mode par défaut
+        if (adjustmentCombo) {
+            QStringList modes = {"Remplir", "Ajuster", "Étendre", "Étirer", "Mosaïque"};
+            int index = adjustmentCombo->currentIndex();
+            if (index >= 0 && index < modes.size()) {
+                adjustMode = modes[index];
+            }
+        }
+
+        // Extraire le nom de fichier original
+        QFileInfo originalFile(imagePath);
+        QString filename = originalFile.fileName();
+
+        // Enregistrer dans le log
+        logWallpaperChange(screenIndex, filename, triggerMode, adjustMode);
+
+        // Ajouter au début de la liste (ancien système conservé pour compatibilité)
         screenWallpaperHistory[screenIndex].prepend(localImagePath);
 
         // Limiter à MAX_HISTORY_SIZE
@@ -3785,6 +3815,11 @@ private:
 
         // Sauvegarder l'historique
         saveHistoryToSettings();
+
+        // Marquer cet écran comme pouvant être désélectionné
+        if (screenSelector) {
+            screenSelector->setScreenCanBeDeselected(screenIndex, true);
+        }
     }
 
     QString copyImageToHistory(const QString &sourcePath)
@@ -4051,9 +4086,192 @@ private:
 
     QString getHistoryDirectory() const
     {
-        QString historyDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/wallpapers";
+        QString historyDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/history";
         QDir().mkpath(historyDir);
         return historyDir;
+    }
+
+    QString getWallpapersDirectory() const
+    {
+        QString wallpapersDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/wallpapers";
+        QDir().mkpath(wallpapersDir);
+        return wallpapersDir;
+    }
+
+    QString getScreenUniqueId(int screenIndex) const
+    {
+        #ifdef Q_OS_WIN
+        QList<QScreen*> screens = QApplication::screens();
+        if (screenIndex < 0 || screenIndex >= screens.size()) {
+            return QString("unknown_%1").arg(screenIndex);
+        }
+
+        QScreen* screen = screens[screenIndex];
+        QString screenName = screen->name();
+
+        // Utiliser QueryDisplayConfig pour obtenir l'identifiant unique
+        UINT32 pathCount = 0;
+        UINT32 modeCount = 0;
+
+        // Première appelé pour obtenir la taille nécessaire
+        LONG result = GetDisplayConfigBufferSizes(QDC_ALL_PATHS, &pathCount, &modeCount);
+        if (result != ERROR_SUCCESS) {
+            // Fallback sur le nom de l'écran nettoyé
+            QString cleanName = screenName;
+            cleanName.replace(QRegularExpression("[^A-Za-z0-9_-]"), "_");
+            return QString("%1-unknown-unknown").arg(cleanName);
+        }
+
+        // Allouer les buffers
+        QVector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
+        QVector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);
+
+        // Obtenir la configuration de tous les chemins
+        result = QueryDisplayConfig(QDC_ALL_PATHS, &pathCount, paths.data(), &modeCount, modes.data(), nullptr);
+        if (result != ERROR_SUCCESS) {
+            QString cleanName = screenName;
+            cleanName.replace(QRegularExpression("[^A-Za-z0-9_-]"), "_");
+            return QString("%1-unknown-unknown").arg(cleanName);
+        }
+
+        // Chercher tous les écrans actifs et les mapper à l'index Qt
+        int qtScreenIndex = 0;
+        for (UINT32 i = 0; i < pathCount; i++) {
+            // Vérifier si ce chemin est actif
+            if (!(paths[i].flags & DISPLAYCONFIG_PATH_ACTIVE)) {
+                continue;
+            }
+
+            DISPLAYCONFIG_TARGET_DEVICE_NAME targetName = {};
+            targetName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+            targetName.header.size = sizeof(targetName);
+            targetName.header.adapterId = paths[i].targetInfo.adapterId;
+            targetName.header.id = paths[i].targetInfo.id;
+
+            // Si c'est l'écran correspondant à notre index Qt
+            if (qtScreenIndex == screenIndex) {
+                // Obtenir le nom de l'écran
+                if (DisplayConfigGetDeviceInfo(&targetName.header) == ERROR_SUCCESS) {
+                    QString deviceName = QString::fromWCharArray(targetName.monitorFriendlyDeviceName);
+
+                    // Si le nom de l'appareil est vide, utiliser IM (integrated monitor)
+                    if (deviceName.isEmpty()) {
+                        deviceName = "IM";
+                    }
+
+                    // Nettoyer le nom de l'appareil
+                    QString cleanDeviceName = deviceName;
+                    cleanDeviceName.replace(QRegularExpression("[^A-Za-z0-9_-]"), "_");
+
+                    // Format: <DeviceName>-<adapter>-<output>
+                    QString uniqueId = QString("%1-%2-%3")
+                        .arg(cleanDeviceName)
+                        .arg(paths[i].targetInfo.adapterId.HighPart)
+                        .arg(paths[i].targetInfo.id);
+
+                    return uniqueId;
+                }
+            }
+            qtScreenIndex++;
+        }
+        #endif
+
+        // Fallback : utiliser un ID basé sur l'index et le nom
+        QString cleanName = screen->name();
+        cleanName.replace(QRegularExpression("[^A-Za-z0-9_-]"), "_");
+        QString fallbackId = QString("%1-%2-unknown").arg(cleanName).arg(screenIndex);
+        return fallbackId;
+    }
+
+    void logWallpaperChange(int screenIndex, const QString &filename, const QString &triggerMode, const QString &adjustMode)
+    {
+        QString screenId = getScreenUniqueId(screenIndex);
+        QString historyDir = getHistoryDirectory();
+        QString logFilePath = historyDir + "/" + screenId + ".log";
+
+        QFile logFile(logFilePath);
+        if (logFile.open(QIODevice::WriteOnly | QIODevice::Append)) {
+            QTextStream stream(&logFile);
+            QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+
+            // Format: [timestamp] [filename] [trigger mode] [adjust mode]
+            stream << "[" << timestamp << "] [" << filename << "] [" << triggerMode << "] [" << adjustMode << "]\n";
+            logFile.close();
+        }
+    }
+
+    QString getCurrentWallpaperFromLog(int screenIndex)
+    {
+        QString screenId = getScreenUniqueId(screenIndex);
+        QString historyDir = getHistoryDirectory();
+        QString logFilePath = historyDir + "/" + screenId + ".log";
+
+        QFile logFile(logFilePath);
+        if (logFile.open(QIODevice::ReadOnly)) {
+            QTextStream stream(&logFile);
+            QString lastLine;
+            QString line;
+
+            // Lire toutes les lignes pour obtenir la dernière
+            while (stream.readLineInto(&line)) {
+                if (!line.isEmpty()) {
+                    lastLine = line;
+                }
+            }
+            logFile.close();
+
+            // Parser la dernière ligne pour extraire le nom de fichier
+            if (!lastLine.isEmpty()) {
+                QRegularExpression regex(R"(\[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\])");
+                QRegularExpressionMatch match = regex.match(lastLine);
+                if (match.hasMatch()) {
+                    QString filename = match.captured(2);
+
+                    // Chercher le fichier dans le répertoire wallpapers
+                    QString wallpapersDir = getWallpapersDirectory();
+                    QDir dir(wallpapersDir);
+                    QFileInfoList files = dir.entryInfoList(QDir::Files);
+
+                    for (const QFileInfo &fileInfo : files) {
+                        if (fileInfo.fileName().contains(filename)) {
+                            return fileInfo.absoluteFilePath();
+                        }
+                    }
+                }
+            }
+        }
+
+        return QString(); // Aucun fond d'écran trouvé
+    }
+
+    QString copyImageToWallpapers(const QString &sourcePath, int screenIndex)
+    {
+        // Vérifier que le fichier source existe
+        if (!QFile::exists(sourcePath)) {
+            return QString();
+        }
+
+        QString wallpapersDir = getWallpapersDirectory();
+        QString screenId = getScreenUniqueId(screenIndex);
+
+        // Générer un nom de fichier unique basé sur le screenId et timestamp
+        QFileInfo sourceInfo(sourcePath);
+        QString extension = sourceInfo.suffix();
+        QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss");
+        QString localFileName = QString("%1_%2.%3").arg(screenId, timestamp, extension);
+        QString localPath = wallpapersDir + "/" + localFileName;
+
+        // Supprimer le fichier de destination s'il existe déjà
+        if (QFile::exists(localPath)) {
+            QFile::remove(localPath);
+        }
+
+        // Copier le fichier
+        if (QFile::copy(sourcePath, localPath)) {
+            return localPath;
+        }
+
+        return QString(); // Échec de la copie
     }
 
     // Contrôles de paramètres pour la sauvegarde/chargement
@@ -4065,6 +4283,7 @@ private:
     ToggleSwitch *multiScreenToggle;
     QPushButton *applyButton;
     bool isLoadingSettings;
+    QString currentTriggerMode;
 };
 
 int main(int argc, char *argv[])
