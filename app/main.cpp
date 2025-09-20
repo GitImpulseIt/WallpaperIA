@@ -845,6 +845,9 @@ public:
         // Initialiser les états de désélection basés sur les logs
         initializeScreenDeselectionStates();
 
+        // Nettoyer les anciens fichiers wallpapers au démarrage
+        cleanupAllWallpapers();
+
         // Gestion du démarrage automatique
         handleStartupBehavior();
     }
@@ -3824,6 +3827,9 @@ private:
         // Enregistrer dans le log
         logWallpaperChange(screenIndex, filename, triggerMode, adjustMode);
 
+        // Nettoyer les anciens fichiers wallpapers (ne garder que le fichier actuel)
+        cleanupOldWallpapers(screenIndex, localImagePath);
+
         // Ajouter au début de la liste (ancien système conservé pour compatibilité)
         screenWallpaperHistory[screenIndex].prepend(localImagePath);
 
@@ -3926,6 +3932,51 @@ private:
             if (!inUse) {
                 totalSize -= oldestFile.size();
                 QFile::remove(oldestPath);
+            }
+        }
+    }
+
+    void cleanupOldWallpapers(int screenIndex, const QString &currentFilePath)
+    {
+        QString wallpapersDir = getWallpapersDirectory();
+        QString screenId = getScreenUniqueId(screenIndex);
+        QString screenDir = wallpapersDir + "/" + screenId;
+
+        QDir dir(screenDir);
+        if (!dir.exists()) {
+            return;
+        }
+
+        // Lister tous les fichiers dans le répertoire de cet écran
+        QFileInfoList files = dir.entryInfoList(QDir::Files);
+
+        // Supprimer tous les fichiers sauf le fichier actuel
+        for (const QFileInfo &fileInfo : files) {
+            QString filePath = fileInfo.absoluteFilePath();
+
+            // Ne pas supprimer le fichier actuel
+            if (filePath != currentFilePath) {
+                QFile::remove(filePath);
+            }
+        }
+    }
+
+    void cleanupAllWallpapers()
+    {
+        // Nettoyer les anciens fichiers wallpapers de tous les écrans
+        for (int i = 0; i < QApplication::screens().size(); i++) {
+            QString currentWallpaper = getCurrentWallpaperFromLog(i);
+            if (!currentWallpaper.isEmpty()) {
+                cleanupOldWallpapers(i, currentWallpaper);
+            } else {
+                // Si aucun fichier actuel, supprimer tout le répertoire de cet écran
+                QString wallpapersDir = getWallpapersDirectory();
+                QString screenId = getScreenUniqueId(i);
+                QString screenDir = wallpapersDir + "/" + screenId;
+                QDir dir(screenDir);
+                if (dir.exists()) {
+                    dir.removeRecursively();
+                }
             }
         }
     }
