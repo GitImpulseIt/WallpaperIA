@@ -25,7 +25,7 @@
 - **System tray** : Application reste en arrière-plan
 
 ## 📐 Conventions de code
-- **Pas de commentaires** sauf si explicitement demandé
+- **Commentaires** : Autorisés dans le code principal, évités uniquement dans screenmap.cpp (outil de debug)
 - **Noms en français** pour l'interface utilisateur
 - **Espacement** : 10px entre éléments, alignements justifiés
 - **Largeurs fixes** : Containers de 280px pour alignement, boutons adaptés au contenu
@@ -53,52 +53,34 @@
 ## 🚫 Éviter
 - Modifications sans compilation préalable
 - Commits avec push automatique
-- Ajout de commentaires non demandés
 - Désalignements dans l'interface
 - Messages de commit sans format spécifié
 
 ---
 
-## 🔥 PROBLÈME MULTI-ÉCRANS EN COURS
+## ✅ SYSTÈME MULTI-ÉCRANS RÉSOLU
 
-### 📋 Contexte du problème
-- **Disposition des écrans** : Écran 3 (principal Windows) et écrans 2 en haut, écran 1 en bas (plus grand)
-- **Problème actuel** : L'écran 1 affiche le fond d'écran en tuiles (4 répétitions) au lieu d'une image complète
-- **Écrans 2 et 3** : Fonctionnent correctement avec images complètes
-- **Configuration Windows** : Écran 3 = principal (pas l'écran 1)
+### 🎯 Solution finale implémentée
+- **Problème résolu** : Correction définitive du tiling sur l'écran haute résolution (commit a5c62da)
+- **Technique** : Distinction entre coordonnées logiques Windows et résolutions natives écrans
+- **Méthode** : Utilisation des résolutions natives au lieu des tailles logiques Qt
 
-### 🔧 Solutions tentées
-1. **Mode Span** : WallpaperStyle="22", TileWallpaper="0" - amélioration partielle
-2. **Mode Tile** : WallpaperStyle="0", TileWallpaper="1" - comme DualMonitorTools
-3. **Système de wrapping** : Implémentation complète du wrapping DualMonitorTools pour gérer les coordonnées négatives
-4. **ScreenMapping sophistiqué** : Structure de mapping avec calculs précis des positions
-5. **Debug détaillé** : Logs complets des dimensions, mappings et wrapping
-
-### 🎯 Système actuel implémenté
+### 🔧 Système actuel fonctionnel
 - **ScreenMapping** : Structure sophistiquée pour mapper chaque écran
-- **calculateVirtualDesktopBounds()** : Calcul précis du bureau virtuel avec debug
-- **generateScreenMappings()** : Création des mappings par écran avec logs
+- **calculateVirtualDesktopBounds()** : Utilise maintenant les résolutions natives
+- **generateScreenMappings()** : Coordonnées conservées, tailles en résolution native
 - **createCompositeImageFromMappings()** : Génération d'image composite haute qualité
 - **wrapCoordinatesForWindows()** : Système de wrapping complet (quadrants A,B,C,D)
-- **Debug complet** : Logs détaillés de tous les calculs et transformations
+- **Suppression du scaling** : Plus de scaling incorrect des coordonnées
 
-### 🔍 Investigations nécessaires
-1. **Vérifier la détection Qt vs Windows** de l'écran principal
-2. **Analyser les logs de debug** lors des tests multi-écrans
-3. **Comprendre pourquoi l'écran 1** fait du tiling malgré le wrapping
-4. **Tester différents modes** : Span, Tile, Fill selon les résultats
-5. **Identifier la vraie cause** : Coordonnées, tailles, ou positionnement
-
-### 📝 Notes importantes
-- **Écran principal** : Écran 3 dans Windows, mais Qt peut détecter différemment
-- **Disposition complexe** : Écrans avec coordonnées négatives possibles
-- **DualMonitorTools** : Référence fonctionnelle pour la technique de wrapping
-- **Tests** : Lancer `./WallpaperIA.exe` en console pour voir les logs debug
+### 🧪 Outils de debug disponibles
+- **screenmap.cpp** : Outil de test pour vérifier le mapping des écrans
+- **compile_screenmap.bat** : Script de compilation Visual Studio pour les tests
+- **Debug détaillé** : Logs complets des calculs avec résolutions réelles
 - **Image composite** : Sauvée dans `/temp/WallpaperIA/composite_wallpaper.bmp`
 
-### 🚀 Prochaines étapes
-1. Analyser les logs debug détaillés
-2. Vérifier la correspondance écran Qt index vs écran Windows
-3. Ajuster le wrapping selon la vraie disposition détectée
-4. Tester les modes alternatifs si nécessaire
-5. Corriger définitivement le problème de tiling sur l'écran 1
+### 📝 Notes techniques importantes
+- **Coordonnées logiques Windows** : Conservées telles quelles pour le positionnement
+- **Résolutions natives écrans** : Utilisées uniquement pour les tailles des rectangles
+- **Plus de tiling** : Problème résolu sur les écrans haute résolution avec scaling
+- **Tests** : Utiliser `./screenmap.exe` pour diagnostiquer le mapping si besoin

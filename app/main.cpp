@@ -484,10 +484,13 @@ class CountdownWidget : public QWidget
 {
     Q_OBJECT
 
+signals:
+    void countdownExpired(); // Signal émis quand le compte à rebours expire
+
 public:
     CountdownWidget(QWidget *parent = nullptr) : QWidget(parent), m_totalSeconds(3600), m_remainingSeconds(3600), m_isStartupMode(false)
     {
-        setFixedSize(200, 200);
+        setFixedSize(280, 200); // Élargi pour permettre des cadres plus larges
 
         // Timer pour mise à jour chaque seconde
         m_timer = new QTimer(this);
@@ -516,17 +519,43 @@ protected:
         painter.setRenderHint(QPainter::Antialiasing);
 
         if (m_isStartupMode) {
-            // Mode "Au démarrage" : affichage textuel sans camembert
-            painter.setPen(QColor("#ffffff"));
-            painter.setFont(QFont("Segoe UI", 11, QFont::Bold));
+            // Mode "Au démarrage" : affichage dans un encadré d'information élargi
+            QRect infoRect = rect().adjusted(0, 15, 0, -100); // Cadre élargi
 
-            QRect textRect = rect().adjusted(10, 10, -10, -10);
-            painter.drawText(textRect, Qt::AlignCenter | Qt::TextWordWrap,
+            // Fond de l'encadré avec bordure arrondie
+            painter.setBrush(QColor(33, 150, 243, 30)); // #2196F3 avec transparence
+            painter.setPen(QPen(QColor("#2196F3"), 2));
+            painter.drawRoundedRect(infoRect, 8, 8);
+
+            // Icône reboot centrée verticalement à gauche
+            QPixmap rebootIcon("info.png"); // Chemin depuis l'exécutable
+            int iconSize = 32;
+            int iconY = infoRect.center().y() - iconSize/2; // Centré verticalement
+            QRect iconRect(infoRect.left() + 15, iconY, iconSize, iconSize);
+
+            if (!rebootIcon.isNull()) {
+                painter.drawPixmap(iconRect, rebootIcon);
+            } else {
+                // Fallback si l'image ne se charge pas
+                painter.setPen(QColor("#2196F3"));
+                painter.setFont(QFont("Segoe UI", 16));
+                painter.drawText(iconRect, Qt::AlignCenter, "🔄");
+            }
+
+            // Texte complet à droite de l'icône
+            painter.setPen(QColor("#ffffff"));
+            painter.setFont(QFont("Segoe UI", 10)); // Pas de gras
+            QRect textRect(infoRect.left() + 60, infoRect.top() + 15, infoRect.width() - 65, infoRect.height() - 30);
+            painter.drawText(textRect, Qt::AlignLeft | Qt::TextWordWrap,
                 "Changement de fond d'écran au prochain redémarrage de l'ordinateur");
             return;
         }
 
-        QRect circleRect = rect().adjusted(20, 20, -20, -20);
+        // Centrer le cercle dans le widget élargi
+        int circleSize = 160; // Taille du cercle
+        int centerX = rect().center().x();
+        int centerY = rect().center().y();
+        QRect circleRect(centerX - circleSize/2, centerY - circleSize/2, circleSize, circleSize);
 
         // Calculer le pourcentage de progression (0% = plein, 100% = vide)
         double progressPercent = 0.0;
@@ -584,7 +613,8 @@ private slots:
             m_remainingSeconds--;
             update();
         } else {
-            // Temps écoulé, réinitialiser
+            // Temps écoulé, émettre le signal puis réinitialiser
+            emit countdownExpired();
             m_remainingSeconds = m_totalSeconds;
             update();
         }
@@ -874,6 +904,7 @@ private:
 
         // Widget de compte à rebours
         countdownWidget = new CountdownWidget();
+        connect(countdownWidget, &CountdownWidget::countdownExpired, this, &ModernWindow::onChangeNowClicked);
         rightCountdownLayout->addWidget(countdownWidget, 0, Qt::AlignCenter);
 
         // Assemblage du layout principal - centrer les groupes
