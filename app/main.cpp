@@ -985,6 +985,34 @@ private slots:
         }
     }
 
+    void updateAdjustmentExplanation(int index) {
+        if (!adjustmentExplanationLabel) return;
+
+        QString explanation;
+        switch (index) {
+            case 0: // Remplir
+                explanation = "L'image conserve son ratio mais dépasse de l'écran pour le remplir";
+                break;
+            case 1: // Ajuster
+                explanation = "L'image conserve son ratio mais des bandes noires sont ajoutées pour tenir dans l'écran";
+                break;
+            case 2: // Étendre
+                explanation = "L'image s'étend sur plusieurs écrans";
+                break;
+            case 3: // Étirer
+                explanation = "L'image est étirée de façon à remplir tout l'écran mais le ratio n'est pas respecté";
+                break;
+            case 4: // Mosaïque
+                explanation = "L'image se répète de façon à remplir tout l'écran et le ratio est conservé";
+                break;
+            default:
+                explanation = "Mode d'ajustement sélectionné";
+                break;
+        }
+
+        adjustmentExplanationLabel->setText(explanation);
+    }
+
     void updateCountdownFromSettings() {
         if (!countdownWidget) return;
 
@@ -1507,16 +1535,18 @@ private:
         );
 
         QVBoxLayout *adjustmentLayout = new QVBoxLayout(adjustmentGroup);
-        adjustmentLayout->setSpacing(15);
-        adjustmentLayout->setContentsMargins(15, 15, 15, 15);
+        adjustmentLayout->setSpacing(10);
+        adjustmentLayout->setContentsMargins(10, 15, 10, 15);
 
-        // Layout horizontal pour centrer les éléments
-        QHBoxLayout *centeringLayout = new QHBoxLayout();
-        centeringLayout->addStretch(); // Espacement à gauche
+        // Layout horizontal principal pour diviser en deux parties
+        QHBoxLayout *mainAdjustmentLayout = new QHBoxLayout();
+        mainAdjustmentLayout->setSpacing(10);
+        mainAdjustmentLayout->setAlignment(Qt::AlignTop);
 
-        // Widget container pour le sélecteur et l'image
+        // Widget container pour le sélecteur et l'image (partie gauche)
         QWidget *selectorWidget = new QWidget();
         selectorWidget->setStyleSheet("QWidget { background-color: #3a3a3a; }");
+        selectorWidget->setFixedWidth(160);
         QVBoxLayout *selectorLayout = new QVBoxLayout(selectorWidget);
         selectorLayout->setSpacing(15);
         selectorLayout->setAlignment(Qt::AlignCenter);
@@ -1530,7 +1560,7 @@ private:
         adjustmentCombo->addItem("Étirer", "stretch");
         adjustmentCombo->addItem("Mosaïque", "tile");
         adjustmentCombo->setFixedHeight(32);
-        adjustmentCombo->setFixedWidth(150);
+        adjustmentCombo->setFixedWidth(140);
         adjustmentCombo->setStyleSheet(
             "QComboBox {"
             "border: 1px solid #555;"
@@ -1619,7 +1649,9 @@ private:
                 adjustmentImageLabel->setText(adjustmentCombo->currentText());
                 adjustmentImageLabel->setStyleSheet("QLabel { border: 1px solid #555; border-radius: 8px; background-color: #e8e8e8; padding: 0px; color: #333333; font-weight: bold; }");
             }
-            // TODO: Sauvegarder le mode d'ajustement sélectionné
+
+            // Mettre à jour l'explication selon le mode sélectionné
+            updateAdjustmentExplanation(index);
         });
 
         selectorLayout->addWidget(adjustmentCombo, 0, Qt::AlignCenter);
@@ -1628,10 +1660,48 @@ private:
         // Connecter au détecteur de changements (en plus de la connexion existante)
         connect(adjustmentCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ModernWindow::onSettingsChanged);
 
-        centeringLayout->addWidget(selectorWidget);
-        centeringLayout->addStretch(); // Espacement à droite
+        // Ajouter le sélecteur à la partie gauche
+        mainAdjustmentLayout->addWidget(selectorWidget);
 
-        adjustmentLayout->addLayout(centeringLayout);
+        // Encadré d'explication (partie droite)
+        QWidget *explanationWidget = new QWidget();
+        explanationWidget->setFixedHeight(167); // Hauteur exacte: 32px (combo) + 15px (spacing) + 120px (image)
+        explanationWidget->setStyleSheet(
+            "QWidget {"
+            "background-color: rgba(33, 150, 243, 30);" // #2196F3 avec transparence
+            "border: 2px solid #2196F3;"
+            "border-radius: 8px;"
+            "}"
+        );
+
+        QVBoxLayout *explanationLayout = new QVBoxLayout(explanationWidget);
+        explanationLayout->setContentsMargins(10, 10, 10, 10);
+
+        adjustmentExplanationLabel = new QLabel();
+        adjustmentExplanationLabel->setObjectName("adjustmentExplanationLabel");
+        adjustmentExplanationLabel->setWordWrap(true);
+        adjustmentExplanationLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+        adjustmentExplanationLabel->setStyleSheet(
+            "QLabel {"
+            "color: #ffffff;"
+            "font-size: 13px;"
+            "background-color: transparent;"
+            "border: none;"
+            "padding: 5px;"
+            "}"
+        );
+
+        // Texte par défaut pour "Remplir"
+        adjustmentExplanationLabel->setText("L'image conserve son ratio mais dépasse de l'écran pour le remplir");
+
+        explanationLayout->addWidget(adjustmentExplanationLabel);
+        explanationLayout->addStretch();
+
+        // Ajouter l'encadré d'explication à la partie droite
+        mainAdjustmentLayout->addWidget(explanationWidget);
+
+        // Ajouter le layout principal au groupe
+        adjustmentLayout->addLayout(mainAdjustmentLayout);
 
         // Groupe Options système
         QGroupBox *systemGroup = new QGroupBox("Options système");
@@ -3942,6 +4012,7 @@ private:
     QPushButton *changeNowButton;
     QLabel *statusLabel;
     CountdownWidget *countdownWidget;
+    QLabel *adjustmentExplanationLabel; // Label pour l'explication du mode d'ajustement
     QMap<QString, int> categoryRatings; // Stockage des notations des catégories
     ScreenSelector *screenSelector; // Sélecteur d'écran
 
