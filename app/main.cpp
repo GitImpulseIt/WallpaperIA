@@ -848,6 +848,9 @@ public:
         // Nettoyer les anciens fichiers wallpapers au démarrage
         cleanupAllWallpapers();
 
+        // Nettoyer les fichiers temporaires du démarrage précédent
+        cleanupTemporaryFiles();
+
         // Gestion du démarrage automatique
         handleStartupBehavior();
     }
@@ -2669,6 +2672,10 @@ private:
                 screenNumbers.append(QString::number(screen + 1));
             }
             statusLabel->setText(QString("Fonds d'écran appliqués sur les écrans %1").arg(screenNumbers.join(", ")));
+
+            // Nettoyer les fichiers temporaires après application réussie
+            cleanupTemporaryFiles();
+
             restoreButton("Succès !");
         } else {
             restoreButton("Erreur lors de l'application");
@@ -2876,6 +2883,10 @@ private:
                             statusLabel->setText(QString("Fond d'écran écrans %1: %2").arg(screenNumbers.join(", ")).arg(filename));
                         }
                     }
+
+                    // Nettoyer les fichiers temporaires après application réussie
+                    cleanupTemporaryFiles();
+
                     restoreButton("Succès !");
                 } else {
                     restoreButton("Erreur lors de l'application");
@@ -3981,6 +3992,26 @@ private:
         }
     }
 
+    void cleanupTemporaryFiles()
+    {
+        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+        QDir dir(tempDir);
+
+        if (!dir.exists()) {
+            return;
+        }
+
+        // Lister tous les fichiers BMP et PNG temporaires
+        QStringList filters;
+        filters << "*.bmp" << "*.png";
+        QFileInfoList tempFiles = dir.entryInfoList(filters, QDir::Files);
+
+        // Supprimer tous les fichiers temporaires
+        for (const QFileInfo &fileInfo : tempFiles) {
+            QFile::remove(fileInfo.absoluteFilePath());
+        }
+    }
+
     QString getLastWallpaperFromHistory(int screenIndex) const
     {
         // Récupérer uniquement depuis les logs
@@ -4375,6 +4406,11 @@ private:
 
         // Copier le fichier
         if (QFile::copy(sourcePath, localPath)) {
+            // Si le fichier source se trouve dans le répertoire temporaire, le supprimer après copie
+            QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+            if (sourcePath.startsWith(tempDir)) {
+                QFile::remove(sourcePath);
+            }
             return localPath;
         }
 
