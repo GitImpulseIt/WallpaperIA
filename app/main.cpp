@@ -955,6 +955,34 @@ private slots:
                 statusLabel->setText("Cliquez pour changer le fond d'écran");
             }
         }
+
+        // Gérer la disponibilité du mode "Étendre"
+        updateAdjustmentOptions(enabled);
+    }
+
+    void updateAdjustmentOptions(bool multiScreenEnabled) {
+        if (!adjustmentCombo) return;
+
+        // Le mode "Étendre" (index 2) n'est pas compatible avec "Image différente sur chaque écran"
+        QStandardItemModel* model = qobject_cast<QStandardItemModel*>(adjustmentCombo->model());
+        if (model) {
+            QStandardItem* spanItem = model->item(2); // Index 2 = "Étendre"
+            if (spanItem) {
+                bool spanAvailable = !multiScreenEnabled;
+                spanItem->setEnabled(spanAvailable);
+
+                if (!spanAvailable) {
+                    spanItem->setData(QColor(128, 128, 128), Qt::ForegroundRole); // Grisé
+                    // Si "Étendre" est actuellement sélectionné, basculer vers "Remplir"
+                    if (adjustmentCombo->currentIndex() == 2) {
+                        adjustmentCombo->setCurrentIndex(0); // "Remplir"
+                        onSettingsChanged(); // Marquer comme modifié
+                    }
+                } else {
+                    spanItem->setData(QColor(255, 255, 255), Qt::ForegroundRole); // Normal
+                }
+            }
+        }
     }
 
     void updateCountdownFromSettings() {
