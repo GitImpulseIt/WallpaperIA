@@ -84,3 +84,40 @@
 - **Résolutions natives écrans** : Utilisées uniquement pour les tailles des rectangles
 - **Plus de tiling** : Problème résolu sur les écrans haute résolution avec scaling
 - **Tests** : Utiliser `./screenmap.exe` pour diagnostiquer le mapping si besoin
+
+---
+
+## 🆕 FONCTIONNALITÉS RÉCENTES IMPLÉMENTÉES
+
+### ⏱️ Système de déclenchement automatique (Commits de7c881, 04a70c8)
+- **Signal countdownExpired()** : Émis automatiquement quand le compte à rebours expire
+- **Connexion automatique** : Déclenche `onChangeNowClicked()` pour changer le fond d'écran
+- **Widget élargi** : CountdownWidget agrandi (280x200) avec cercle recentré dynamiquement
+- **Mode "Au démarrage"** : Encadré informatif bleu (#2196F3) avec icône info.png
+- **Mode "Changement manuel uniquement"** : Encadré informatif identique au mode démarrage
+
+### 🔄 Gestion des fréquences avec logique de cohérence
+- **Option "Changement manuel uniquement"** : Première option pour désactiver les changements automatiques
+- **Logique de dépendance** : "Au démarrage" disponible seulement si "Démarrer avec Windows" activé
+- **Basculement automatique** : Passage vers "Changement manuel uniquement" en cas d'incohérence
+- **Interface cohérente** : Options grisées visuellement, indices corrigés (index 8 pour "Autre")
+- **Mode m_isNeverMode** : Nouveau mode pour gérer l'affichage sans timer
+
+### 🖥️ Démarrage automatique avec Windows (En cours de test)
+- **Gestion registre Windows** : Fonctions `addToWindowsStartup()`, `removeFromWindowsStartup()`, `isInWindowsStartup()`
+- **Argument `--startup`** : Détection du démarrage automatique via ligne de commande
+- **System tray intelligent** : Démarrage direct dans le tray quand lancé au boot
+- **Toggle fonctionnel** : Activation/désactivation du démarrage Windows via interface
+- **Vérification automatique** : S'assure que l'option est correctement appliquée au lancement
+
+### 🎨 Améliorations visuelles et UX
+- **Encadrés informatifs** : Style uniforme bleu #2196F3 avec icône info.png et texte non-gras
+- **CountdownWidget responsive** : Adaptation automatique pour cadres élargis
+- **Cohérence des couleurs** : Respect strict du thème (#2196F3, #d14836, #8b4513)
+- **Fallbacks visuels** : Emojis de secours (🔄) si images non chargées
+
+## 📋 PROCHAINS TESTS NÉCESSAIRES
+- **Test reboot** : Vérifier le démarrage automatique avec Windows
+- **Test system tray** : Confirmer le démarrage silencieux au boot
+- **Test cohérence** : Vérifier les basculements automatiques d'options
+- **Test countdown** : Confirmer le déclenchement automatique du changement de fond d'écran
