@@ -2921,7 +2921,7 @@ private:
         }
 
         // Configurer le registre pour le mode "tile"
-        if (!setTiledWallpaperMode()) {
+        if (!setSpanWallpaperMode()) {
             return false;
         }
 
@@ -3057,10 +3057,11 @@ private:
         #endif
     }
 
+
     bool setSpanWallpaperMode()
     {
         #ifdef Q_OS_WIN
-        // Modifier le registre pour forcer le mode "Span" (meilleur pour multi-écrans)
+        // Modifier le registre pour forcer le mode "Span" (étendre sur plusieurs écrans)
         HKEY hkey;
         LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Control Panel\\Desktop", 0, KEY_SET_VALUE, &hkey);
 
@@ -3068,45 +3069,9 @@ private:
             return false;
         }
 
-        // Configurer TileWallpaper = "0" et WallpaperStyle = "22" (Span)
+        // Configurer TileWallpaper = "0" et WallpaperStyle = "22" pour le mode Span
         const wchar_t* tileValue = L"0";
         const wchar_t* styleValue = L"22";
-
-        bool success = true;
-
-        result = RegSetValueExW(hkey, L"TileWallpaper", 0, REG_SZ,
-                               (const BYTE*)tileValue, (wcslen(tileValue) + 1) * sizeof(wchar_t));
-        if (result != ERROR_SUCCESS) {
-            success = false;
-        }
-
-        result = RegSetValueExW(hkey, L"WallpaperStyle", 0, REG_SZ,
-                               (const BYTE*)styleValue, (wcslen(styleValue) + 1) * sizeof(wchar_t));
-        if (result != ERROR_SUCCESS) {
-            success = false;
-        }
-
-        RegCloseKey(hkey);
-        return success;
-        #else
-        return false;
-        #endif
-    }
-
-    bool setTiledWallpaperMode()
-    {
-        #ifdef Q_OS_WIN
-        // Modifier le registre pour forcer le mode "Tiled"
-        HKEY hkey;
-        LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Control Panel\\Desktop", 0, KEY_SET_VALUE, &hkey);
-
-        if (result != ERROR_SUCCESS) {
-            return false;
-        }
-
-        // Configurer TileWallpaper = "1" et WallpaperStyle = "0"
-        const wchar_t* tileValue = L"1";
-        const wchar_t* styleValue = L"0";
 
         bool success = true;
 
@@ -3269,7 +3234,7 @@ private:
 
         if (finalImage.save(compositePath, "BMP")) {
             // Utiliser le mode Tile avec calculs précis comme DualMonitorTools
-            setTiledWallpaperMode();
+            setSpanWallpaperMode();
 
             #ifdef Q_OS_WIN
             std::wstring wImagePath = compositePath.toStdWString();
@@ -3428,6 +3393,67 @@ private:
         return mappings;
     }
 
+    QPixmap applyAdjustmentMode(const QPixmap &sourceImage, const QSize &targetSize, int adjustmentMode)
+    {
+        if (sourceImage.isNull()) {
+            return QPixmap();
+        }
+
+        QPixmap result(targetSize);
+        result.fill(Qt::black);
+        QPainter painter(&result);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        switch (adjustmentMode) {
+            case 0: // Remplir (Cover) - conserve le ratio, peut dépasser
+            {
+                QPixmap scaledImage = sourceImage.scaled(targetSize, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+                // Centrer l'image si elle dépasse
+                int x = (targetSize.width() - scaledImage.width()) / 2;
+                int y = (targetSize.height() - scaledImage.height()) / 2;
+                painter.drawPixmap(x, y, scaledImage);
+                break;
+            }
+            case 1: // Ajuster (Contain) - conserve le ratio, bandes noires
+            {
+                QPixmap scaledImage = sourceImage.scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                // Centrer l'image dans l'espace disponible
+                int x = (targetSize.width() - scaledImage.width()) / 2;
+                int y = (targetSize.height() - scaledImage.height()) / 2;
+                painter.drawPixmap(x, y, scaledImage);
+                break;
+            }
+            case 2: // Étendre - ce mode ne devrait pas être utilisé en multi-écran
+            case 3: // Étirer - déforme pour remplir exactement
+            {
+                QPixmap scaledImage = sourceImage.scaled(targetSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+                painter.drawPixmap(0, 0, scaledImage);
+                break;
+            }
+            case 4: // Mosaïque - répète l'image
+            {
+                for (int x = 0; x < targetSize.width(); x += sourceImage.width()) {
+                    for (int y = 0; y < targetSize.height(); y += sourceImage.height()) {
+                        painter.drawPixmap(x, y, sourceImage);
+                    }
+                }
+                break;
+            }
+            default: // Par défaut, utiliser le mode remplir
+            {
+                QPixmap scaledImage = sourceImage.scaled(targetSize, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+                int x = (targetSize.width() - scaledImage.width()) / 2;
+                int y = (targetSize.height() - scaledImage.height()) / 2;
+                painter.drawPixmap(x, y, scaledImage);
+                break;
+            }
+        }
+
+        painter.end();
+        return result;
+    }
+
     QPixmap createCompositeImageFromMappings(const QList<ScreenMapping> &mappings, const QRect &virtualDesktop)
     {
         QPixmap composite(virtualDesktop.size());
@@ -3440,6 +3466,10 @@ private:
         qDebug() << QString("=== CRÉATION COMPOSITE ===");
         qDebug() << QString("Taille composite: %1x%2").arg(composite.width()).arg(composite.height());
 
+        // Récupérer le mode d'ajustement sélectionné par l'utilisateur
+        int adjustmentMode = adjustmentCombo ? adjustmentCombo->currentIndex() : 0;
+        qDebug() << QString("Mode d'ajustement appliqué: %1").arg(adjustmentMode);
+
         for (const ScreenMapping &mapping : mappings) {
             QPixmap sourceImage(mapping.imagePath);
             if (!sourceImage.isNull()) {
@@ -3447,12 +3477,10 @@ private:
                             .arg(mapping.destRect.x()).arg(mapping.destRect.y())
                             .arg(mapping.destRect.width()).arg(mapping.destRect.height());
 
-                // Appliquer un scaling de haute qualité pour remplir parfaitement l'écran
-                QPixmap scaledImage = sourceImage.scaled(mapping.destRect.size(),
-                                                         Qt::IgnoreAspectRatio,
-                                                         Qt::SmoothTransformation);
+                // Appliquer le mode d'ajustement choisi par l'utilisateur
+                QPixmap adjustedImage = applyAdjustmentMode(sourceImage, mapping.destRect.size(), adjustmentMode);
 
-                painter.drawPixmap(mapping.destRect, scaledImage);
+                painter.drawPixmap(mapping.destRect, adjustedImage);
             }
         }
 
@@ -3641,7 +3669,7 @@ private:
         }
 
         // Configurer le registre pour le mode "tile"
-        if (!setTiledWallpaperMode()) {
+        if (!setSpanWallpaperMode()) {
             return false;
         }
 
