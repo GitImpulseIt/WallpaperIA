@@ -903,6 +903,16 @@ private slots:
         if (startupToggle && startupToggle->isChecked()) {
             applyStartupSetting(true);
         }
+
+        // Vérifier si on est lancé au démarrage et si l'option "Au démarrage" est sélectionnée
+        QStringList arguments = QCoreApplication::arguments();
+        bool launchedAtStartup = arguments.contains("--startup");
+
+        if (launchedAtStartup && frequencyCombo && frequencyCombo->currentIndex() == 7) {
+            // Index 7 = "Au démarrage de l'ordinateur"
+            // Déclencher le changement de fond d'écran
+            QTimer::singleShot(2000, this, &ModernWindow::onChangeNowClicked); // Délai de 2s pour laisser le système démarrer
+        }
     }
 
     void applyStartupSetting(bool enabled) {

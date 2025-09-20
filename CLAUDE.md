@@ -103,12 +103,13 @@
 - **Interface cohérente** : Options grisées visuellement, indices corrigés (index 8 pour "Autre")
 - **Mode m_isNeverMode** : Nouveau mode pour gérer l'affichage sans timer
 
-### 🖥️ Démarrage automatique avec Windows (En cours de test)
+### 🖥️ Démarrage automatique avec Windows (✅ Fonctionnel)
 - **Gestion registre Windows** : Fonctions `addToWindowsStartup()`, `removeFromWindowsStartup()`, `isInWindowsStartup()`
 - **Argument `--startup`** : Détection du démarrage automatique via ligne de commande
 - **System tray intelligent** : Démarrage direct dans le tray quand lancé au boot
 - **Toggle fonctionnel** : Activation/désactivation du démarrage Windows via interface
 - **Vérification automatique** : S'assure que l'option est correctement appliquée au lancement
+- **Changement au démarrage** : Si "Au démarrage" est sélectionné, déclenche automatiquement le changement de fond d'écran avec délai de 2s
 
 ### 🎨 Améliorations visuelles et UX
 - **Encadrés informatifs** : Style uniforme bleu #2196F3 avec icône info.png et texte non-gras
@@ -116,8 +117,11 @@
 - **Cohérence des couleurs** : Respect strict du thème (#2196F3, #d14836, #8b4513)
 - **Fallbacks visuels** : Emojis de secours (🔄) si images non chargées
 
+## 📋 TESTS VALIDÉS
+- ✅ **Démarrage automatique avec Windows** : Fonctionnel
+- ✅ **System tray au boot** : Démarrage silencieux opérationnel
+- ✅ **Changement au démarrage** : Détection `--startup` + option "Au démarrage" = changement automatique
+
 ## 📋 PROCHAINS TESTS NÉCESSAIRES
-- **Test reboot** : Vérifier le démarrage automatique avec Windows
-- **Test system tray** : Confirmer le démarrage silencieux au boot
 - **Test cohérence** : Vérifier les basculements automatiques d'options
 - **Test countdown** : Confirmer le déclenchement automatique du changement de fond d'écran
