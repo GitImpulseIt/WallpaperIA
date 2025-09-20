@@ -51,6 +51,13 @@
 #include <objidl.h>
 #include <shlguid.h>
 #include <shobjidl.h>
+#include <QCoreApplication>
+#include <QDir>
+
+// Fonction utilitaire globale pour obtenir le chemin absolu vers les images
+QString getImagePath(const QString &imageName) {
+    return QCoreApplication::applicationDirPath() + "/" + imageName;
+}
 
 // Définitions pour IDesktopWallpaper si non disponibles dans MinGW
 #ifndef __IDesktopWallpaper_INTERFACE_DEFINED__
@@ -201,7 +208,7 @@ private:
             QPushButton *starBtn = ratingWidget->findChild<QPushButton*>(QString("star_%1_%2").arg(categoryId).arg(i));
             if (starBtn) {
                 if (i <= rating) {
-                    QPixmap starPixmap("star_active.png");
+                    QPixmap starPixmap(getImagePath("star_active.png"));
                     if (!starPixmap.isNull()) {
                         starBtn->setIcon(QIcon(starPixmap));
                     } else {
@@ -209,7 +216,7 @@ private:
                         starBtn->setStyleSheet("QPushButton { border: none; background: transparent; color: gold; } QPushButton:hover { background: rgba(255,255,255,0.2); }");
                     }
                 } else {
-                    QPixmap starPixmap("star_inactive.png");
+                    QPixmap starPixmap(getImagePath("star_inactive.png"));
                     if (!starPixmap.isNull()) {
                         starBtn->setIcon(QIcon(starPixmap));
                     } else {
@@ -263,7 +270,7 @@ private:
             for (int i = 1; i <= 3; i++) {
                 QPushButton *starBtn = ratingWidget->findChild<QPushButton*>(QString("star_%1_%2").arg(categoryId).arg(i));
                 if (starBtn) {
-                    QPixmap starPixmap("star_inactive.png");
+                    QPixmap starPixmap(getImagePath("star_inactive.png"));
                     if (!starPixmap.isNull()) {
                         starBtn->setIcon(QIcon(starPixmap));
                     } else {
@@ -278,7 +285,7 @@ private:
                 QPushButton *starBtn = ratingWidget->findChild<QPushButton*>(QString("star_%1_%2").arg(categoryId).arg(i));
                 if (starBtn) {
                     if (i <= rating) {
-                        QPixmap starPixmap("star_active.png");
+                        QPixmap starPixmap(getImagePath("star_active.png"));
                         if (!starPixmap.isNull()) {
                             starBtn->setIcon(QIcon(starPixmap));
                         } else {
@@ -286,7 +293,7 @@ private:
                             starBtn->setStyleSheet("QPushButton { border: none; background: transparent; color: gold; } QPushButton:hover { background: rgba(255,255,255,0.2); }");
                         }
                     } else {
-                        QPixmap starPixmap("star_inactive.png");
+                        QPixmap starPixmap(getImagePath("star_inactive.png"));
                         if (!starPixmap.isNull()) {
                             starBtn->setIcon(QIcon(starPixmap));
                         } else {
@@ -530,7 +537,7 @@ protected:
             painter.drawRoundedRect(infoRect, 8, 8);
 
             // Icône info centrée verticalement à gauche
-            QPixmap manualIcon("info.png"); // Même icône que le redémarrage
+            QPixmap manualIcon(getImagePath("info.png")); // Même icône que le redémarrage
             int iconSize = 32;
             int iconY = infoRect.center().y() - iconSize/2; // Centré verticalement
             QRect iconRect(infoRect.left() + 15, iconY, iconSize, iconSize);
@@ -563,7 +570,7 @@ protected:
             painter.drawRoundedRect(infoRect, 8, 8);
 
             // Icône reboot centrée verticalement à gauche
-            QPixmap rebootIcon("info.png"); // Chemin depuis l'exécutable
+            QPixmap rebootIcon(getImagePath("info.png")); // Chemin depuis l'exécutable
             int iconSize = 32;
             int iconY = infoRect.center().y() - iconSize/2; // Centré verticalement
             QRect iconRect(infoRect.left() + 15, iconY, iconSize, iconSize);
@@ -751,15 +758,77 @@ private:
     QPropertyAnimation *m_animation;
 };
 
+// Fonctions utilitaires pour la gestion du démarrage Windows
+#ifdef Q_OS_WIN
+bool addToWindowsStartup(const QString &appName, const QString &appPath) {
+    HKEY hKey;
+    LONG result = RegOpenKeyExW(HKEY_CURRENT_USER,
+                               L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+                               0, KEY_SET_VALUE, &hKey);
+
+    if (result != ERROR_SUCCESS) {
+        return false;
+    }
+
+    std::wstring wAppName = appName.toStdWString();
+    std::wstring wAppPath = appPath.toStdWString();
+
+    result = RegSetValueExW(hKey, wAppName.c_str(), 0, REG_SZ,
+                           reinterpret_cast<const BYTE*>(wAppPath.c_str()),
+                           (wAppPath.length() + 1) * sizeof(wchar_t));
+
+    RegCloseKey(hKey);
+    return result == ERROR_SUCCESS;
+}
+
+bool removeFromWindowsStartup(const QString &appName) {
+    HKEY hKey;
+    LONG result = RegOpenKeyExW(HKEY_CURRENT_USER,
+                               L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+                               0, KEY_SET_VALUE, &hKey);
+
+    if (result != ERROR_SUCCESS) {
+        return false;
+    }
+
+    std::wstring wAppName = appName.toStdWString();
+    result = RegDeleteValueW(hKey, wAppName.c_str());
+
+    RegCloseKey(hKey);
+    return result == ERROR_SUCCESS;
+}
+
+bool isInWindowsStartup(const QString &appName) {
+    HKEY hKey;
+    LONG result = RegOpenKeyExW(HKEY_CURRENT_USER,
+                               L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+                               0, KEY_QUERY_VALUE, &hKey);
+
+    if (result != ERROR_SUCCESS) {
+        return false;
+    }
+
+    std::wstring wAppName = appName.toStdWString();
+    DWORD dataType;
+    DWORD dataSize = 0;
+
+    result = RegQueryValueExW(hKey, wAppName.c_str(), nullptr, &dataType, nullptr, &dataSize);
+
+    RegCloseKey(hKey);
+    return result == ERROR_SUCCESS;
+}
+#endif
+
 class ModernWindow : public QWidget
 {
     Q_OBJECT
 
 public:
+
     ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false)
     {
         setWindowTitle("WallpaperIA - Gestionnaire de Fonds d'écran");
-        setWindowIcon(QIcon("icon.png"));
+        setWindowIcon(QIcon(getImagePath("icon.png")));
         setFixedSize(725, 650);
 
         // Configuration des boutons de la fenêtre : minimiser et fermer (pas d'agrandissement)
@@ -770,6 +839,9 @@ public:
         setupSystemTray();
         loadCategories();
         loadSettings();
+
+        // Gestion du démarrage automatique
+        handleStartupBehavior();
     }
 
     int getCategoryRating(const QString &categoryId) {
@@ -793,6 +865,9 @@ private slots:
         // Logique de cohérence : si "Démarrer avec Windows" est désactivé,
         // on ne peut pas utiliser "Au démarrage de l'ordinateur"
         updateFrequencyOptions();
+
+        // Gérer l'ajout/suppression du registre Windows
+        applyStartupSetting(enabled);
     }
 
     void updateFrequencyOptions() {
@@ -821,6 +896,41 @@ private slots:
                 }
             }
         }
+    }
+
+    void handleStartupBehavior() {
+        // S'assurer que l'option "Démarrer avec Windows" est correctement appliquée
+        if (startupToggle && startupToggle->isChecked()) {
+            applyStartupSetting(true);
+        }
+    }
+
+    void applyStartupSetting(bool enabled) {
+        #ifdef Q_OS_WIN
+        QString appName = "WallpaperIA";
+        QString appPath = QCoreApplication::applicationFilePath();
+
+        if (enabled) {
+            // Ajouter l'argument --startup pour démarrer dans le tray
+            // Convertir le chemin en format Windows avec backslashes
+            QString windowsPath = QDir::toNativeSeparators(appPath);
+            QString startupCommand = QString("\"%1\" --startup").arg(windowsPath);
+            if (!addToWindowsStartup(appName, startupCommand)) {
+                // En cas d'erreur, désactiver le toggle
+                startupToggle->setChecked(false);
+            }
+        } else {
+            removeFromWindowsStartup(appName);
+        }
+        #endif
+    }
+
+    bool checkStartupStatus() {
+        #ifdef Q_OS_WIN
+        return isInWindowsStartup("WallpaperIA");
+        #else
+        return false;
+        #endif
     }
 
     void onMultiScreenToggled(bool enabled) {
@@ -1451,7 +1561,7 @@ private:
         );
 
         // Afficher l'image par défaut (fill)
-        QPixmap defaultPixmap("wallpaper_fill_icon.png");
+        QPixmap defaultPixmap(getImagePath("wallpaper_fill_icon.png"));
         if (!defaultPixmap.isNull()) {
             // Utiliser une taille beaucoup plus grande pour remplir vraiment l'espace
             adjustmentImageLabel->setPixmap(defaultPixmap.scaled(136, 150, Qt::KeepAspectRatio, Qt::SmoothTransformation));
@@ -1463,7 +1573,7 @@ private:
         // Connecter le changement de sélection
         connect(adjustmentCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, adjustmentImageLabel](int index) {
             QString mode = this->adjustmentCombo->itemData(index).toString();
-            QPixmap modePixmap(QString("wallpaper_%1_icon.png").arg(mode));
+            QPixmap modePixmap(getImagePath(QString("wallpaper_%1_icon.png").arg(mode)));
             if (!modePixmap.isNull()) {
                 // Utiliser une taille beaucoup plus grande pour remplir vraiment l'espace
                 adjustmentImageLabel->setPixmap(modePixmap.scaled(136, 150, Qt::KeepAspectRatio, Qt::SmoothTransformation));
@@ -1692,26 +1802,26 @@ private:
     {
         // Créer l'icône du system tray
         trayIcon = new QSystemTrayIcon(this);
-        trayIcon->setIcon(QIcon("icon.png"));
+        trayIcon->setIcon(QIcon(getImagePath("icon.png")));
         trayIcon->setToolTip("WallpaperIA");
-        
+
         // Créer le menu contextuel
         trayMenu = new QMenu(this);
-        
+
         QAction *showAction = new QAction("Afficher", this);
         QAction *quitAction = new QAction("Quitter", this);
-        
+
         trayMenu->addAction(showAction);
         trayMenu->addSeparator();
         trayMenu->addAction(quitAction);
-        
+
         trayIcon->setContextMenu(trayMenu);
-        
+
         // Connecter les signaux
         connect(showAction, &QAction::triggered, this, &ModernWindow::restoreWindow);
         connect(quitAction, &QAction::triggered, this, &ModernWindow::quitApplication);
         connect(trayIcon, &QSystemTrayIcon::activated, this, &ModernWindow::onTrayIconActivated);
-        
+
         // Afficher l'icône du tray
         trayIcon->show();
     }
@@ -1859,7 +1969,7 @@ protected:
         disableBtn->setFixedSize(16, 16);
         disableBtn->setObjectName("disable_" + categoryId);
 
-        QPixmap disablePixmap("disable_category.png");
+        QPixmap disablePixmap(getImagePath("disable_category.png"));
         if (!disablePixmap.isNull()) {
             disableBtn->setIcon(QIcon(disablePixmap));
         } else {
@@ -1882,7 +1992,7 @@ protected:
             starBtn->setFixedSize(16, 16);
             starBtn->setObjectName(QString("star_%1_%2").arg(categoryId).arg(i));
 
-            QPixmap starPixmap("star_inactive.png");
+            QPixmap starPixmap(getImagePath("star_inactive.png"));
             if (!starPixmap.isNull()) {
                 starBtn->setIcon(QIcon(starPixmap));
             } else {
@@ -1922,7 +2032,7 @@ protected:
                 QPushButton *starBtn = ratingWidget->findChild<QPushButton*>(QString("star_%1_%2").arg(categoryId).arg(i));
                 if (starBtn) {
                     if (i <= rating) {
-                        QPixmap starPixmap("star_active.png");
+                        QPixmap starPixmap(getImagePath("star_active.png"));
                         if (!starPixmap.isNull()) {
                             starBtn->setIcon(QIcon(starPixmap));
                         } else {
@@ -1930,7 +2040,7 @@ protected:
                             starBtn->setStyleSheet("QPushButton { border: none; background: transparent; color: gold; } QPushButton:hover { background: rgba(255,255,255,0.2); }");
                         }
                     } else {
-                        QPixmap starPixmap("star_inactive.png");
+                        QPixmap starPixmap(getImagePath("star_inactive.png"));
                         if (!starPixmap.isNull()) {
                             starBtn->setIcon(QIcon(starPixmap));
                         } else {
@@ -1980,7 +2090,7 @@ protected:
             disableIcon->setObjectName("disableIcon_" + categoryId); // Nom pour identification
             disableIcon->setGeometry(55, 25, 100, 100); // Position centrée pour une icône plus grande
 
-            QPixmap disablePixmap("disable_category.png");
+            QPixmap disablePixmap(getImagePath("disable_category.png"));
             if (!disablePixmap.isNull()) {
                 disableIcon->setPixmap(disablePixmap.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation));
                 disableIcon->setStyleSheet("background: transparent;"); // Pas de fond sombre
@@ -2008,7 +2118,7 @@ protected:
                 star->setFixedSize(12, 12);
 
                 if (i <= rating) {
-                    QPixmap starPixmap("star_active.png");
+                    QPixmap starPixmap(getImagePath("star_active.png"));
                     if (!starPixmap.isNull()) {
                         star->setPixmap(starPixmap.scaled(12, 12, Qt::KeepAspectRatio, Qt::SmoothTransformation));
                     } else {
@@ -2017,7 +2127,7 @@ protected:
                         star->setAlignment(Qt::AlignCenter);
                     }
                 } else {
-                    QPixmap starPixmap("star_inactive.png");
+                    QPixmap starPixmap(getImagePath("star_inactive.png"));
                     if (!starPixmap.isNull()) {
                         star->setPixmap(starPixmap.scaled(12, 12, Qt::KeepAspectRatio, Qt::SmoothTransformation));
                     } else {
@@ -3823,10 +3933,15 @@ private:
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    
+
     ModernWindow window;
-    window.show();
-    
+
+    // Vérifier si on est lancé au démarrage via les arguments de ligne de commande
+    QStringList arguments = QCoreApplication::arguments();
+    bool launchedAtStartup = arguments.contains("--startup");
+
+    if (!launchedAtStartup) window.show();
+
     return app.exec();
 }
 
