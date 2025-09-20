@@ -4051,7 +4051,7 @@ private:
 
     QString getHistoryDirectory() const
     {
-        QString historyDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/WallpaperIA/history";
+        QString historyDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/wallpapers";
         QDir().mkpath(historyDir);
         return historyDir;
     }
