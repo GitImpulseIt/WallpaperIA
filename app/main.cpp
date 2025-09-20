@@ -42,6 +42,7 @@
 #include <QPainterPath>
 #include <QCryptographicHash>
 #include <QDateTime>
+#include <QStandardItemModel>
 #include <string>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -488,7 +489,7 @@ signals:
     void countdownExpired(); // Signal émis quand le compte à rebours expire
 
 public:
-    CountdownWidget(QWidget *parent = nullptr) : QWidget(parent), m_totalSeconds(3600), m_remainingSeconds(3600), m_isStartupMode(false)
+    CountdownWidget(QWidget *parent = nullptr) : QWidget(parent), m_totalSeconds(3600), m_remainingSeconds(3600), m_isStartupMode(false), m_isNeverMode(false)
     {
         setFixedSize(280, 200); // Élargi pour permettre des cadres plus larges
 
@@ -503,6 +504,7 @@ public:
         m_totalSeconds = seconds;
         m_remainingSeconds = seconds;
         m_isStartupMode = (seconds == 0);
+        m_isNeverMode = (seconds == -1); // Mode "Jamais"
         update();
     }
 
@@ -517,6 +519,39 @@ protected:
     {
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
+
+        if (m_isNeverMode) {
+            // Mode "Changement manuel uniquement" : affichage dans un encadré informatif
+            QRect infoRect = rect().adjusted(0, 15, 0, -120); // Cadre élargi
+
+            // Fond de l'encadré avec bordure arrondie
+            painter.setBrush(QColor(33, 150, 243, 30)); // #2196F3 avec transparence
+            painter.setPen(QPen(QColor("#2196F3"), 2));
+            painter.drawRoundedRect(infoRect, 8, 8);
+
+            // Icône info centrée verticalement à gauche
+            QPixmap manualIcon("info.png"); // Même icône que le redémarrage
+            int iconSize = 32;
+            int iconY = infoRect.center().y() - iconSize/2; // Centré verticalement
+            QRect iconRect(infoRect.left() + 15, iconY, iconSize, iconSize);
+
+            if (!manualIcon.isNull()) {
+                painter.drawPixmap(iconRect, manualIcon);
+            } else {
+                // Fallback si l'image ne se charge pas
+                painter.setPen(QColor("#2196F3"));
+                painter.setFont(QFont("Segoe UI", 16));
+                painter.drawText(iconRect, Qt::AlignCenter, "🔄");
+            }
+
+            // Texte complet à droite de l'icône
+            painter.setPen(QColor("#ffffff"));
+            painter.setFont(QFont("Segoe UI", 10)); // Pas de gras
+            QRect textRect(infoRect.left() + 60, infoRect.top() + 15, infoRect.width() - 65, infoRect.height() - 30);
+            painter.drawText(textRect, Qt::AlignLeft | Qt::TextWordWrap,
+                "Changement de fond d'écran manuel seulement");
+            return;
+        }
 
         if (m_isStartupMode) {
             // Mode "Au démarrage" : affichage dans un encadré d'information élargi
@@ -604,8 +639,8 @@ protected:
 private slots:
     void updateCountdown()
     {
-        if (m_isStartupMode) {
-            // Pas de countdown en mode démarrage
+        if (m_isStartupMode || m_isNeverMode) {
+            // Pas de countdown en mode démarrage ou jamais
             return;
         }
 
@@ -624,6 +659,7 @@ private:
     int m_totalSeconds;
     int m_remainingSeconds;
     bool m_isStartupMode;
+    bool m_isNeverMode;
     QTimer *m_timer;
 };
 
@@ -753,6 +789,40 @@ private slots:
         }
     }
 
+    void onStartupToggled(bool enabled) {
+        // Logique de cohérence : si "Démarrer avec Windows" est désactivé,
+        // on ne peut pas utiliser "Au démarrage de l'ordinateur"
+        updateFrequencyOptions();
+    }
+
+    void updateFrequencyOptions() {
+        if (!frequencyCombo || isLoadingSettings) return;
+
+        int currentIndex = frequencyCombo->currentIndex();
+        bool startupEnabled = startupToggle->isChecked();
+
+        // Si "Démarrer avec Windows" est désactivé et "Au démarrage" est sélectionné
+        if (!startupEnabled && currentIndex == 7) { // index 7 = "Au démarrage de l'ordinateur"
+            // Basculer sur "Changement manuel uniquement"
+            frequencyCombo->setCurrentIndex(0);
+            onSettingsChanged(); // Marquer comme modifié
+        }
+
+        // Désactiver/activer l'option "Au démarrage" selon l'état du toggle
+        QStandardItemModel* model = qobject_cast<QStandardItemModel*>(frequencyCombo->model());
+        if (model) {
+            QStandardItem* item = model->item(7); // "Au démarrage de l'ordinateur"
+            if (item) {
+                item->setEnabled(startupEnabled);
+                if (!startupEnabled) {
+                    item->setData(QColor(128, 128, 128), Qt::ForegroundRole); // Grisé
+                } else {
+                    item->setData(QColor(255, 255, 255), Qt::ForegroundRole); // Normal
+                }
+            }
+        }
+    }
+
     void onMultiScreenToggled(bool enabled) {
         if (screenSelector) {
             if (enabled && screenSelector->screenCount() > 1) {
@@ -775,14 +845,15 @@ private slots:
         // Calculer la durée en secondes selon la sélection
         int frequencyIndex = frequencyCombo->currentIndex();
         switch (frequencyIndex) {
-            case 0: seconds = 3600; break;     // 1h
-            case 1: seconds = 10800; break;    // 3h
-            case 2: seconds = 21600; break;    // 6h
-            case 3: seconds = 43200; break;    // 12h
-            case 4: seconds = 86400; break;    // 24h
-            case 5: seconds = 604800; break;   // 7j
-            case 6: seconds = 0; break;        // Au démarrage (pas de timer)
-            case 7: // Autre
+            case 0: seconds = -1; break;       // Changement manuel uniquement (pas de timer)
+            case 1: seconds = 3600; break;     // 1h
+            case 2: seconds = 10800; break;    // 3h
+            case 3: seconds = 21600; break;    // 6h
+            case 4: seconds = 43200; break;    // 12h
+            case 5: seconds = 86400; break;    // 24h
+            case 6: seconds = 604800; break;   // 7j
+            case 7: seconds = 0; break;        // Au démarrage (pas de timer)
+            case 8: // Autre
                 {
                     int value = customValueSpinBox->value();
                     int unit = customUnitCombo->currentIndex();
@@ -984,6 +1055,7 @@ private:
         frequencyCombo = new QComboBox();
         frequencyCombo->setObjectName("frequencyCombo");
         frequencyCombo->addItems({
+            "Changement manuel uniquement",
             "1h",
             "3h",
             "6h",
@@ -1239,7 +1311,7 @@ private:
 
         // Connexion pour activer/désactiver l'option personnalisée
         connect(frequencyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index) {
-            if (index == 7) { // Index de "Autre"
+            if (index == 8) { // Index de "Autre"
                 // Activer les contrôles
                 this->customValueSpinBox->setEnabled(true);
                 this->customUnitCombo->setEnabled(true);
@@ -1474,6 +1546,7 @@ private:
 
         // Connecter les signaux
         connect(startupToggle, &ToggleSwitch::toggled, this, &ModernWindow::onSettingsChanged);
+        connect(startupToggle, &ToggleSwitch::toggled, this, &ModernWindow::onStartupToggled);
         connect(multiScreenToggle, &ToggleSwitch::toggled, this, &ModernWindow::onSettingsChanged);
         connect(multiScreenToggle, &ToggleSwitch::toggled, this, &ModernWindow::onMultiScreenToggled);
 
@@ -3651,6 +3724,9 @@ private:
 
         // Initialiser le countdown avec les paramètres chargés
         updateCountdownFromSettings();
+
+        // Vérifier la cohérence des options de fréquence
+        updateFrequencyOptions();
 
         // Initialiser l'affichage du sélecteur d'écran
         if (screenSelector) {
