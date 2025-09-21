@@ -192,7 +192,16 @@ private slots:
 
     void onStartupToggled(bool enabled) {
         // Logique de cohérence : si "Démarrer avec Windows" est désactivé,
-        // on ne peut pas utiliser "Au démarrage de l'ordinateur"
+        // l'option "Changer le fond d'écran au démarrage" doit être désactivée
+        if (!enabled && changeOnStartupToggle) {
+            changeOnStartupToggle->setChecked(false);
+        }
+
+        // Mettre à jour l'état d'activation de l'option changeOnStartup
+        if (changeOnStartupToggle) {
+            changeOnStartupToggle->setEnabled(enabled);
+        }
+
         updateFrequencyOptions();
 
         // Gérer l'ajout/suppression du registre Windows
@@ -237,8 +246,8 @@ private slots:
         QStringList arguments = QCoreApplication::arguments();
         bool launchedAtStartup = arguments.contains("--startup");
 
-        if (launchedAtStartup && frequencyCombo && frequencyCombo->currentIndex() == 7) {
-            // Index 7 = "Au démarrage de l'ordinateur"
+        if (launchedAtStartup && changeOnStartupToggle && changeOnStartupToggle->isChecked()) {
+            // Option "Changer le fond d'écran au démarrage" activée
             // Déclencher le changement de fond d'écran
             QTimer::singleShot(2000, [this]() {
                 currentTriggerMode = "Démarrage";
@@ -574,7 +583,6 @@ private:
             "12h",
             "24h",
             "7j",
-            "Au démarrage de l'ordinateur",
             "Autre"
         });
         frequencyCombo->setFixedHeight(32);
@@ -823,7 +831,7 @@ private:
 
         // Connexion pour activer/désactiver l'option personnalisée
         connect(frequencyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index) {
-            if (index == 8) { // Index de "Autre"
+            if (index == 7) { // Index de "Autre"
                 // Activer les contrôles
                 this->customValueSpinBox->setEnabled(true);
                 this->customUnitCombo->setEnabled(true);
@@ -1083,6 +1091,21 @@ private:
 
         systemLayout->addLayout(startupLayout);
 
+        // Option "Changer le fond d'écran au démarrage"
+        QHBoxLayout *changeOnStartupLayout = new QHBoxLayout();
+        QLabel *changeOnStartupLabel = new QLabel("Changer le fond d'écran au démarrage de l'ordinateur");
+        changeOnStartupLabel->setStyleSheet("color: #ffffff; font-size: 13px; background-color: transparent;");
+
+        changeOnStartupToggle = new ToggleSwitch();
+        changeOnStartupToggle->setObjectName("changeOnStartupToggle");
+        changeOnStartupToggle->setChecked(false); // Désactivé par défaut
+
+        changeOnStartupLayout->addWidget(changeOnStartupLabel);
+        changeOnStartupLayout->addStretch();
+        changeOnStartupLayout->addWidget(changeOnStartupToggle);
+
+        systemLayout->addLayout(changeOnStartupLayout);
+
         // Option "Image différente sur chaque écran"
         QHBoxLayout *multiScreenLayout = new QHBoxLayout();
         QLabel *multiScreenLabel = new QLabel("Image différente sur chaque écran");
@@ -1101,6 +1124,7 @@ private:
         // Connecter les signaux
         connect(startupToggle, &ToggleSwitch::toggled, this, &ModernWindow::onSettingsChanged);
         connect(startupToggle, &ToggleSwitch::toggled, this, &ModernWindow::onStartupToggled);
+        connect(changeOnStartupToggle, &ToggleSwitch::toggled, this, &ModernWindow::onSettingsChanged);
         connect(multiScreenToggle, &ToggleSwitch::toggled, this, &ModernWindow::onSettingsChanged);
         connect(multiScreenToggle, &ToggleSwitch::toggled, this, &ModernWindow::onMultiScreenToggled);
 
@@ -2827,6 +2851,7 @@ private:
 
         // Sauvegarder les options système
         settings.setValue("system/startupToggle", startupToggle->isChecked());
+        settings.setValue("system/changeOnStartup", changeOnStartupToggle->isChecked());
         settings.setValue("system/multiScreen", multiScreenToggle->isChecked());
 
         // Sauvegarder l'historique des fonds d'écran
@@ -2884,6 +2909,11 @@ private:
         // Charger les options système
         bool startupEnabled = settings.value("system/startupToggle", true).toBool();
         startupToggle->setChecked(startupEnabled);
+
+        bool changeOnStartupEnabled = settings.value("system/changeOnStartup", false).toBool();
+        changeOnStartupToggle->setChecked(changeOnStartupEnabled);
+        // Appliquer la logique de dépendance
+        changeOnStartupToggle->setEnabled(startupEnabled);
 
         bool multiScreenEnabled = settings.value("system/multiScreen", true).toBool();
         multiScreenToggle->setChecked(multiScreenEnabled);
@@ -3218,6 +3248,7 @@ private:
     QComboBox *customUnitCombo;
     QComboBox *adjustmentCombo;
     ToggleSwitch *startupToggle;
+    ToggleSwitch *changeOnStartupToggle;
     ToggleSwitch *multiScreenToggle;
     QPushButton *applyButton;
     bool isLoadingSettings;
