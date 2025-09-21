@@ -45,6 +45,15 @@
 #include <QStandardItemModel>
 #include <QRegularExpression>
 #include <string>
+
+// Includes des modules séparés
+#include "src/utils/utils.h"
+#include "src/system/wallpaper_manager.h"
+#include "src/widgets/hover_filters.h"
+#include "src/widgets/screen_selector.h"
+#include "src/widgets/countdown_widget.h"
+#include "src/widgets/toggle_switch.h"
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <shlobj.h>
@@ -56,709 +65,17 @@
 #include <QCoreApplication>
 #include <QDir>
 
-// Fonction utilitaire globale pour obtenir le chemin absolu vers les images
-QString getImagePath(const QString &imageName) {
-    return QCoreApplication::applicationDirPath() + "/" + imageName;
-}
-
-// Définitions pour IDesktopWallpaper si non disponibles dans MinGW
-#ifndef __IDesktopWallpaper_INTERFACE_DEFINED__
-#define __IDesktopWallpaper_INTERFACE_DEFINED__
-
-DEFINE_GUID(CLSID_DesktopWallpaper, 0xC2CF3110, 0x460E, 0x4fc1, 0xB9, 0xD0, 0x8A, 0x1C, 0x0C, 0x9C, 0xC4, 0xBD);
-
-// Énumérations pour les positions de fond d'écran
-typedef enum DESKTOP_WALLPAPER_POSITION {
-    DWPOS_CENTER = 0,
-    DWPOS_TILE = 1,
-    DWPOS_STRETCH = 2,
-    DWPOS_FIT = 3,
-    DWPOS_FILL = 4,
-    DWPOS_SPAN = 5
-} DESKTOP_WALLPAPER_POSITION;
-
-interface IDesktopWallpaper : public IUnknown
-{
-public:
-    virtual HRESULT STDMETHODCALLTYPE SetWallpaper(LPCWSTR monitorID, LPCWSTR wallpaper) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetWallpaper(LPCWSTR monitorID, LPWSTR *wallpaper) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetMonitorDevicePathAt(UINT monitorIndex, LPWSTR *monitorID) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetMonitorDevicePathCount(UINT *count) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetMonitorRECT(LPCWSTR monitorID, RECT *displayRect) = 0;
-    virtual HRESULT STDMETHODCALLTYPE SetBackgroundColor(COLORREF color) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetBackgroundColor(COLORREF *color) = 0;
-    virtual HRESULT STDMETHODCALLTYPE SetPosition(DESKTOP_WALLPAPER_POSITION position) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetPosition(DESKTOP_WALLPAPER_POSITION *position) = 0;
-    virtual HRESULT STDMETHODCALLTYPE SetSlideshow(IShellItemArray *items) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetSlideshow(IShellItemArray **items) = 0;
-    virtual HRESULT STDMETHODCALLTYPE SetSlideshowOptions(DESKTOP_SLIDESHOW_OPTIONS options, UINT slideshowTick) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetSlideshowOptions(DESKTOP_SLIDESHOW_OPTIONS *options, UINT *slideshowTick) = 0;
-    virtual HRESULT STDMETHODCALLTYPE AdvanceSlideshow(LPCWSTR monitorID, DESKTOP_SLIDESHOW_DIRECTION direction) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetStatus(DESKTOP_SLIDESHOW_STATE *state) = 0;
-    virtual HRESULT STDMETHODCALLTYPE Enable(BOOL enable) = 0;
-};
-
-// Énumérations supplémentaires pour le slideshow
-typedef enum DESKTOP_SLIDESHOW_OPTIONS {
-    DSO_SHUFFLEIMAGES = 0x01
-} DESKTOP_SLIDESHOW_OPTIONS;
-
-typedef enum DESKTOP_SLIDESHOW_STATE {
-    DSS_ENABLED = 0x01,
-    DSS_SLIDESHOW = 0x02,
-    DSS_DISABLED_BY_REMOTE_SESSION = 0x04
-} DESKTOP_SLIDESHOW_STATE;
-
-typedef enum DESKTOP_SLIDESHOW_DIRECTION {
-    DSD_FORWARD = 0,
-    DSD_BACKWARD = 1
-} DESKTOP_SLIDESHOW_DIRECTION;
-
-static const IID IID_IDesktopWallpaper = {0xB92B56A9, 0x8B55, 0x4E14, {0x9A, 0x89, 0x01, 0x99, 0xBB, 0xB6, 0xF9, 0x3B}};
-
-#endif // __IDesktopWallpaper_INTERFACE_DEFINED__
+// Les définitions Windows sont maintenant dans src/system/wallpaper_manager.h
 
 #endif
 
-// Classe pour gérer les événements de survol des catégories
-class CategoryHoverFilter : public QObject
-{
-    Q_OBJECT
+// Les classes de gestion des événements de survol sont maintenant dans src/widgets/hover_filters.h
 
-public:
-    CategoryHoverFilter(QWidget *categoryFrame, const QString &categoryId, QWidget *parent)
-        : QObject(parent), m_categoryFrame(categoryFrame), m_categoryId(categoryId), m_parent(parent) {}
+// La classe ScreenSelector est maintenant dans src/widgets/screen_selector.h
 
-protected:
-    bool eventFilter(QObject *obj, QEvent *event) override
-    {
-        if (obj == m_categoryFrame) {
-            if (event->type() == QEvent::Enter) {
-                // Afficher les contrôles de notation au survol
-                QWidget *ratingWidget = m_categoryFrame->findChild<QWidget*>("ratingWidget_" + m_categoryId);
-                QWidget *currentRating = m_categoryFrame->findChild<QWidget*>("currentRating_" + m_categoryId);
-                if (ratingWidget) {
-                    ratingWidget->show();
-                    // Masquer l'affichage permanent pour éviter la superposition
-                    if (currentRating) currentRating->hide();
+// La classe CountdownWidget est maintenant dans src/widgets/countdown_widget.h
 
-                    // Masquer aussi l'icône "sens interdit" si elle existe
-                    QLabel *disableIcon = m_categoryFrame->parentWidget()->findChild<QLabel*>("disableIcon_" + m_categoryId);
-                    if (disableIcon) disableIcon->hide();
-                }
-            } else if (event->type() == QEvent::Leave) {
-                // Masquer les contrôles de notation
-                QWidget *ratingWidget = m_categoryFrame->findChild<QWidget*>("ratingWidget_" + m_categoryId);
-                QWidget *currentRating = m_categoryFrame->findChild<QWidget*>("currentRating_" + m_categoryId);
-                if (ratingWidget) {
-                    ratingWidget->hide();
-                    // Réafficher l'affichage permanent
-                    if (currentRating) currentRating->show();
-
-                    // Réafficher l'icône "sens interdit" si la catégorie est désactivée
-                    QVariant ratingVariant = m_parent->property(("rating_" + m_categoryId).toLocal8Bit().constData());
-                    int currentRating = ratingVariant.isValid() ? ratingVariant.toInt() : 1;
-                    if (currentRating == -1) {
-                        QLabel *disableIcon = m_categoryFrame->parentWidget()->findChild<QLabel*>("disableIcon_" + m_categoryId);
-                        if (disableIcon) disableIcon->show();
-                    }
-                }
-            }
-        }
-        return QObject::eventFilter(obj, event);
-    }
-
-private:
-    QWidget *m_categoryFrame;
-    QString m_categoryId;
-    QWidget *m_parent;
-};
-
-// Classe pour gérer les événements de survol des étoiles
-class StarHoverFilter : public QObject
-{
-    Q_OBJECT
-
-public:
-    StarHoverFilter(QPushButton *starBtn, const QString &categoryId, int starIndex, QWidget *parent)
-        : QObject(parent), m_starBtn(starBtn), m_categoryId(categoryId), m_starIndex(starIndex), m_parent(parent) {}
-
-protected:
-    bool eventFilter(QObject *obj, QEvent *event) override
-    {
-        if (obj == m_starBtn) {
-            if (event->type() == QEvent::Enter) {
-                // Preview: activer les étoiles jusqu'à celle survolée
-                updateStarPreview(m_categoryId, m_starIndex);
-            } else if (event->type() == QEvent::Leave) {
-                // Restaurer l'affichage normal selon la notation actuelle
-                // Chercher la valeur dans la map via une propriété dynamique du parent
-                QVariant ratingVariant = m_parent->property(("rating_" + m_categoryId).toLocal8Bit().constData());
-                int currentRating = ratingVariant.isValid() ? ratingVariant.toInt() : 1;
-                updateStarPreview(m_categoryId, currentRating);
-            }
-        }
-        return QObject::eventFilter(obj, event);
-    }
-
-private:
-    void updateStarPreview(const QString &categoryId, int rating) {
-        QWidget *ratingWidget = m_parent->findChild<QWidget*>("ratingWidget_" + categoryId);
-        if (!ratingWidget) return;
-
-        for (int i = 1; i <= 3; i++) {
-            QPushButton *starBtn = ratingWidget->findChild<QPushButton*>(QString("star_%1_%2").arg(categoryId).arg(i));
-            if (starBtn) {
-                if (i <= rating) {
-                    QPixmap starPixmap(getImagePath("star_active.png"));
-                    if (!starPixmap.isNull()) {
-                        starBtn->setIcon(QIcon(starPixmap));
-                    } else {
-                        starBtn->setText("★");
-                        starBtn->setStyleSheet("QPushButton { border: none; background: transparent; color: gold; } QPushButton:hover { background: rgba(255,255,255,0.2); }");
-                    }
-                } else {
-                    QPixmap starPixmap(getImagePath("star_inactive.png"));
-                    if (!starPixmap.isNull()) {
-                        starBtn->setIcon(QIcon(starPixmap));
-                    } else {
-                        starBtn->setText("★");
-                        starBtn->setStyleSheet("QPushButton { border: none; background: transparent; color: gray; } QPushButton:hover { background: rgba(255,255,255,0.2); }");
-                    }
-                }
-            }
-        }
-    }
-
-    QPushButton *m_starBtn;
-    QString m_categoryId;
-    int m_starIndex;
-    QWidget *m_parent;
-};
-
-// Classe pour gérer les événements de survol du bouton "sens interdit"
-class DisableHoverFilter : public QObject
-{
-    Q_OBJECT
-
-public:
-    DisableHoverFilter(QPushButton *disableBtn, const QString &categoryId, QWidget *parent)
-        : QObject(parent), m_disableBtn(disableBtn), m_categoryId(categoryId), m_parent(parent) {}
-
-protected:
-    bool eventFilter(QObject *obj, QEvent *event) override
-    {
-        if (obj == m_disableBtn) {
-            if (event->type() == QEvent::Enter) {
-                // Preview: désactiver toutes les étoiles (afficher comme "sens interdit")
-                updateStarPreview(m_categoryId, -1);
-            } else if (event->type() == QEvent::Leave) {
-                // Restaurer l'affichage normal selon la notation actuelle
-                QVariant ratingVariant = m_parent->property(("rating_" + m_categoryId).toLocal8Bit().constData());
-                int currentRating = ratingVariant.isValid() ? ratingVariant.toInt() : 1;
-                updateStarPreview(m_categoryId, currentRating);
-            }
-        }
-        return QObject::eventFilter(obj, event);
-    }
-
-private:
-    void updateStarPreview(const QString &categoryId, int rating) {
-        QWidget *ratingWidget = m_parent->findChild<QWidget*>("ratingWidget_" + categoryId);
-        if (!ratingWidget) return;
-
-        if (rating == -1) {
-            // Mode "sens interdit" : désactiver toutes les étoiles
-            for (int i = 1; i <= 3; i++) {
-                QPushButton *starBtn = ratingWidget->findChild<QPushButton*>(QString("star_%1_%2").arg(categoryId).arg(i));
-                if (starBtn) {
-                    QPixmap starPixmap(getImagePath("star_inactive.png"));
-                    if (!starPixmap.isNull()) {
-                        starBtn->setIcon(QIcon(starPixmap));
-                    } else {
-                        starBtn->setText("★");
-                        starBtn->setStyleSheet("QPushButton { border: none; background: transparent; color: gray; } QPushButton:hover { background: rgba(255,255,255,0.2); }");
-                    }
-                }
-            }
-        } else {
-            // Mode normal : afficher selon la notation
-            for (int i = 1; i <= 3; i++) {
-                QPushButton *starBtn = ratingWidget->findChild<QPushButton*>(QString("star_%1_%2").arg(categoryId).arg(i));
-                if (starBtn) {
-                    if (i <= rating) {
-                        QPixmap starPixmap(getImagePath("star_active.png"));
-                        if (!starPixmap.isNull()) {
-                            starBtn->setIcon(QIcon(starPixmap));
-                        } else {
-                            starBtn->setText("★");
-                            starBtn->setStyleSheet("QPushButton { border: none; background: transparent; color: gold; } QPushButton:hover { background: rgba(255,255,255,0.2); }");
-                        }
-                    } else {
-                        QPixmap starPixmap(getImagePath("star_inactive.png"));
-                        if (!starPixmap.isNull()) {
-                            starBtn->setIcon(QIcon(starPixmap));
-                        } else {
-                            starBtn->setText("★");
-                            starBtn->setStyleSheet("QPushButton { border: none; background: transparent; color: gray; } QPushButton:hover { background: rgba(255,255,255,0.2); }");
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    QPushButton *m_disableBtn;
-    QString m_categoryId;
-    QWidget *m_parent;
-};
-
-// Classe pour le sélecteur d'écran avec esthétique moderne
-class ScreenSelector : public QWidget
-{
-    Q_OBJECT
-
-public:
-    ScreenSelector(QWidget *parent = nullptr) : QWidget(parent), m_screenCount(0)
-    {
-        setFixedHeight(35);
-        setupScreens();
-        setupUI();
-        // Sélectionner tous les écrans par défaut
-        for (int i = 0; i < m_screenCount; i++) {
-            m_selectedScreens[i] = true;
-        }
-    }
-
-    void setScreenSelected(int screenIndex, bool selected)
-    {
-        if (screenIndex >= 0 && screenIndex < m_screenCount) {
-            m_selectedScreens[screenIndex] = selected;
-            update();
-            emit screenSelectionChanged(getSelectedScreens());
-        }
-    }
-
-    bool isScreenSelected(int screenIndex) const
-    {
-        return m_selectedScreens.value(screenIndex, false);
-    }
-
-    QList<int> getSelectedScreens() const
-    {
-        QList<int> selected;
-        for (auto it = m_selectedScreens.constBegin(); it != m_selectedScreens.constEnd(); ++it) {
-            if (it.value()) {
-                selected.append(it.key());
-            }
-        }
-        return selected;
-    }
-
-    void setScreenCanBeDeselected(int screenIndex, bool canDeselect)
-    {
-        m_canBeDeselected[screenIndex] = canDeselect;
-        update();
-    }
-
-    bool canScreenBeDeselected(int screenIndex) const
-    {
-        return m_canBeDeselected.value(screenIndex, false);
-    }
-
-    int screenCount() const { return m_screenCount; }
-
-signals:
-    void screenSelectionChanged(const QList<int> &selectedScreens);
-    void screenDeselectionBlocked(int screenIndex);
-
-protected:
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
-
-        int tabWidth = width() / m_screenCount;
-        int borderRadius = 6;
-
-        // Dessiner d'abord le fond global avec coins arrondis
-        QRect globalRect(0, 0, width(), height());
-        painter.setBrush(QColor("#8b4513")); // Couleur de fond par défaut
-        painter.setPen(Qt::NoPen);
-        painter.drawRoundedRect(globalRect, borderRadius, borderRadius);
-
-        // Puis dessiner les onglets sélectionnés par-dessus avec clipping pour respecter les coins arrondis
-        painter.save();
-
-        // Créer un chemin de clipping avec les coins arrondis
-        QPainterPath clipPath;
-        clipPath.addRoundedRect(globalRect, borderRadius, borderRadius);
-        painter.setClipPath(clipPath);
-
-        for (int i = 0; i < m_screenCount; i++) {
-            QRect tabRect(i * tabWidth, 0, tabWidth, height());
-
-            // Dessiner les onglets sélectionnés
-            if (isScreenSelected(i)) {
-                painter.setBrush(QColor("#d14836")); // Rouge-orange pour sélectionnés
-                painter.setPen(Qt::NoPen);
-                painter.drawRect(tabRect);
-            }
-        }
-
-        painter.restore();
-
-        // Dessiner les séparateurs entre les onglets
-        painter.setPen(QPen(QColor("#5a3a1a"), 1)); // Ligne de séparation plus foncée
-        for (int i = 1; i < m_screenCount; i++) {
-            int x = i * tabWidth;
-            painter.drawLine(x, 2, x, height() - 2);
-        }
-
-        // Dessiner le texte pour tous les onglets
-        painter.setFont(QFont("Segoe UI", 9, QFont::Bold));
-        for (int i = 0; i < m_screenCount; i++) {
-            QRect tabRect(i * tabWidth, 0, tabWidth, height());
-            QString text = QString("Écran %1").arg(i + 1);
-
-            // Couleur du texte selon l'état
-            if (isScreenSelected(i)) {
-                painter.setPen(QColor("#ffffff")); // Blanc pour sélectionnés
-            } else {
-                painter.setPen(QColor("#cccccc")); // Gris pour non-sélectionnés
-            }
-
-            painter.drawText(tabRect, Qt::AlignCenter, text);
-
-            // Dessiner un petit indicateur si l'écran ne peut pas être désélectionné
-            if (!canScreenBeDeselected(i) && isScreenSelected(i)) {
-                painter.setPen(QColor("#ffffff"));
-                painter.setFont(QFont("Segoe UI", 7));
-                QRect lockRect = tabRect.adjusted(2, tabRect.height() - 12, -2, -2);
-                painter.drawText(lockRect, Qt::AlignRight, "🔒");
-            }
-        }
-    }
-
-    void mousePressEvent(QMouseEvent *event) override
-    {
-        if (event->button() == Qt::LeftButton) {
-            int tabWidth = width() / m_screenCount;
-            int clickedScreen = static_cast<int>(event->position().x()) / tabWidth;
-            if (clickedScreen >= 0 && clickedScreen < m_screenCount) {
-                bool currentlySelected = isScreenSelected(clickedScreen);
-
-                if (currentlySelected) {
-                    // Tentative de désélection
-                    if (canScreenBeDeselected(clickedScreen)) {
-                        setScreenSelected(clickedScreen, false);
-                    } else {
-                        // Émission du signal de blocage pour afficher le message
-                        emit screenDeselectionBlocked(clickedScreen);
-                    }
-                } else {
-                    // Sélection
-                    setScreenSelected(clickedScreen, true);
-                }
-            }
-        }
-    }
-
-private:
-    void setupScreens()
-    {
-        // Détecter le nombre d'écrans
-        m_screenCount = QApplication::screens().count();
-        if (m_screenCount < 1) {
-            m_screenCount = 1; // Au moins un écran par défaut
-        }
-    }
-
-    void setupUI()
-    {
-        // Calculer la largeur optimale basée sur le nombre d'écrans
-        int optimalWidth = m_screenCount * 80; // 80px par onglet
-        setMinimumSize(optimalWidth, 35);
-        setMaximumHeight(35);
-        // Permettre l'expansion horizontale pour l'alignement justifié
-    }
-
-private:
-    int m_screenCount;
-    QMap<int, bool> m_selectedScreens;      // Écrans sélectionnés
-    QMap<int, bool> m_canBeDeselected;      // Écrans qui peuvent être désélectionnés
-};
-
-// Classe pour afficher un compte à rebours avec camembert de progression
-class CountdownWidget : public QWidget
-{
-    Q_OBJECT
-
-signals:
-    void countdownExpired(); // Signal émis quand le compte à rebours expire
-
-public:
-    CountdownWidget(QWidget *parent = nullptr) : QWidget(parent), m_totalSeconds(3600), m_remainingSeconds(3600), m_isStartupMode(false), m_isNeverMode(false)
-    {
-        setFixedSize(280, 200); // Élargi pour permettre des cadres plus larges
-
-        // Timer pour mise à jour chaque seconde
-        m_timer = new QTimer(this);
-        connect(m_timer, &QTimer::timeout, this, &CountdownWidget::updateCountdown);
-        m_timer->start(1000); // Mise à jour chaque seconde
-    }
-
-    void setDuration(int seconds)
-    {
-        m_totalSeconds = seconds;
-        m_remainingSeconds = seconds;
-        m_isStartupMode = (seconds == 0);
-        m_isNeverMode = (seconds == -1); // Mode "Jamais"
-        update();
-    }
-
-    void setRemainingTime(int seconds)
-    {
-        m_remainingSeconds = seconds;
-        update();
-    }
-
-protected:
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
-
-        if (m_isNeverMode) {
-            // Mode "Changement manuel uniquement" : affichage dans un encadré informatif
-            QRect infoRect = rect().adjusted(0, 15, 0, -120); // Cadre élargi
-
-            // Fond de l'encadré avec bordure arrondie
-            painter.setBrush(QColor(33, 150, 243, 30)); // #2196F3 avec transparence
-            painter.setPen(QPen(QColor("#2196F3"), 2));
-            painter.drawRoundedRect(infoRect, 8, 8);
-
-            // Icône info centrée verticalement à gauche
-            QPixmap manualIcon(getImagePath("info.png")); // Même icône que le redémarrage
-            int iconSize = 32;
-            int iconY = infoRect.center().y() - iconSize/2; // Centré verticalement
-            QRect iconRect(infoRect.left() + 15, iconY, iconSize, iconSize);
-
-            if (!manualIcon.isNull()) {
-                painter.drawPixmap(iconRect, manualIcon);
-            } else {
-                // Fallback si l'image ne se charge pas
-                painter.setPen(QColor("#2196F3"));
-                painter.setFont(QFont("Segoe UI", 16));
-                painter.drawText(iconRect, Qt::AlignCenter, "🔄");
-            }
-
-            // Texte complet à droite de l'icône
-            painter.setPen(QColor("#ffffff"));
-            painter.setFont(QFont("Segoe UI", 10)); // Pas de gras
-            QRect textRect(infoRect.left() + 60, infoRect.top() + 15, infoRect.width() - 65, infoRect.height() - 30);
-            painter.drawText(textRect, Qt::AlignLeft | Qt::TextWordWrap,
-                "Changement de fond d'écran manuel seulement");
-            return;
-        }
-
-        if (m_isStartupMode) {
-            // Mode "Au démarrage" : affichage dans un encadré d'information élargi
-            QRect infoRect = rect().adjusted(0, 15, 0, -100); // Cadre élargi
-
-            // Fond de l'encadré avec bordure arrondie
-            painter.setBrush(QColor(33, 150, 243, 30)); // #2196F3 avec transparence
-            painter.setPen(QPen(QColor("#2196F3"), 2));
-            painter.drawRoundedRect(infoRect, 8, 8);
-
-            // Icône reboot centrée verticalement à gauche
-            QPixmap rebootIcon(getImagePath("info.png")); // Chemin depuis l'exécutable
-            int iconSize = 32;
-            int iconY = infoRect.center().y() - iconSize/2; // Centré verticalement
-            QRect iconRect(infoRect.left() + 15, iconY, iconSize, iconSize);
-
-            if (!rebootIcon.isNull()) {
-                painter.drawPixmap(iconRect, rebootIcon);
-            } else {
-                // Fallback si l'image ne se charge pas
-                painter.setPen(QColor("#2196F3"));
-                painter.setFont(QFont("Segoe UI", 16));
-                painter.drawText(iconRect, Qt::AlignCenter, "🔄");
-            }
-
-            // Texte complet à droite de l'icône
-            painter.setPen(QColor("#ffffff"));
-            painter.setFont(QFont("Segoe UI", 10)); // Pas de gras
-            QRect textRect(infoRect.left() + 60, infoRect.top() + 15, infoRect.width() - 65, infoRect.height() - 30);
-            painter.drawText(textRect, Qt::AlignLeft | Qt::TextWordWrap,
-                "Changement de fond d'écran au prochain redémarrage de l'ordinateur");
-            return;
-        }
-
-        // Centrer le cercle dans le widget élargi
-        int circleSize = 160; // Taille du cercle
-        int centerX = rect().center().x();
-        int centerY = rect().center().y();
-        QRect circleRect(centerX - circleSize/2, centerY - circleSize/2, circleSize, circleSize);
-
-        // Calculer le pourcentage de progression (0% = plein, 100% = vide)
-        double progressPercent = 0.0;
-        if (m_totalSeconds > 0) {
-            progressPercent = (double)(m_totalSeconds - m_remainingSeconds) / m_totalSeconds;
-        }
-
-        // Fond du cercle
-        painter.setBrush(QColor("#404040"));
-        painter.setPen(QPen(QColor("#555"), 2));
-        painter.drawEllipse(circleRect);
-
-        // Arc de progression (commence en haut, sens horaire)
-        if (progressPercent > 0) {
-            painter.setBrush(QColor("#0078d4"));
-            painter.setPen(QPen(QColor("#0078d4"), 3));
-
-            int startAngle = 90 * 16; // Commencer en haut (90 degrés)
-            int spanAngle = -(int)(progressPercent * 360 * 16); // Sens horaire (négatif)
-
-            painter.drawPie(circleRect, startAngle, spanAngle);
-        }
-
-        // Texte central - temps restant uniquement
-        painter.setPen(QColor("#ffffff"));
-        painter.setFont(QFont("Segoe UI", 12, QFont::Bold));
-
-        // Formatage du temps restant
-        int hours = m_remainingSeconds / 3600;
-        int minutes = (m_remainingSeconds % 3600) / 60;
-        int seconds = m_remainingSeconds % 60;
-
-        QString timeText;
-        if (hours > 0) {
-            timeText = QString("%1h %2m").arg(hours).arg(minutes);
-        } else if (minutes > 0) {
-            timeText = QString("%1m %2s").arg(minutes).arg(seconds);
-        } else {
-            timeText = QString("%1s").arg(seconds);
-        }
-
-        QRect textRect = circleRect.adjusted(10, -10, -10, 10);
-        painter.drawText(textRect, Qt::AlignCenter, timeText);
-    }
-
-private slots:
-    void updateCountdown()
-    {
-        if (m_isStartupMode || m_isNeverMode) {
-            // Pas de countdown en mode démarrage ou jamais
-            return;
-        }
-
-        if (m_remainingSeconds > 0) {
-            m_remainingSeconds--;
-            update();
-        } else {
-            // Temps écoulé, émettre le signal puis réinitialiser
-            emit countdownExpired();
-            m_remainingSeconds = m_totalSeconds;
-            update();
-        }
-    }
-
-private:
-    int m_totalSeconds;
-    int m_remainingSeconds;
-    bool m_isStartupMode;
-    bool m_isNeverMode;
-    QTimer *m_timer;
-};
-
-// Classe pour créer un bouton à bascule personnalisé avec animation
-class ToggleSwitch : public QWidget
-{
-    Q_OBJECT
-    Q_PROPERTY(qreal animationProgress READ animationProgress WRITE setAnimationProgress)
-
-public:
-    ToggleSwitch(QWidget *parent = nullptr) : QWidget(parent), m_checked(false), m_animationProgress(0.0)
-    {
-        setFixedSize(54, 30);
-        setCursor(Qt::PointingHandCursor);
-
-        // Configuration de l'animation
-        m_animation = new QPropertyAnimation(this, "animationProgress");
-        m_animation->setDuration(200); // 200ms pour une animation fluide
-        m_animation->setEasingCurve(QEasingCurve::OutCubic);
-
-        connect(m_animation, &QPropertyAnimation::valueChanged, this, QOverload<>::of(&QWidget::update));
-    }
-
-    bool isChecked() const { return m_checked; }
-
-    void setChecked(bool checked)
-    {
-        if (m_checked != checked) {
-            m_checked = checked;
-
-            // Démarrer l'animation
-            m_animation->setStartValue(m_animationProgress);
-            m_animation->setEndValue(checked ? 1.0 : 0.0);
-            m_animation->start();
-
-            emit toggled(m_checked);
-        }
-    }
-
-    qreal animationProgress() const { return m_animationProgress; }
-    void setAnimationProgress(qreal progress)
-    {
-        m_animationProgress = progress;
-        update();
-    }
-
-signals:
-    void toggled(bool checked);
-
-protected:
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
-
-        // Fond du switch avec interpolation de couleur
-        QRect switchRect = rect().adjusted(3, 3, -3, -3);
-
-        // Interpoler entre gris et bleu selon l'animation
-        QColor backgroundColor = QColor::fromRgb(
-            static_cast<int>(102 + (0 - 102) * m_animationProgress),     // Rouge: 102 -> 0
-            static_cast<int>(102 + (120 - 102) * m_animationProgress),   // Vert: 102 -> 120
-            static_cast<int>(102 + (212 - 102) * m_animationProgress)    // Bleu: 102 -> 212
-        );
-
-        painter.setBrush(backgroundColor);
-        painter.setPen(Qt::NoPen);
-        painter.drawRoundedRect(switchRect, 12, 12);
-
-        // Bouton circulaire avec position animée - plus petit pour plus d'espace
-        int buttonSize = switchRect.height() - 8;  // Plus d'espace autour (8 au lieu de 4)
-        int leftPos = switchRect.left() + 4;       // Plus de marge
-        int rightPos = switchRect.right() - buttonSize - 4;  // Plus de marge
-        int buttonX = static_cast<int>(leftPos + (rightPos - leftPos) * m_animationProgress);
-        int buttonY = switchRect.top() + (switchRect.height() - buttonSize) / 2;
-
-        painter.setBrush(QColor("#ffffff"));
-        painter.drawEllipse(buttonX, buttonY, buttonSize, buttonSize);
-    }
-
-    void mousePressEvent(QMouseEvent *) override
-    {
-        setChecked(!m_checked);
-    }
-
-private:
-    bool m_checked;
-    qreal m_animationProgress;
-    QPropertyAnimation *m_animation;
-};
+// La classe ToggleSwitch est maintenant dans src/widgets/toggle_switch.h
 
 // Fonctions utilitaires pour la gestion du démarrage Windows
 #ifdef Q_OS_WIN
@@ -3319,9 +2636,7 @@ private:
         int minX = 0, minY = 0, maxX = 0, maxY = 0;
 
         QScreen* qtPrimaryScreen = QApplication::primaryScreen();
-        qDebug() << "=== DEBUG VIRTUAL DESKTOP (NATIVES) ===";
-        qDebug() << "Nombre d'écrans:" << screens.size();
-        qDebug() << "Écran principal détecté par Qt:" << (qtPrimaryScreen ? qtPrimaryScreen->name() : "AUCUN");
+        qDebug() << "Calcul bureau virtuel - Écrans:" << screens.size();
 
         for (int i = 0; i < screens.size(); i++) {
             QScreen* screen = screens[i];
@@ -3342,30 +2657,10 @@ private:
             if (realX + realW > maxX) maxX = realX + realW;
             if (realY + realH > maxY) maxY = realY + realH;
 
-            qDebug() << QString("Écran %1: geom=%2x%3 à (%4,%5) real=%6x%7 - Qt Primary: %8 - Name: %9")
-                        .arg(i)
-                        .arg(geom.width()).arg(geom.height())
-                        .arg(geom.x()).arg(geom.y())
-                        .arg(realW).arg(realH)
-                        .arg(isQtPrimary ? "YES" : "NO")
-                        .arg(screen->name());
         }
 
         QRect bounds(minX, minY, maxX - minX, maxY - minY);
-        qDebug() << QString("Bureau virtuel avec résolutions natives: %1x%2 à (%3,%4)")
-                    .arg(bounds.width())
-                    .arg(bounds.height())
-                    .arg(bounds.x())
-                    .arg(bounds.y());
-
-        // Vérification si wrapping sera nécessaire
-        bool needsWrap = (bounds.left() < 0 || bounds.top() < 0);
-        qDebug() << QString("Wrapping nécessaire: %1 (left=%2, top=%3)")
-                    .arg(needsWrap ? "OUI" : "NON")
-                    .arg(bounds.left())
-                    .arg(bounds.top());
-        qDebug() << "=========================================";
-
+        qDebug() << QString("Bureau virtuel: %1x%2").arg(bounds.width()).arg(bounds.height());
         return bounds;
     }
 
@@ -3399,9 +2694,7 @@ private:
             if (realY + realH > maxY) maxY = realY + realH;
         }
 
-        qDebug() << "=== GENERATESCREENMAPPINGS DEBUG ===";
-        qDebug() << QString("Zone totale avec résolutions natives: %1x%2 offset=(%3,%4)")
-                    .arg(maxX - minX).arg(maxY - minY).arg(-minX).arg(-minY);
+        qDebug() << QString("Génération mappings pour %1 écrans").arg(imagePaths.size());
 
         // Créer les mappings pour chaque écran avec ses images
         for (auto it = imagePaths.constBegin(); it != imagePaths.constEnd(); ++it) {
@@ -3429,18 +2722,10 @@ private:
 
                 mappings.append(mapping);
 
-                qDebug() << QString("Écran %1: geom=%2x%3 à (%4,%5) real=%6x%7 dest=(%8,%9)")
-                            .arg(screenIndex)
-                            .arg(geom.width()).arg(geom.height())
-                            .arg(geom.x()).arg(geom.y())
-                            .arg(realSize.width()).arg(realSize.height())
-                            .arg(mapping.destRect.x()).arg(mapping.destRect.y());
             }
         }
 
         qDebug() << QString("Mappings générés: %1").arg(mappings.size());
-        qDebug() << "====================================";
-
         return mappings;
     }
 
@@ -3514,29 +2799,21 @@ private:
         painter.setRenderHint(QPainter::SmoothPixmapTransform);
         painter.setRenderHint(QPainter::Antialiasing);
 
-        qDebug() << QString("=== CRÉATION COMPOSITE ===");
-        qDebug() << QString("Taille composite: %1x%2").arg(composite.width()).arg(composite.height());
+        qDebug() << QString("Création composite %1x%2").arg(composite.width()).arg(composite.height());
 
         // Récupérer le mode d'ajustement sélectionné par l'utilisateur
         int adjustmentMode = adjustmentCombo ? adjustmentCombo->currentIndex() : 0;
-        qDebug() << QString("Mode d'ajustement appliqué: %1").arg(adjustmentMode);
 
         for (const ScreenMapping &mapping : mappings) {
             QPixmap sourceImage(mapping.imagePath);
             if (!sourceImage.isNull()) {
-                qDebug() << QString("Traitement image pour écran - destRect: (%1,%2,%3,%4)")
-                            .arg(mapping.destRect.x()).arg(mapping.destRect.y())
-                            .arg(mapping.destRect.width()).arg(mapping.destRect.height());
-
                 // Appliquer le mode d'ajustement choisi par l'utilisateur
                 QPixmap adjustedImage = applyAdjustmentMode(sourceImage, mapping.destRect.size(), adjustmentMode);
-
                 painter.drawPixmap(mapping.destRect, adjustedImage);
             }
         }
 
         painter.end();
-        qDebug() << "=== FIN CRÉATION COMPOSITE ===";
         return composite;
     }
 
@@ -3573,9 +2850,7 @@ private:
             return sourceImage; // Pas besoin de wrapping
         }
 
-        qDebug() << "=== WRAPPING NÉCESSAIRE (Windows < 8) ===";
-        qDebug() << QString("Offset virtuel: (%1,%2)").arg(virtualDesktop.left()).arg(virtualDesktop.top());
-        qDebug() << QString("Taille image source: %1x%2").arg(sourceImage.width()).arg(sourceImage.height());
+        qDebug() << "Application du wrapping pour Windows < 8";
 
         // Créer une nouvelle image avec les coordonnées wrappées
         QPixmap wrappedImage(sourceImage.size());
@@ -3627,72 +2902,13 @@ private:
             QRect srcRect(xWrap, yWrap, xNotWrap, yNotWrap);
             QRect destRect(0, 0, xNotWrap, yNotWrap);
             painter.drawPixmap(destRect, sourceImage, srcRect);
-            qDebug() << QString("Quadrant D (principal): src(%1,%2,%3,%4) -> dest(%5,%6,%7,%8)")
-                        .arg(srcRect.x()).arg(srcRect.y()).arg(srcRect.width()).arg(srcRect.height())
-                        .arg(destRect.x()).arg(destRect.y()).arg(destRect.width()).arg(destRect.height());
         }
 
         painter.end();
-        qDebug() << "=== FIN WRAPPING ===";
         return wrappedImage;
     }
 
 
-    QPixmap createCompositeWallpaperFromMultipleImages(const QMap<int, QString> &screenImages,
-                                                       const QList<QScreen*> &screens, const QRect &virtualDesktop)
-    {
-        // Créer une image de la taille du bureau virtuel
-        QPixmap composite(virtualDesktop.size());
-        composite.fill(Qt::black);
-
-        QPainter painter(&composite);
-
-        for (int i = 0; i < screens.count(); ++i) {
-            QScreen* screen = screens[i];
-            QRect screenRect = screen->geometry();
-
-            // Calculer la position relative dans l'image composite
-            QRect relativeRect = screenRect.translated(-virtualDesktop.topLeft());
-
-            QString imagePath;
-            if (screenImages.contains(i)) {
-                // Nouvelle image pour cet écran
-                imagePath = screenImages[i];
-            } else {
-                // Utiliser l'historique pour les autres écrans
-                imagePath = getLastWallpaperFromHistory(i);
-            }
-
-            if (!imagePath.isEmpty()) {
-                QPixmap screenImage(imagePath);
-                if (!screenImage.isNull()) {
-                    QPixmap scaledImage = screenImage.scaled(relativeRect.size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-
-                    // Centrer l'image si elle dépasse
-                    QRect sourceRect = QRect(0, 0, relativeRect.width(), relativeRect.height());
-                    if (scaledImage.width() > relativeRect.width()) {
-                        sourceRect.setX((scaledImage.width() - relativeRect.width()) / 2);
-                        sourceRect.setWidth(relativeRect.width());
-                    }
-                    if (scaledImage.height() > relativeRect.height()) {
-                        sourceRect.setY((scaledImage.height() - relativeRect.height()) / 2);
-                        sourceRect.setHeight(relativeRect.height());
-                    }
-
-                    painter.drawPixmap(relativeRect, scaledImage, sourceRect);
-                } else {
-                    // Image corrompue ou inaccessible, utiliser du noir
-                    painter.fillRect(relativeRect, Qt::black);
-                }
-            } else {
-                // Pas d'image, utiliser du noir
-                painter.fillRect(relativeRect, Qt::black);
-            }
-        }
-
-        painter.end();
-        return composite;
-    }
 
     bool setWallpaperUsingHistoryComposition(const QString &newImagePath, const QList<int> &targetScreens)
     {
