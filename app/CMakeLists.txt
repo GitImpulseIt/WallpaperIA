@@ -26,6 +26,7 @@ add_executable(WallpaperIA WIN32
     main.cpp
     src/utils/utils.cpp
     src/system/wallpaper_manager.cpp
+    src/core/wallpaper_builder.cpp
     src/widgets/hover_filters.cpp
     src/widgets/screen_selector.cpp
     src/widgets/countdown_widget.cpp
