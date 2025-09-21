@@ -1,0 +1,92 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug WallpaperIA",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/app/build/WallpaperIA.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/app/build",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\Installation\\Qt\\6.9.2\\mingw_64\\bin;C:\\Installation\\Qt\\Tools\\mingw1310_64\\bin;${env:PATH}"
+                }
+            ],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:\\Installation\\Qt\\Tools\\mingw1310_64\\bin\\gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set new-console on",
+                    "text": "-gdb-set new-console on",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build-debug",
+            "internalConsoleOptions": "openOnSessionStart",
+            "logging": {
+                "engineLogging": true,
+                "programOutput": true,
+                "exceptions": true
+            }
+        },
+        {
+            "name": "Debug WallpaperIA (No Task)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/app/build/WallpaperIA.exe",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}/app/build",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\Installation\\Qt\\6.9.2\\mingw_64\\bin;C:\\Installation\\Qt\\Tools\\mingw1310_64\\bin;${env:PATH}"
+                }
+            ],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:\\Installation\\Qt\\Tools\\mingw1310_64\\bin\\gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "logging": {
+                "engineLogging": false,
+                "programOutput": true,
+                "exceptions": true
+            }
+        },
+        {
+            "name": "Debug WallpaperIA (Attach to Process)",
+            "type": "cppdbg",
+            "request": "attach",
+            "processId": "${command:pickProcess}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:\\Installation\\Qt\\Tools\\mingw1310_64\\bin\\gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}
