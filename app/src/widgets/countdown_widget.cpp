@@ -3,7 +3,7 @@
 
 CountdownWidget::CountdownWidget(QWidget *parent) : QWidget(parent), m_totalSeconds(3600), m_remainingSeconds(3600), m_isStartupMode(false), m_isNeverMode(false), m_isPaused(false)
 {
-    setFixedSize(280, 200); // Élargi pour permettre des cadres plus larges
+    setFixedSize(240, 200); // Largeur réduite pour cohérence avec les autres éléments
 
     // Timer pour mise à jour chaque seconde
     m_timer = new QTimer(this);

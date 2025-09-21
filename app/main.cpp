@@ -434,7 +434,7 @@ private:
 
         // Container avec largeur fixe pour justification
         QWidget *controlsContainer = new QWidget();
-        controlsContainer->setFixedWidth(280); // Largeur fixe pour alignement justifié
+        controlsContainer->setFixedWidth(240); // Largeur réduite pour laisser plus de place à droite
         QVBoxLayout *containerLayout = new QVBoxLayout(controlsContainer);
         containerLayout->setContentsMargins(0, 0, 0, 0);
         containerLayout->setSpacing(10);
@@ -854,7 +854,8 @@ private:
 
         // Groupe Mode d'ajustement de l'image
         QGroupBox *adjustmentGroup = new QGroupBox("Mode d'ajustement de l'image");
-        adjustmentGroup->setMinimumHeight(282); // Hauteur minimale pour alignement avec les deux cadres de gauche
+        adjustmentGroup->setMinimumHeight(320); // Hauteur minimale pour alignement avec les deux cadres de gauche
+        adjustmentGroup->setFixedWidth(280); // Largeur fixe pour éviter les variations selon le contenu
         adjustmentGroup->setStyleSheet(
             "QGroupBox {"
             "font-weight: 600;"
@@ -882,10 +883,42 @@ private:
         adjustmentLayout->setSpacing(10);
         adjustmentLayout->setContentsMargins(10, 15, 10, 15);
 
-        // Layout horizontal principal pour diviser en deux parties
-        QHBoxLayout *mainAdjustmentLayout = new QHBoxLayout();
-        mainAdjustmentLayout->setSpacing(10);
-        mainAdjustmentLayout->setAlignment(Qt::AlignTop);
+        // Encadré d'explication en haut (pleine largeur)
+        QWidget *explanationWidget = new QWidget();
+        explanationWidget->setFixedHeight(80); // Hauteur réduite pour l'explication en haut
+        explanationWidget->setStyleSheet(
+            "QWidget {"
+            "background-color: rgba(33, 150, 243, 30);" // #2196F3 avec transparence
+            "border: 2px solid #2196F3;"
+            "border-radius: 8px;"
+            "}"
+        );
+
+        QVBoxLayout *explanationLayout = new QVBoxLayout(explanationWidget);
+        explanationLayout->setContentsMargins(10, 5, 10, 10); // Réduction du padding top
+
+        adjustmentExplanationLabel = new QLabel();
+        adjustmentExplanationLabel->setObjectName("adjustmentExplanationLabel");
+        adjustmentExplanationLabel->setWordWrap(true);
+        adjustmentExplanationLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+        adjustmentExplanationLabel->setStyleSheet(
+            "QLabel {"
+            "color: #ffffff;"
+            "font-size: 13px;"
+            "background-color: transparent;"
+            "border: none;"
+            "padding: 3px 5px;"
+            "}"
+        );
+
+        // Texte par défaut pour "Remplir"
+        adjustmentExplanationLabel->setText("L'image conserve son ratio mais dépasse de l'écran pour le remplir");
+
+        explanationLayout->addWidget(adjustmentExplanationLabel);
+
+        // Layout horizontal pour centrer le sélecteur (image + combobox)
+        QHBoxLayout *selectorContainerLayout = new QHBoxLayout();
+        selectorContainerLayout->setAlignment(Qt::AlignCenter);
 
         // Widget container pour le sélecteur et l'image (partie gauche)
         QWidget *selectorWidget = new QWidget();
@@ -1004,48 +1037,14 @@ private:
         // Connecter au détecteur de changements (en plus de la connexion existante)
         connect(adjustmentCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ModernWindow::onSettingsChanged);
 
-        // Ajouter le sélecteur à la partie gauche
-        mainAdjustmentLayout->addWidget(selectorWidget);
+        // Ajouter le sélecteur centré au layout horizontal
+        selectorContainerLayout->addWidget(selectorWidget);
 
-        // Encadré d'explication (partie droite)
-        QWidget *explanationWidget = new QWidget();
-        explanationWidget->setFixedHeight(167); // Hauteur exacte: 32px (combo) + 15px (spacing) + 120px (image)
-        explanationWidget->setStyleSheet(
-            "QWidget {"
-            "background-color: rgba(33, 150, 243, 30);" // #2196F3 avec transparence
-            "border: 2px solid #2196F3;"
-            "border-radius: 8px;"
-            "}"
-        );
+        // Ajouter le layout horizontal centré au layout principal vertical
+        adjustmentLayout->addLayout(selectorContainerLayout);
 
-        QVBoxLayout *explanationLayout = new QVBoxLayout(explanationWidget);
-        explanationLayout->setContentsMargins(10, 10, 10, 10);
-
-        adjustmentExplanationLabel = new QLabel();
-        adjustmentExplanationLabel->setObjectName("adjustmentExplanationLabel");
-        adjustmentExplanationLabel->setWordWrap(true);
-        adjustmentExplanationLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-        adjustmentExplanationLabel->setStyleSheet(
-            "QLabel {"
-            "color: #ffffff;"
-            "font-size: 13px;"
-            "background-color: transparent;"
-            "border: none;"
-            "padding: 5px;"
-            "}"
-        );
-
-        // Texte par défaut pour "Remplir"
-        adjustmentExplanationLabel->setText("L'image conserve son ratio mais dépasse de l'écran pour le remplir");
-
-        explanationLayout->addWidget(adjustmentExplanationLabel);
-        explanationLayout->addStretch();
-
-        // Ajouter l'encadré d'explication à la partie droite
-        mainAdjustmentLayout->addWidget(explanationWidget);
-
-        // Ajouter le layout principal au groupe
-        adjustmentLayout->addLayout(mainAdjustmentLayout);
+        // Ajouter l'encadré d'explication en bas
+        adjustmentLayout->addWidget(explanationWidget);
 
         // Groupe Options système
         QGroupBox *systemGroup = new QGroupBox("Options système");
@@ -1093,7 +1092,8 @@ private:
 
         // Option "Changer le fond d'écran au démarrage"
         QHBoxLayout *changeOnStartupLayout = new QHBoxLayout();
-        QLabel *changeOnStartupLabel = new QLabel("Changer le fond d'écran au démarrage de l'ordinateur");
+        QLabel *changeOnStartupLabel = new QLabel("Changer le fond d'écran\nau démarrage de l'ordinateur");
+        changeOnStartupLabel->setWordWrap(true);
         changeOnStartupLabel->setStyleSheet("color: #ffffff; font-size: 13px; background-color: transparent;");
 
         changeOnStartupToggle = new ToggleSwitch();
@@ -1134,7 +1134,6 @@ private:
         // Colonne de droite (Mode d'ajustement de l'image)
         QVBoxLayout *rightColumnLayout = new QVBoxLayout();
         rightColumnLayout->addWidget(adjustmentGroup);
-        rightColumnLayout->addStretch();
 
         // Ajouter les deux colonnes au layout principal
         mainSettingsLayout->addLayout(leftColumnLayout);
