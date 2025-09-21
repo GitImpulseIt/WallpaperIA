@@ -1748,23 +1748,25 @@ private slots:
         changeNowButton->setEnabled(false);
         changeNowButton->setText("🔄 Changement en cours...");
 
-        // Déterminer combien d'images sont nécessaires
+        // Déterminer quels écrans cibler pour de nouvelles images
         QList<int> targetScreens;
         if (multiScreenToggle->isChecked() && screenSelector && screenSelector->screenCount() > 1) {
+            // Mode multi-écran : seulement les écrans sélectionnés reçoivent de nouvelles images
             targetScreens = screenSelector->getSelectedScreens();
         } else {
-            targetScreens.append(-1); // Mode classique : une seule image pour tous
+            // Mode classique : tous les écrans reçoivent la même nouvelle image
+            for (int i = 0; i < (screenSelector ? screenSelector->screenCount() : 1); i++) {
+                targetScreens.append(i);
+            }
         }
 
-        if (targetScreens.contains(-1) || targetScreens.size() == 1) {
-            // Une seule image nécessaire
+        if (targetScreens.size() == 1) {
             statusLabel->setText("Récupération d'une image aléatoire...");
-            getRandomWallpaper();
         } else {
-            // Plusieurs images nécessaires
             statusLabel->setText(QString("Récupération de %1 images aléatoires...").arg(targetScreens.size()));
-            getMultipleRandomWallpapers(targetScreens);
         }
+
+        getMultipleRandomWallpapers(targetScreens);
     }
 
 private:
@@ -1973,8 +1975,23 @@ private:
 
         statusLabel->setText("Application des fonds d'écran...");
 
+        // Construire une map complète avec nouvelles images + images historiques pour écrans non sélectionnés
+        QMap<int, QString> completeImageMap = currentMultiDownload->downloadedImages;
+
+        // Pour les écrans non sélectionnés, utiliser l'image la plus récente de l'historique
+        if (screenSelector && multiScreenToggle->isChecked() && screenSelector->screenCount() > 1) {
+            for (int i = 0; i < screenSelector->screenCount(); i++) {
+                if (!currentMultiDownload->targetScreens.contains(i)) {
+                    // Écran non sélectionné, récupérer la dernière image de l'historique
+                    if (screenWallpaperHistory.contains(i) && !screenWallpaperHistory[i].isEmpty()) {
+                        completeImageMap[i] = screenWallpaperHistory[i].first(); // Premier = le plus récent
+                    }
+                }
+            }
+        }
+
         // Créer une image composite avec les différentes images pour chaque écran
-        if (setMultipleWallpapers(currentMultiDownload->downloadedImages)) {
+        if (setMultipleWallpapers(completeImageMap)) {
             // Mettre à jour l'historique pour chaque écran (utiliser les fichiers originaux)
             for (auto it = currentMultiDownload->originalImages.constBegin();
                  it != currentMultiDownload->originalImages.constEnd(); ++it) {
@@ -2058,163 +2075,8 @@ private:
         restoreButton("Erreur de téléchargement - Voir détails");
     }
 
-    void getRandomWallpaper()
-    {
-        QNetworkRequest request(QUrl("http://localhost:8080/WallpaperIA/api/categories"));
-        QNetworkReply *reply = networkManager->get(request);
 
-        connect(reply, &QNetworkReply::finished, [this, reply]() {
-            if (reply->error() == QNetworkReply::NoError) {
-                QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-                QJsonObject obj = doc.object();
 
-                if (obj["success"].toBool()) {
-                    QJsonArray categories = obj["data"].toArray();
-                    if (!categories.isEmpty()) {
-                        // Choisir une catégorie au hasard
-                        int randomCategoryIndex = QRandomGenerator::global()->bounded(categories.size());
-                        QString categoryId = categories[randomCategoryIndex].toObject()["id"].toString();
-
-                        // Obtenir les images de cette catégorie
-                        getRandomImageFromCategory(categoryId);
-                    } else {
-                        restoreButton("Aucune catégorie disponible");
-                    }
-                } else {
-                    restoreButton("Erreur API");
-                }
-            } else {
-                restoreButton("Erreur de connexion");
-            }
-            reply->deleteLater();
-        });
-    }
-
-    void getRandomImageFromCategory(const QString &categoryId)
-    {
-        QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1").arg(categoryId)));
-        QNetworkReply *reply = networkManager->get(request);
-
-        connect(reply, &QNetworkReply::finished, [this, reply]() {
-            if (reply->error() == QNetworkReply::NoError) {
-                QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-                QJsonObject obj = doc.object();
-
-                if (obj["success"].toBool()) {
-                    QJsonArray wallpapers = obj["data"].toArray();
-                    if (!wallpapers.isEmpty()) {
-                        // Choisir une image au hasard
-                        int randomIndex = QRandomGenerator::global()->bounded(wallpapers.size());
-                        QString filename = wallpapers[randomIndex].toObject()["filename"].toString();
-
-                        statusLabel->setText("Téléchargement de l'image...");
-                        downloadAndSetWallpaper(filename);
-                    } else {
-                        restoreButton("Aucune image dans cette catégorie");
-                    }
-                } else {
-                    restoreButton("Erreur lors de la récupération des images");
-                }
-            } else {
-                restoreButton("Erreur de connexion");
-            }
-            reply->deleteLater();
-        });
-    }
-
-    void downloadAndSetWallpaper(const QString &filename)
-    {
-        QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperIA/api/get/%1").arg(filename)));
-        QNetworkReply *reply = networkManager->get(request);
-
-        connect(reply, &QNetworkReply::finished, [this, reply, filename]() {
-            if (reply->error() == QNetworkReply::NoError) {
-                QByteArray imageData = reply->readAll();
-
-                // Créer un dossier temp pour WallpaperIA
-                QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
-                QDir().mkpath(tempDir);
-
-                // Sauvegarder le fichier original
-                QString originalFilePath = tempDir + "/" + filename;
-                QFile originalFile(originalFilePath);
-                if (!originalFile.exists() || originalFile.size() != imageData.size()) {
-                    if (originalFile.open(QIODevice::WriteOnly)) {
-                        originalFile.write(imageData);
-                        originalFile.close();
-                    }
-                }
-
-                // Convertir l'image en BMP comme Firefox (plus fiable pour Windows)
-                QString tempFilePath = originalFilePath; // Par défaut, utiliser l'original
-                QPixmap pixmap;
-                if (pixmap.loadFromData(imageData)) {
-                    // Sauvegarder en BMP pour une compatibilité maximale avec Windows
-                    QString bmpPath = tempDir + "/" + QFileInfo(filename).baseName() + ".bmp";
-                    pixmap.save(bmpPath, "BMP");
-                    tempFilePath = bmpPath; // Pour Windows, utiliser le BMP
-                } else {
-                    // Fallback: écrire le fichier original
-                    QFile file(tempFilePath);
-                    if (!file.exists() || file.size() != imageData.size()) {
-                        if (file.open(QIODevice::WriteOnly)) {
-                            file.write(imageData);
-                            file.close();
-                        }
-                    }
-                }
-
-                statusLabel->setText("Application du fond d'écran...");
-
-                // Déterminer quels écrans utiliser
-                QList<int> targetScreens;
-
-                // Si le multi-écran est activé et qu'il y a plusieurs écrans, utiliser les écrans sélectionnés
-                if (multiScreenToggle->isChecked() && screenSelector && screenSelector->screenCount() > 1) {
-                    targetScreens = screenSelector->getSelectedScreens();
-                } else {
-                    // Mode classique : tous les écrans
-                    targetScreens.append(-1); // -1 = tous les écrans
-                }
-
-                // Appliquer le fond d'écran
-                if (setWindowsWallpaperMultiScreen(tempFilePath, targetScreens, filename)) {
-                    // Mettre à jour l'historique pour chaque écran concerné (utiliser le fichier original)
-                    if (targetScreens.contains(-1)) {
-                        // Tous les écrans
-                        for (int i = 0; i < screenSelector->screenCount(); i++) {
-                            addToScreenHistory(i, originalFilePath, currentTriggerMode.isEmpty() ? "Manuel" : currentTriggerMode);
-                        }
-                        statusLabel->setText(QString("Fond d'écran: %1").arg(filename));
-                    } else {
-                        // Écrans spécifiques
-                        for (int screen : targetScreens) {
-                            addToScreenHistory(screen, originalFilePath, currentTriggerMode.isEmpty() ? "Manuel" : currentTriggerMode);
-                        }
-                        if (targetScreens.size() == 1) {
-                            statusLabel->setText(QString("Fond d'écran écran %1: %2").arg(targetScreens.first() + 1).arg(filename));
-                        } else {
-                            QStringList screenNumbers;
-                            for (int screen : targetScreens) {
-                                screenNumbers.append(QString::number(screen + 1));
-                            }
-                            statusLabel->setText(QString("Fond d'écran écrans %1: %2").arg(screenNumbers.join(", ")).arg(filename));
-                        }
-                    }
-
-                    // Nettoyer les fichiers temporaires après application réussie
-                    cleanupTemporaryFiles();
-
-                    restoreButton("Succès !");
-                } else {
-                    restoreButton("Erreur lors de l'application");
-                }
-            } else {
-                restoreButton("Erreur de téléchargement");
-            }
-            reply->deleteLater();
-        });
-    }
 
     bool setWindowsWallpaper(const QString &imagePath, int screenIndex = -1)
     {
