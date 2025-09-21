@@ -24,6 +24,9 @@ public:
 
     void setDuration(int seconds);
     void setRemainingTime(int seconds);
+    void pauseCountdown();
+    void resumeCountdown();
+    bool isPaused() const;
 
 protected:
     void paintEvent(QPaintEvent *) override;
@@ -36,5 +39,6 @@ private:
     int m_remainingSeconds;
     bool m_isStartupMode;
     bool m_isNeverMode;
+    bool m_isPaused;
     QTimer *m_timer;
 };

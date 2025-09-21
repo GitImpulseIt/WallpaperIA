@@ -1,7 +1,7 @@
 #include "countdown_widget.h"
 #include "../utils/utils.h"
 
-CountdownWidget::CountdownWidget(QWidget *parent) : QWidget(parent), m_totalSeconds(3600), m_remainingSeconds(3600), m_isStartupMode(false), m_isNeverMode(false)
+CountdownWidget::CountdownWidget(QWidget *parent) : QWidget(parent), m_totalSeconds(3600), m_remainingSeconds(3600), m_isStartupMode(false), m_isNeverMode(false), m_isPaused(false)
 {
     setFixedSize(280, 200); // Élargi pour permettre des cadres plus larges
 
@@ -24,6 +24,23 @@ void CountdownWidget::setRemainingTime(int seconds)
 {
     m_remainingSeconds = seconds;
     update();
+}
+
+void CountdownWidget::pauseCountdown()
+{
+    m_isPaused = true;
+    update();
+}
+
+void CountdownWidget::resumeCountdown()
+{
+    m_isPaused = false;
+    update();
+}
+
+bool CountdownWidget::isPaused() const
+{
+    return m_isPaused;
 }
 
 void CountdownWidget::paintEvent(QPaintEvent *)
@@ -129,18 +146,23 @@ void CountdownWidget::paintEvent(QPaintEvent *)
     painter.setPen(QColor("#ffffff"));
     painter.setFont(QFont("Segoe UI", 12, QFont::Bold));
 
-    // Formatage du temps restant
-    int hours = m_remainingSeconds / 3600;
-    int minutes = (m_remainingSeconds % 3600) / 60;
-    int seconds = m_remainingSeconds % 60;
-
     QString timeText;
-    if (hours > 0) {
-        timeText = QString("%1h %2m").arg(hours).arg(minutes);
-    } else if (minutes > 0) {
-        timeText = QString("%1m %2s").arg(minutes).arg(seconds);
+    if (m_isPaused) {
+        timeText = "PAUSE";
+        painter.setPen(QColor("#ff9800")); // Orange pour indiquer la pause
     } else {
-        timeText = QString("%1s").arg(seconds);
+        // Formatage du temps restant
+        int hours = m_remainingSeconds / 3600;
+        int minutes = (m_remainingSeconds % 3600) / 60;
+        int seconds = m_remainingSeconds % 60;
+
+        if (hours > 0) {
+            timeText = QString("%1h %2m").arg(hours).arg(minutes);
+        } else if (minutes > 0) {
+            timeText = QString("%1m %2s").arg(minutes).arg(seconds);
+        } else {
+            timeText = QString("%1s").arg(seconds);
+        }
     }
 
     painter.drawText(circleRect, Qt::AlignCenter, timeText);
@@ -148,8 +170,8 @@ void CountdownWidget::paintEvent(QPaintEvent *)
 
 void CountdownWidget::updateCountdown()
 {
-    if (m_isStartupMode || m_isNeverMode) {
-        // Pas de countdown en mode démarrage ou jamais
+    if (m_isStartupMode || m_isNeverMode || m_isPaused) {
+        // Pas de countdown en mode démarrage, jamais, ou si en pause
         return;
     }
 

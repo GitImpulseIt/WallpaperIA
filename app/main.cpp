@@ -464,6 +464,7 @@ private:
         // Label pour le statut sous le bouton
         statusLabel = new QLabel("Cliquez pour changer le fond d'écran");
         statusLabel->setAlignment(Qt::AlignLeft);
+        statusLabel->setWordWrap(true); // Permettre le retour à la ligne
         statusLabel->setStyleSheet("color: #ADD8E6; font-size: 11pt; margin: 10px 0px;");
         containerLayout->addWidget(statusLabel);
 
@@ -1689,6 +1690,21 @@ private slots:
 private slots:
     void onScreenSelectionChanged(const QList<int> &selectedScreens)
     {
+        // Gérer l'état du bouton et du countdown selon la sélection
+        bool hasSelection = selectedScreens.size() > 0;
+
+        // Désactiver/activer le bouton selon la sélection
+        changeNowButton->setEnabled(hasSelection);
+
+        // Mettre en pause/reprendre le countdown selon la sélection
+        if (countdownWidget) {
+            if (hasSelection) {
+                countdownWidget->resumeCountdown();
+            } else {
+                countdownWidget->pauseCountdown();
+            }
+        }
+
         // Mettre à jour le statut pour indiquer les écrans sélectionnés
         if (screenSelector->screenCount() > 1) {
             if (selectedScreens.size() == 1) {
@@ -1700,7 +1716,7 @@ private slots:
                 }
                 statusLabel->setText(QString("Écrans sélectionnés : %1").arg(screenNumbers.join(", ")));
             } else {
-                statusLabel->setText("Aucun écran sélectionné");
+                statusLabel->setText("Aucun écran sélectionné\nSélectionnez au moins un écran");
             }
         }
     }
@@ -1739,6 +1755,15 @@ private slots:
 
     void onChangeNowClicked()
     {
+        // Vérifier qu'au moins un écran est sélectionné en mode multi-écran
+        if (multiScreenToggle->isChecked() && screenSelector && screenSelector->screenCount() > 1) {
+            QList<int> selectedScreens = screenSelector->getSelectedScreens();
+            if (selectedScreens.isEmpty()) {
+                // Aucun écran sélectionné, ne rien faire
+                return;
+            }
+        }
+
         // Par défaut, mode manuel si pas défini
         if (currentTriggerMode.isEmpty()) {
             currentTriggerMode = "Manuel";
