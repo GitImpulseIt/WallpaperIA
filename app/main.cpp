@@ -1614,30 +1614,103 @@ protected:
     
     void loadCategoryThumbnail(const QString &categoryId, QLabel *thumbnailLabel)
     {
-        QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1").arg(categoryId)));
+        // Utiliser la nouvelle API avec date du jour
+        QString currentDate = getCurrentDateString();
+        QString url = QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1&date=%2")
+                      .arg(categoryId)
+                      .arg(QString(currentDate).replace("/", "%2F")); // URL encode les "/"
+
+        qDebug() << "Loading thumbnail for category:" << categoryId << "with date:" << currentDate;
+        qDebug() << "URL:" << url;
+
+        QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
-        
-        connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel]() {
+
+        connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, categoryId, currentDate]() {
             if (reply->error() == QNetworkReply::NoError) {
-                QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+                QByteArray responseData = reply->readAll();
+                qDebug() << "Response for category" << categoryId << ":" << QString::fromUtf8(responseData.left(200));
+
+                QJsonDocument doc = QJsonDocument::fromJson(responseData);
                 QJsonObject obj = doc.object();
-                
+
                 if (obj["success"].toBool()) {
                     QJsonArray wallpapers = obj["data"].toArray();
                     if (!wallpapers.isEmpty()) {
                         QString filename = wallpapers[0].toObject()["filename"].toString();
+                        qDebug() << "Found wallpaper for" << categoryId << ":" << filename;
                         loadThumbnailImage(filename, thumbnailLabel);
+                    } else {
+                        qDebug() << "No wallpapers found for" << categoryId << "on" << currentDate << "- trying fallback";
+                        loadCategoryThumbnailFallback(categoryId, thumbnailLabel, 1);
                     }
+                } else {
+                    qDebug() << "API error for" << categoryId << ":" << obj["error"].toString() << "- trying fallback";
+                    loadCategoryThumbnailFallback(categoryId, thumbnailLabel, 1);
                 }
+            } else {
+                qDebug() << "Network error for" << categoryId << ":" << reply->errorString() << "- trying fallback";
+                loadCategoryThumbnailFallback(categoryId, thumbnailLabel, 1);
             }
+            reply->deleteLater();
+        });
+    }
+
+    void loadCategoryThumbnailFallback(const QString &categoryId, QLabel *thumbnailLabel, int daysBack)
+    {
+        if (daysBack > 7) {
+            qDebug() << "Giving up thumbnail for category" << categoryId << "after 7 days";
+            return;
+        }
+
+        QString previousDate = getPreviousDateString(daysBack);
+        QString url = QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1&date=%2")
+                      .arg(categoryId)
+                      .arg(QString(previousDate).replace("/", "%2F"));
+
+        qDebug() << "Fallback for category" << categoryId << "day" << daysBack << "date:" << previousDate;
+
+        QNetworkRequest request{QUrl(url)};
+        QNetworkReply *reply = networkManager->get(request);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, categoryId, daysBack, previousDate]() {
+            if (reply->error() == QNetworkReply::NoError) {
+                QByteArray responseData = reply->readAll();
+                QJsonDocument doc = QJsonDocument::fromJson(responseData);
+                QJsonObject obj = doc.object();
+
+                if (obj["success"].toBool()) {
+                    QJsonArray wallpapers = obj["data"].toArray();
+                    if (!wallpapers.isEmpty()) {
+                        QString filename = wallpapers[0].toObject()["filename"].toString();
+                        qDebug() << "Fallback SUCCESS for" << categoryId << "on" << previousDate << ":" << filename;
+                        loadThumbnailImage(filename, thumbnailLabel);
+                        return;
+                    } else {
+                        qDebug() << "Fallback: No wallpapers for" << categoryId << "on" << previousDate;
+                    }
+                } else {
+                    qDebug() << "Fallback API error for" << categoryId << "on" << previousDate << ":" << obj["error"].toString();
+                }
+            } else {
+                qDebug() << "Fallback network error for" << categoryId << "on" << previousDate << ":" << reply->errorString();
+            }
+
+            // Essayer le jour suivant
+            loadCategoryThumbnailFallback(categoryId, thumbnailLabel, daysBack + 1);
             reply->deleteLater();
         });
     }
     
     void loadThumbnailImage(const QString &filename, QLabel *thumbnailLabel)
     {
+        qDebug() << "Loading thumbnail image:" << filename;
+
         // Utiliser l'endpoint /mini/ pour les miniatures optimisées (90x50 JPG)
-        QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperIA/api/mini/%1").arg(filename)));
+        QString miniUrl = QString("http://localhost:8080/WallpaperIA/api/mini/%1").arg(filename);
+        qDebug() << "Mini URL:" << miniUrl;
+
+        QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
         
         connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, filename]() {
@@ -1853,48 +1926,38 @@ private:
 
     void getRandomWallpaperForScreen(int screenIndex)
     {
-        QNetworkRequest request(QUrl("http://localhost:8080/WallpaperIA/api/categories"));
-        QNetworkReply *reply = networkManager->get(request);
-
-        connect(reply, &QNetworkReply::finished, [this, reply, screenIndex]() {
-            // Vérifier que le téléchargement multi-écrans est toujours actif
-            if (!currentMultiDownload) {
-                reply->deleteLater();
-                return;
-            }
-
-            if (reply->error() == QNetworkReply::NoError) {
-                QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-                QJsonObject obj = doc.object();
-
-                if (obj["success"].toBool()) {
-                    QJsonArray categories = obj["data"].toArray();
-                    if (!categories.isEmpty()) {
-                        // Choisir une catégorie au hasard
-                        int randomCategoryIndex = QRandomGenerator::global()->bounded(categories.size());
-                        QString categoryId = categories[randomCategoryIndex].toObject()["id"].toString();
-
-                        // Obtenir une image de cette catégorie pour cet écran
-                        getRandomImageFromCategoryForScreen(categoryId, screenIndex);
-                    } else {
-                        handleMultiDownloadError(QString("Aucune catégorie disponible pour écran %1").arg(screenIndex + 1));
-                    }
-                } else {
-                    handleMultiDownloadError(QString("Erreur API catégories pour écran %1: %2").arg(screenIndex + 1).arg(obj["message"].toString()));
-                }
-            } else {
-                handleMultiDownloadError(QString("Erreur de connexion catégories pour écran %1: %2").arg(screenIndex + 1).arg(reply->errorString()));
-            }
-            reply->deleteLater();
-        });
+        // Utiliser le nouveau système de pondération
+        tryGetWallpaperWithWeightedCategory(screenIndex, 0); // Commencer avec date du jour (0 jours back)
     }
 
-    void getRandomImageFromCategoryForScreen(const QString &categoryId, int screenIndex)
+    void tryGetWallpaperWithWeightedCategory(int screenIndex, int daysBack)
     {
-        QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1").arg(categoryId)));
+        // Vérifier que le téléchargement multi-écrans est toujours actif
+        if (!currentMultiDownload) {
+            return;
+        }
+
+        // Sélectionner une catégorie pondérée
+        QString selectedCategoryId = selectWeightedRandomCategory();
+
+        if (selectedCategoryId.isEmpty()) {
+            // Plus aucune catégorie disponible, utiliser un wallpaper de l'historique
+            getRandomWallpaperFromHistory(screenIndex);
+            return;
+        }
+
+        // Calculer la date (actuelle - daysBack)
+        QString targetDate = (daysBack == 0) ? getCurrentDateString() : getPreviousDateString(daysBack);
+
+        // Appeler l'API avec la catégorie et la date
+        QString url = QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1&date=%2")
+                      .arg(selectedCategoryId)
+                      .arg(QString(targetDate).replace("/", "%2F")); // URL encode les "/"
+
+        QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
 
-        connect(reply, &QNetworkReply::finished, [this, reply, screenIndex]() {
+        connect(reply, &QNetworkReply::finished, [this, reply, screenIndex, selectedCategoryId, daysBack, targetDate]() {
             // Vérifier que le téléchargement multi-écrans est toujours actif
             if (!currentMultiDownload) {
                 reply->deleteLater();
@@ -1908,32 +1971,118 @@ private:
                 if (obj["success"].toBool()) {
                     QJsonArray wallpapers = obj["data"].toArray();
                     if (!wallpapers.isEmpty()) {
-                        // Choisir une image au hasard
-                        int randomIndex = QRandomGenerator::global()->bounded(wallpapers.size());
-                        QJsonObject wallpaper = wallpapers[randomIndex].toObject();
-                        QString filename = wallpaper["filename"].toString();
+                        // Filtrer les wallpapers pour éviter les doublons de l'historique
+                        QStringList availableWallpapers;
+                        for (const QJsonValue &wallpaperValue : wallpapers) {
+                            QJsonObject wallpaper = wallpaperValue.toObject();
+                            QString filename = wallpaper["filename"].toString();
 
-                        // Vérifier que le filename n'est pas vide avant le téléchargement
-                        if (filename.isEmpty()) {
-                            handleMultiDownloadError(QString("Filename d'image vide pour écran %1").arg(screenIndex + 1));
-                        } else {
-                            // Construire l'URL complète pour le téléchargement
-                            QString imageUrl = QString("http://localhost:8080/WallpaperIA/api/get/%1").arg(filename);
-
-                            // Télécharger cette image pour cet écran
-                            downloadImageForScreen(imageUrl, screenIndex);
+                            // Vérifier si ce wallpaper n'est pas dans l'historique de cet écran
+                            if (!screenWallpaperHistory[screenIndex].contains(filename)) {
+                                availableWallpapers.append(filename);
+                            }
                         }
+
+                        if (!availableWallpapers.isEmpty()) {
+                            // Choisir un wallpaper aléatoire parmi ceux disponibles
+                            int randomIndex = QRandomGenerator::global()->bounded(availableWallpapers.size());
+                            QString selectedFilename = availableWallpapers.at(randomIndex);
+
+                            // Télécharger ce wallpaper
+                            downloadWallpaperForScreen(selectedFilename, screenIndex);
+                            return;
+                        }
+                    }
+
+                    // Aucun wallpaper disponible pour cette catégorie/date
+                    if (daysBack < 7) { // Essayer maximum 7 jours en arrière
+                        // Essayer la date précédente
+                        tryGetWallpaperWithWeightedCategory(screenIndex, daysBack + 1);
                     } else {
-                        handleMultiDownloadError(QString("Aucune image disponible pour écran %1").arg(screenIndex + 1));
+                        // Exclure cette catégorie pour cette session
+                        excludedCategories.insert(selectedCategoryId);
+                        // Recommencer avec une nouvelle catégorie
+                        tryGetWallpaperWithWeightedCategory(screenIndex, 0);
                     }
                 } else {
-                    handleMultiDownloadError(QString("Erreur API wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(obj["message"].toString()));
+                    handleMultiDownloadError(QString("Erreur API wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(obj["error"].toString()));
                 }
             } else {
                 handleMultiDownloadError(QString("Erreur de connexion wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(reply->errorString()));
             }
             reply->deleteLater();
         });
+    }
+
+    void getRandomWallpaperFromHistory(int screenIndex)
+    {
+        // Vérifier que le téléchargement multi-écrans est toujours actif
+        if (!currentMultiDownload) {
+            return;
+        }
+
+        // Lister tous les wallpapers de l'historique
+        QStringList historyFiles = screenWallpaperHistory[screenIndex];
+
+        if (historyFiles.isEmpty()) {
+            handleMultiDownloadError(QString("Aucun wallpaper disponible dans l'historique pour l'écran %1").arg(screenIndex + 1));
+            return;
+        }
+
+        // Choisir un wallpaper aléatoire de l'historique
+        int randomIndex = QRandomGenerator::global()->bounded(historyFiles.size());
+        QString selectedFilename = historyFiles.at(randomIndex);
+
+        // Vérifier que le fichier existe encore dans le cache local
+        QString historyDir = getHistoryDirectory();
+        QString localImagePath = historyDir + "/" + selectedFilename;
+
+        if (QFile::exists(localImagePath)) {
+            // Utiliser directement le fichier local - simuler un téléchargement réussi
+            if (currentMultiDownload) {
+                // Créer une version BMP pour Windows si nécessaire
+                QString bmpFilePath = localImagePath;
+                QPixmap pixmap(localImagePath);
+                if (!pixmap.isNull()) {
+                    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+                    QDir().mkpath(tempDir);
+                    QString bmpPath = tempDir + "/" + QFileInfo(selectedFilename).baseName() + "_screen" + QString::number(screenIndex) + ".bmp";
+                    pixmap.save(bmpPath, "BMP");
+                    bmpFilePath = bmpPath;
+                }
+
+                currentMultiDownload->downloadedImages[screenIndex] = bmpFilePath;
+                currentMultiDownload->originalImages[screenIndex] = localImagePath;
+                currentMultiDownload->completedDownloads++;
+
+                // Mettre à jour le statut
+                statusLabel->setText(QString("Images téléchargées: %1/%2")
+                                   .arg(currentMultiDownload->completedDownloads)
+                                   .arg(currentMultiDownload->pendingDownloads));
+
+                // Vérifier si tous les téléchargements sont terminés
+                if (currentMultiDownload->completedDownloads >= currentMultiDownload->pendingDownloads) {
+                    applyMultipleWallpapers();
+                }
+            }
+        } else {
+            // Re-télécharger depuis l'API
+            downloadWallpaperForScreen(selectedFilename, screenIndex);
+        }
+    }
+
+    void downloadWallpaperForScreen(const QString &filename, int screenIndex)
+    {
+        // Vérifier que le téléchargement multi-écrans est toujours actif
+        if (!currentMultiDownload) {
+            return;
+        }
+
+        // Construire l'URL complète pour le téléchargement
+        QString imageUrl = QString("http://localhost:8080/WallpaperIA/api/get/%1").arg(filename);
+
+        // Télécharger cette image pour cet écran
+        downloadImageForScreen(imageUrl, screenIndex);
     }
 
     void downloadImageForScreen(const QString &imageUrl, int screenIndex)
@@ -3049,12 +3198,55 @@ private:
     CountdownWidget *countdownWidget;
     QLabel *adjustmentExplanationLabel; // Label pour l'explication du mode d'ajustement
     QMap<QString, int> categoryRatings; // Stockage des notations des catégories
+    QSet<QString> excludedCategories; // Catégories exclues pour cette session
     ScreenSelector *screenSelector; // Sélecteur d'écran
 
     // Historique des fonds d'écran par écran (max 8 images)
     QMap<int, QStringList> screenWallpaperHistory;
     static const int MAX_HISTORY_SIZE = 8;
     static const qint64 MAX_HISTORY_DIR_SIZE = 3 * 1024 * 1024; // 3 Mo
+
+    // Sélectionne une catégorie aléatoire en utilisant la pondération par étoiles
+    QString selectWeightedRandomCategory() const
+    {
+        QStringList weightedCategories;
+
+        // Créer une liste pondérée basée sur les étoiles
+        for (auto it = categoryRatings.constBegin(); it != categoryRatings.constEnd(); ++it) {
+            const QString &categoryId = it.key();
+            int rating = it.value();
+
+            // Ignorer les catégories exclues pour cette session
+            if (excludedCategories.contains(categoryId)) {
+                continue;
+            }
+
+            // Ajouter la catégorie autant de fois que son nombre d'étoiles
+            for (int i = 0; i < rating; ++i) {
+                weightedCategories.append(categoryId);
+            }
+        }
+
+        if (weightedCategories.isEmpty()) {
+            return QString(); // Aucune catégorie disponible
+        }
+
+        // Tirage aléatoire dans la liste pondérée
+        int randomIndex = QRandomGenerator::global()->bounded(weightedCategories.size());
+        return weightedCategories.at(randomIndex);
+    }
+
+    // Obtient la date du jour au format DD/MM/YYYY
+    QString getCurrentDateString() const
+    {
+        return QDate::currentDate().toString("dd/MM/yyyy");
+    }
+
+    // Obtient une date antérieure au format DD/MM/YYYY
+    QString getPreviousDateString(int daysBack) const
+    {
+        return QDate::currentDate().addDays(-daysBack).toString("dd/MM/yyyy");
+    }
 
     QString getHistoryDirectory() const
     {
