@@ -434,7 +434,7 @@ private:
 
         // Container avec largeur fixe pour justification
         QWidget *controlsContainer = new QWidget();
-        controlsContainer->setFixedWidth(240); // Largeur réduite pour laisser plus de place à droite
+        controlsContainer->setFixedWidth(280); // Largeur standard pour alignement correct du bouton
         QVBoxLayout *containerLayout = new QVBoxLayout(controlsContainer);
         containerLayout->setContentsMargins(0, 0, 0, 0);
         containerLayout->setSpacing(10);
