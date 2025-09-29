@@ -75,9 +75,11 @@ class Router {
             return ['type' => 'categories'];
         } elseif ($this->endpoint === 'wallpapers') {
             $category = $_GET['category'] ?? null;
+            $date = $_GET['date'] ?? null;
             return [
                 'type' => 'wallpapers',
-                'category' => $category
+                'category' => $category,
+                'date' => $date
             ];
         } elseif ($this->endpoint === 'index.php' || $this->endpoint === '' || $this->endpoint === 'api') {
             return ['type' => 'info'];
@@ -124,8 +126,7 @@ class Router {
             'version' => '1.0',
             'endpoints' => [
                 'GET /categories' => 'Get all available categories',
-                'GET /wallpapers' => 'Get all wallpapers',
-                'GET /wallpapers?category={name}' => 'Get wallpapers by category',
+                'GET /wallpapers?category={id}&date={DD/MM/YYYY}' => 'Get wallpapers by category and date (both required)',
                 'GET /get/{filename}' => 'Get file from FTP server',
                 'GET /mini/{filename}' => 'Get thumbnail (204x115 JPG) - generates if not exists'
             ]

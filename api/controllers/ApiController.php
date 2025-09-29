@@ -33,7 +33,7 @@ class ApiController {
                 return $this->handleCategoriesRequest();
 
             case 'wallpapers':
-                return $this->handleWallpapersRequest($request['category'] ?? null);
+                return $this->handleWallpapersRequest($request['category'] ?? null, $request['date'] ?? null);
 
             case 'info':
                 return $this->handleInfoRequest();
@@ -112,14 +112,25 @@ class ApiController {
     }
 
     /**
-     * Gère les requêtes de wallpapers
+     * Gère les requêtes de wallpapers (category et date obligatoires)
      */
-    private function handleWallpapersRequest($category = null) {
-        if ($category) {
-            return $this->wallpaperService->getWallpapersByCategory($category);
-        } else {
-            return $this->wallpaperService->getAllWallpapers();
+    private function handleWallpapersRequest($category = null, $date = null) {
+        // Vérifier que les paramètres obligatoires sont présents
+        if (!$category) {
+            return [
+                'success' => false,
+                'error' => 'Missing required parameter: category. Use /categories endpoint to get valid category IDs.'
+            ];
         }
+
+        if (!$date) {
+            return [
+                'success' => false,
+                'error' => 'Missing required parameter: date. Use DD/MM/YYYY format (e.g., 29/09/2025).'
+            ];
+        }
+
+        return $this->wallpaperService->getWallpapersByCategoryAndDate($category, $date);
     }
 
     /**

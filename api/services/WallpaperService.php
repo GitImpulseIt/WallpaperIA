@@ -94,22 +94,36 @@ class WallpaperService {
     }
 
     /**
-     * Obtient les wallpapers par catégorie (nom ou ID)
+     * Obtient les wallpapers par catégorie et date (paramètres obligatoires)
      */
-    public function getWallpapersByCategory($category) {
+    public function getWallpapersByCategoryAndDate($category_id, $date) {
         try {
             $wallpapers = $this->loadWallpapers();
             $filtered = [];
-            $target_category = $category;
 
-            // Check if category is an ID, convert to name
+            // Validate category ID
             $id_to_name = array_flip($this->category_ids);
-            if (isset($id_to_name[$category])) {
-                $target_category = $id_to_name[$category];
+            if (!isset($id_to_name[$category_id])) {
+                return [
+                    'success' => false,
+                    'error' => 'Invalid category ID. Use /categories endpoint to get valid IDs.'
+                ];
             }
 
+            $target_category = $id_to_name[$category_id];
+
+            // Validate date format (JJ/MM/AAAA)
+            if (!preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
+                return [
+                    'success' => false,
+                    'error' => 'Invalid date format. Use DD/MM/YYYY format (e.g., 29/09/2025).'
+                ];
+            }
+
+            // Filter by category and date
             foreach ($wallpapers as $wallpaper) {
-                if (strcasecmp($wallpaper['category'], $target_category) === 0) {
+                if (strcasecmp($wallpaper['category'], $target_category) === 0 &&
+                    $wallpaper['date'] === $date) {
                     $filtered[] = $wallpaper;
                 }
             }
@@ -117,7 +131,8 @@ class WallpaperService {
             return [
                 'success' => true,
                 'category' => $target_category,
-                'category_id' => $this->category_ids[$target_category] ?? null,
+                'category_id' => $category_id,
+                'date' => $date,
                 'data' => $filtered,
                 'count' => count($filtered)
             ];
@@ -130,37 +145,23 @@ class WallpaperService {
         }
     }
 
+
     /**
-     * Obtient tous les wallpapers
+     * Recherche un wallpaper par catégorie ID, date et ID
      */
-    public function getAllWallpapers() {
+    public function getWallpaperById($category_id, $date, $id) {
         try {
             $wallpapers = $this->loadWallpapers();
 
-            return [
-                'success' => true,
-                'data' => $wallpapers,
-                'count' => count($wallpapers)
-            ];
-
-        } catch (Exception $e) {
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
-        }
-    }
-
-    /**
-     * Recherche un wallpaper par catégorie, date et ID
-     */
-    public function getWallpaperById($category, $date, $id) {
-        try {
-            $wallpapers = $this->loadWallpapers();
-
-            // Convert category ID to name if needed
+            // Convert category ID to name - ID obligatoire
             $id_to_name = array_flip($this->category_ids);
-            $target_category = isset($id_to_name[$category]) ? $id_to_name[$category] : $category;
+            if (!isset($id_to_name[$category_id])) {
+                return [
+                    'success' => false,
+                    'error' => 'Invalid category ID. Use /categories endpoint to get valid IDs.'
+                ];
+            }
+            $target_category = $id_to_name[$category_id];
 
             foreach ($wallpapers as $wallpaper) {
                 if (strcasecmp($wallpaper['category'], $target_category) === 0 &&
