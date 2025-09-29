@@ -466,6 +466,10 @@ private:
             "QPushButton:pressed {"
             "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1565C0, stop:1 #0D47A1);"
             "}"
+            "QPushButton:disabled {"
+            "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #BDBDBD, stop:1 #9E9E9E);"
+            "color: #757575;"
+            "}"
         );
         connect(changeNowButton, &QPushButton::clicked, this, &ModernWindow::onChangeNowClicked);
         containerLayout->addWidget(changeNowButton);
@@ -2136,22 +2140,61 @@ private:
 
         // Si screenIndex est -1 ou qu'il n'y a qu'un écran, utiliser la méthode traditionnelle
         if (screenIndex == -1 || QApplication::screens().count() <= 1) {
-            // Convertir le chemin pour Windows
-            std::wstring wImagePath = imagePath.toStdWString();
-
-            // Utiliser la version Unicode comme Firefox pour plus de compatibilité
-            BOOL result = SystemParametersInfoW(
-                SPI_SETDESKWALLPAPER,
-                0,
-                (PVOID)wImagePath.c_str(),
-                SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
-            );
-
-            return (result != FALSE);
+            // Utiliser la nouvelle méthode avec transitions fluides préservées
+            return setWallpaperWithSmoothTransition(imagePath);
         }
 
         // Pour un écran spécifique, utiliser IDesktopWallpaper (Windows 8+)
         return setWallpaperForSpecificScreen(imagePath, screenIndex);
+        #else
+        return false;
+        #endif
+    }
+
+    // Fonction moderne qui utilise IDesktopWallpaper pour préserver les transitions fluides
+    bool setWallpaperWithSmoothTransition(const QString &imagePath)
+    {
+        #ifdef Q_OS_WIN
+        // Initialiser COM si nécessaire
+        HRESULT hr = CoInitialize(nullptr);
+        bool comInitialized = SUCCEEDED(hr);
+
+        IDesktopWallpaper *pDesktopWallpaper = nullptr;
+
+        // Créer l'instance IDesktopWallpaper (Windows 8+)
+        hr = CoCreateInstance(CLSID_DesktopWallpaper, nullptr, CLSCTX_INPROC_SERVER,
+                              IID_IDesktopWallpaper, (void**)&pDesktopWallpaper);
+
+        if (SUCCEEDED(hr)) {
+            // Convertir le chemin en LPCWSTR
+            std::wstring wImagePath = imagePath.toStdWString();
+
+            // Définir le fond d'écran avec transitions préservées
+            hr = pDesktopWallpaper->SetWallpaper(nullptr, wImagePath.c_str());
+
+            pDesktopWallpaper->Release();
+
+            if (comInitialized) {
+                CoUninitialize();
+            }
+
+            return SUCCEEDED(hr);
+        }
+
+        if (comInitialized) {
+            CoUninitialize();
+        }
+
+        // Fallback vers SystemParametersInfo si IDesktopWallpaper échoue
+        std::wstring wImagePath = imagePath.toStdWString();
+        BOOL result = SystemParametersInfoW(
+            SPI_SETDESKWALLPAPER,
+            0,
+            (PVOID)wImagePath.c_str(),
+            SPIF_SENDCHANGE  // Enlever SPIF_UPDATEINIFILE pour préserver les transitions
+        );
+
+        return result != 0;
         #else
         return false;
         #endif
@@ -2207,7 +2250,7 @@ private:
             SPI_SETDESKWALLPAPER,
             0,
             (PVOID)wCompositePath.c_str(),
-            SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+            SPIF_SENDCHANGE  // Enlever SPIF_UPDATEINIFILE pour préserver les transitions
         );
 
         return (result != FALSE);
@@ -2454,7 +2497,7 @@ private:
             SPI_SETDESKWALLPAPER,
             0,
             (PVOID)wImagePath.c_str(),
-            SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+            SPIF_SENDCHANGE  // Enlever SPIF_UPDATEINIFILE pour préserver les transitions
         );
 
         return (result != FALSE);
@@ -2548,7 +2591,7 @@ private:
             SPI_SETDESKWALLPAPER,
             0,
             (PVOID)wCompositePath.c_str(),
-            SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+            SPIF_SENDCHANGE  // Enlever SPIF_UPDATEINIFILE pour préserver les transitions
         );
 
         return (result != FALSE);
