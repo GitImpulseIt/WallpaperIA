@@ -154,6 +154,11 @@ public:
         // Configuration des boutons de la fenêtre : minimiser et fermer (pas d'agrandissement)
         setWindowFlags(Qt::Window | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
 
+        // Initialiser le chemin du cache des catégories
+        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/WallpaperIA";
+        QDir().mkpath(cacheDir);
+        categoriesCachePath = cacheDir + "/categories_cache.json";
+
         setupUI();
         applyModernStyle();
         setupSystemTray();
@@ -1323,21 +1328,126 @@ protected:
 
     void loadCategories()
     {
+        qDebug() << "Loading categories...";
+
+        // Charger le cache existant
+        loadCategoriesCache();
+
+        // Afficher immédiatement le cache si disponible
+        if (!cachedCategories.isEmpty()) {
+            qDebug() << "Displaying cached categories immediately while checking API";
+            displayCategories(cachedCategories);
+        }
+
+        // Tenter de charger depuis l'API en arrière-plan
         QNetworkRequest request(QUrl("http://localhost:8080/WallpaperIA/api/categories"));
         QNetworkReply *reply = networkManager->get(request);
-        
+
         connect(reply, &QNetworkReply::finished, [this, reply]() {
             if (reply->error() == QNetworkReply::NoError) {
                 QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
                 QJsonObject obj = doc.object();
-                
+
                 if (obj["success"].toBool()) {
-                    QJsonArray categories = obj["data"].toArray();
-                    displayCategories(categories);
+                    QJsonArray apiCategories = obj["data"].toArray();
+                    qDebug() << "API returned" << apiCategories.size() << "categories";
+
+                    // Vérifier s'il y a de nouvelles catégories
+                    if (cachedCategories.isEmpty() || apiCategories.size() != cachedCategories.size()) {
+                        qDebug() << "New categories detected - updating display and cache";
+                        cachedCategories = apiCategories;
+                        saveCategoriesCache();
+
+                        // Effacer l'affichage actuel et réafficher avec les nouvelles catégories
+                        clearCategoriesDisplay();
+                        displayCategories(apiCategories);
+                    } else {
+                        qDebug() << "No new categories - keeping cached display";
+                        // Pas besoin de réafficher, on a déjà le cache à l'écran
+                    }
+                } else {
+                    qDebug() << "API error - keeping cached categories";
+                    // Si pas de cache déjà affiché, afficher maintenant
+                    if (cachedCategories.isEmpty()) {
+                        qDebug() << "No cache available and API error";
+                    }
                 }
+            } else {
+                qDebug() << "Network error:" << reply->errorString() << "- keeping cached categories";
+                // Si pas de cache déjà affiché, rien à faire (déjà géré avant l'appel API)
             }
             reply->deleteLater();
         });
+    }
+
+    void loadCategoriesCache()
+    {
+        QFile cacheFile(categoriesCachePath);
+        if (cacheFile.exists() && cacheFile.open(QIODevice::ReadOnly)) {
+            QJsonDocument doc = QJsonDocument::fromJson(cacheFile.readAll());
+            QJsonObject cacheObj = doc.object();
+
+            cachedCategories = cacheObj["categories"].toArray();
+
+            // Charger aussi le cache des miniatures
+            QJsonObject thumbnails = cacheObj["thumbnails"].toObject();
+            categoryThumbnailCache.clear();
+            for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
+                categoryThumbnailCache[it.key()] = it.value().toString();
+            }
+
+            cacheFile.close();
+            qDebug() << "Loaded" << cachedCategories.size() << "categories from cache with" << categoryThumbnailCache.size() << "thumbnails";
+        } else {
+            qDebug() << "No categories cache found";
+        }
+    }
+
+    void saveCategoriesCache()
+    {
+        QFile cacheFile(categoriesCachePath);
+        if (cacheFile.open(QIODevice::WriteOnly)) {
+            // Sauvegarder les catégories ET les filenames des miniatures
+            QJsonObject cacheObj;
+            cacheObj["categories"] = cachedCategories;
+
+            // Sauvegarder le cache des miniatures
+            QJsonObject thumbnails;
+            for (auto it = categoryThumbnailCache.constBegin(); it != categoryThumbnailCache.constEnd(); ++it) {
+                thumbnails[it.key()] = it.value();
+            }
+            cacheObj["thumbnails"] = thumbnails;
+
+            QJsonDocument doc(cacheObj);
+            cacheFile.write(doc.toJson());
+            cacheFile.close();
+            qDebug() << "Saved" << cachedCategories.size() << "categories to cache with" << categoryThumbnailCache.size() << "thumbnails";
+        } else {
+            qDebug() << "Failed to save categories cache";
+        }
+    }
+
+    void displayCategoriesFromCache()
+    {
+        if (!cachedCategories.isEmpty()) {
+            qDebug() << "Displaying" << cachedCategories.size() << "categories from cache";
+            displayCategories(cachedCategories);
+        } else {
+            qDebug() << "No cached categories available";
+        }
+    }
+
+    void clearCategoriesDisplay()
+    {
+        qDebug() << "Clearing categories display";
+        // Supprimer tous les widgets du layout
+        QLayoutItem *item;
+        while ((item = categoriesGridLayout->takeAt(0)) != nullptr) {
+            if (item->widget()) {
+                delete item->widget();
+            }
+            delete item;
+        }
     }
     
     void displayCategories(const QJsonArray &categories)
@@ -1614,14 +1724,23 @@ protected:
     
     void loadCategoryThumbnail(const QString &categoryId, QLabel *thumbnailLabel)
     {
-        // Utiliser la nouvelle API avec date du jour
+        // Vérifier d'abord si on a le filename en cache
+        if (categoryThumbnailCache.contains(categoryId)) {
+            QString cachedFilename = categoryThumbnailCache[categoryId];
+            qDebug() << "Using cached thumbnail filename for" << categoryId << ":" << cachedFilename;
+            loadThumbnailImage(cachedFilename, thumbnailLabel);
+            return;
+        }
+
+        // Sinon, charger depuis l'API
+        qDebug() << "No cached thumbnail filename for" << categoryId << "- fetching from API";
+
         QString currentDate = getCurrentDateString();
         QString url = QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
-                      .arg(QString(currentDate).replace("/", "%2F")); // URL encode les "/"
+                      .arg(QString(currentDate).replace("/", "%2F"));
 
         qDebug() << "Loading thumbnail for category:" << categoryId << "with date:" << currentDate;
-        qDebug() << "URL:" << url;
 
         QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
@@ -1629,8 +1748,6 @@ protected:
         connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, categoryId, currentDate]() {
             if (reply->error() == QNetworkReply::NoError) {
                 QByteArray responseData = reply->readAll();
-                qDebug() << "Response for category" << categoryId << ":" << QString::fromUtf8(responseData.left(200));
-
                 QJsonDocument doc = QJsonDocument::fromJson(responseData);
                 QJsonObject obj = doc.object();
 
@@ -1639,6 +1756,11 @@ protected:
                     if (!wallpapers.isEmpty()) {
                         QString filename = wallpapers[0].toObject()["filename"].toString();
                         qDebug() << "Found wallpaper for" << categoryId << ":" << filename;
+
+                        // Sauvegarder le filename dans le cache
+                        categoryThumbnailCache[categoryId] = filename;
+                        saveCategoriesCache();
+
                         loadThumbnailImage(filename, thumbnailLabel);
                     } else {
                         qDebug() << "No wallpapers found for" << categoryId << "on" << currentDate << "- trying fallback";
@@ -1684,6 +1806,11 @@ protected:
                     if (!wallpapers.isEmpty()) {
                         QString filename = wallpapers[0].toObject()["filename"].toString();
                         qDebug() << "Fallback SUCCESS for" << categoryId << "on" << previousDate << ":" << filename;
+
+                        // Sauvegarder le filename dans le cache
+                        categoryThumbnailCache[categoryId] = filename;
+                        saveCategoriesCache();
+
                         loadThumbnailImage(filename, thumbnailLabel);
                         return;
                     } else {
@@ -1706,47 +1833,87 @@ protected:
     {
         qDebug() << "Loading thumbnail image:" << filename;
 
-        // Utiliser l'endpoint /mini/ pour les miniatures optimisées (90x50 JPG)
+        // Construire le chemin du cache pour la miniature
+        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/WallpaperIA/thumbnails";
+        QDir().mkpath(cacheDir);
+        QString cachedThumbnailPath = cacheDir + "/" + filename;
+
+        // Vérifier si la miniature est déjà en cache
+        if (QFile::exists(cachedThumbnailPath)) {
+            qDebug() << "Loading thumbnail from cache:" << cachedThumbnailPath;
+            QPixmap pixmap(cachedThumbnailPath);
+            if (!pixmap.isNull()) {
+                QPixmap scaledPixmap = pixmap.scaled(200, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                thumbnailLabel->setPixmap(scaledPixmap);
+                thumbnailLabel->setText("");
+                return;
+            } else {
+                qDebug() << "Cached thumbnail is corrupted, redownloading";
+            }
+        }
+
+        // Télécharger depuis l'API
         QString miniUrl = QString("http://localhost:8080/WallpaperIA/api/mini/%1").arg(filename);
-        qDebug() << "Mini URL:" << miniUrl;
+        qDebug() << "Downloading thumbnail from API:" << miniUrl;
 
         QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
-        
-        connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, filename]() {
+
+        connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, filename, cachedThumbnailPath]() {
             if (reply->error() == QNetworkReply::NoError) {
                 QByteArray imageData = reply->readAll();
                 QPixmap pixmap;
                 if (pixmap.loadFromData(imageData)) {
-                    // Les miniatures sont déjà optimisées (90x50), on les scale juste à la taille du label
+                    // Sauvegarder dans le cache
+                    if (pixmap.save(cachedThumbnailPath)) {
+                        qDebug() << "Thumbnail saved to cache:" << cachedThumbnailPath;
+                    } else {
+                        qDebug() << "Failed to save thumbnail to cache";
+                    }
+
+                    // Afficher la miniature
                     QPixmap scaledPixmap = pixmap.scaled(200, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                     thumbnailLabel->setPixmap(scaledPixmap);
-                    thumbnailLabel->setText(""); // Enlever le texte placeholder
+                    thumbnailLabel->setText("");
+                } else {
+                    qDebug() << "Failed to load pixmap from downloaded data";
                 }
             } else {
+                qDebug() << "Network error loading thumbnail:" << reply->errorString();
                 // En cas d'erreur avec /mini/, fallback vers l'ancienne méthode
-                loadThumbnailImageFallback(filename, thumbnailLabel);
+                loadThumbnailImageFallback(filename, thumbnailLabel, cachedThumbnailPath);
             }
             reply->deleteLater();
         });
     }
     
-    void loadThumbnailImageFallback(const QString &filename, QLabel *thumbnailLabel)
+    void loadThumbnailImageFallback(const QString &filename, QLabel *thumbnailLabel, const QString &cachedThumbnailPath)
     {
+        qDebug() << "Fallback: Loading full image for thumbnail:" << filename;
+
         // Méthode de fallback avec l'image complète (pour compatibilité)
         QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperIA/api/get/%1").arg(filename)));
         QNetworkReply *reply = networkManager->get(request);
-        
-        connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel]() {
+
+        connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, cachedThumbnailPath, filename]() {
             if (reply->error() == QNetworkReply::NoError) {
                 QByteArray imageData = reply->readAll();
                 QPixmap pixmap;
                 if (pixmap.loadFromData(imageData)) {
+                    // Sauvegarder dans le cache
+                    if (pixmap.save(cachedThumbnailPath)) {
+                        qDebug() << "Fallback thumbnail saved to cache:" << cachedThumbnailPath;
+                    }
+
                     // Redimensionner l'image pour la miniature
                     QPixmap scaledPixmap = pixmap.scaled(200, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                     thumbnailLabel->setPixmap(scaledPixmap);
-                    thumbnailLabel->setText(""); // Enlever le texte placeholder
+                    thumbnailLabel->setText("");
+                } else {
+                    qDebug() << "Failed to load pixmap from fallback data";
                 }
+            } else {
+                qDebug() << "Fallback network error:" << reply->errorString();
             }
             reply->deleteLater();
         });
@@ -3200,6 +3367,11 @@ private:
     QMap<QString, int> categoryRatings; // Stockage des notations des catégories
     QSet<QString> excludedCategories; // Catégories exclues pour cette session
     ScreenSelector *screenSelector; // Sélecteur d'écran
+
+    // Cache des catégories
+    QJsonArray cachedCategories;
+    QString categoriesCachePath;
+    QMap<QString, QString> categoryThumbnailCache; // Map categoryId -> filename de la miniature
 
     // Historique des fonds d'écran par écran (max 8 images)
     QMap<int, QStringList> screenWallpaperHistory;
