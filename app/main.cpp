@@ -35,6 +35,7 @@
 #include <QComboBox>
 #include <QSpinBox>
 #include <QGroupBox>
+#include <QCheckBox>
 #include <QPainter>
 #include <QMouseEvent>
 #include <QPropertyAnimation>
@@ -44,6 +45,7 @@
 #include <QDateTime>
 #include <QStandardItemModel>
 #include <QRegularExpression>
+#include <QPointer>
 #include <string>
 
 // Includes des modules séparés
@@ -145,7 +147,7 @@ class ModernWindow : public QWidget
 
 public:
 
-    ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false), retryCountdownSeconds(0)
+    ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false), retryCountdownSeconds(0), currentHistoryScreen(0), historyScrollOffset(0), dontShowMultiScreenWarning(false)
     {
         setWindowTitle("WallpaperIA - Gestionnaire de Fonds d'écran");
         setWindowIcon(QIcon(getImagePath("icon.png")));
@@ -155,7 +157,7 @@ public:
         setWindowFlags(Qt::Window | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
 
         // Initialiser le chemin du cache des catégories
-        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/WallpaperIA";
+        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
         QDir().mkpath(cacheDir);
         categoriesCachePath = cacheDir + "/categories_cache.json";
 
@@ -557,6 +559,158 @@ private:
         errorAlertLayout->addWidget(errorAlertLabel, 1);
 
         applicationLayout->addWidget(errorAlertWidget);
+
+        // === CARROUSEL D'HISTORIQUE ===
+        QWidget *historyContainer = new QWidget();
+        QVBoxLayout *historyMainLayout = new QVBoxLayout(historyContainer);
+        historyMainLayout->setContentsMargins(0, 10, 0, 0);
+        historyMainLayout->setSpacing(10);
+
+        // Titre et contrôles
+        QHBoxLayout *historyHeaderLayout = new QHBoxLayout();
+        QLabel *historyTitle = new QLabel("Historique");
+        historyTitle->setStyleSheet("color: #ffffff; font-size: 11pt; font-weight: bold;");
+        historyHeaderLayout->addWidget(historyTitle);
+
+        historyHeaderLayout->addStretch();
+
+        // Combobox sélection d'écran
+        historyScreenCombo = new QComboBox();
+        historyScreenCombo->setFixedWidth(150);
+        historyScreenCombo->setStyleSheet(
+            "QComboBox {"
+            "background-color: #3b3b3b;"
+            "color: white;"
+            "border: 1px solid #555555;"
+            "border-radius: 4px;"
+            "padding: 5px;"
+            "}"
+            "QComboBox::drop-down {"
+            "border: none;"
+            "}"
+            "QComboBox QAbstractItemView {"
+            "background-color: #3b3b3b;"
+            "color: white;"
+            "selection-background-color: #2196F3;"
+            "}"
+        );
+        connect(historyScreenCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ModernWindow::onHistoryScreenChanged);
+        historyHeaderLayout->addWidget(historyScreenCombo);
+
+        // Bouton Appliquer
+        QPushButton *applyHistoryButton = new QPushButton("Appliquer");
+        applyHistoryButton->setFixedWidth(100);
+        applyHistoryButton->setStyleSheet(
+            "QPushButton {"
+            "background-color: #2196F3;"
+            "color: white;"
+            "border: none;"
+            "border-radius: 4px;"
+            "padding: 6px 12px;"
+            "font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "background-color: #42A5F5;"
+            "}"
+            "QPushButton:pressed {"
+            "background-color: #1565C0;"
+            "}"
+            "QPushButton:disabled {"
+            "background-color: #757575;"
+            "color: #BDBDBD;"
+            "}"
+        );
+        connect(applyHistoryButton, &QPushButton::clicked, this, &ModernWindow::onApplyHistoryClicked);
+        historyHeaderLayout->addWidget(applyHistoryButton);
+
+        historyMainLayout->addLayout(historyHeaderLayout);
+
+        // Zone carrousel avec boutons de navigation
+        QHBoxLayout *carouselNavigationLayout = new QHBoxLayout();
+        carouselNavigationLayout->setSpacing(5);
+
+        // Bouton précédent
+        historyPrevButton = new QPushButton("◀");
+        historyPrevButton->setFixedSize(40, 120);
+        historyPrevButton->setStyleSheet(
+            "QPushButton {"
+            "background-color: #3b3b3b;"
+            "color: white;"
+            "border: 1px solid #555555;"
+            "border-radius: 4px;"
+            "font-size: 18pt;"
+            "font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "background-color: #2196F3;"
+            "border-color: #2196F3;"
+            "}"
+            "QPushButton:pressed {"
+            "background-color: #1565C0;"
+            "}"
+            "QPushButton:disabled {"
+            "background-color: #2b2b2b;"
+            "color: #555555;"
+            "border-color: #444444;"
+            "}"
+        );
+        connect(historyPrevButton, &QPushButton::clicked, this, &ModernWindow::onHistoryPrevClicked);
+        carouselNavigationLayout->addWidget(historyPrevButton);
+
+        // Zone scrollable horizontale pour les miniatures (sans scrollbar)
+        historyCarouselScrollArea = new QScrollArea();
+        historyCarouselScrollArea->setFixedHeight(120);
+        historyCarouselScrollArea->setWidgetResizable(true);
+        historyCarouselScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        historyCarouselScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        historyCarouselScrollArea->setStyleSheet(
+            "QScrollArea {"
+            "background-color: #2b2b2b;"
+            "border: 1px solid #555555;"
+            "border-radius: 4px;"
+            "}"
+        );
+
+        historyCarouselWidget = new QWidget();
+        historyCarouselLayout = new QHBoxLayout(historyCarouselWidget);
+        historyCarouselLayout->setContentsMargins(10, 10, 10, 10);
+        historyCarouselLayout->setSpacing(10);
+        historyCarouselLayout->setAlignment(Qt::AlignLeft);
+
+        historyCarouselScrollArea->setWidget(historyCarouselWidget);
+        carouselNavigationLayout->addWidget(historyCarouselScrollArea, 1);
+
+        // Bouton suivant
+        historyNextButton = new QPushButton("▶");
+        historyNextButton->setFixedSize(40, 120);
+        historyNextButton->setStyleSheet(
+            "QPushButton {"
+            "background-color: #3b3b3b;"
+            "color: white;"
+            "border: 1px solid #555555;"
+            "border-radius: 4px;"
+            "font-size: 18pt;"
+            "font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "background-color: #2196F3;"
+            "border-color: #2196F3;"
+            "}"
+            "QPushButton:pressed {"
+            "background-color: #1565C0;"
+            "}"
+            "QPushButton:disabled {"
+            "background-color: #2b2b2b;"
+            "color: #555555;"
+            "border-color: #444444;"
+            "}"
+        );
+        connect(historyNextButton, &QPushButton::clicked, this, &ModernWindow::onHistoryNextClicked);
+        carouselNavigationLayout->addWidget(historyNextButton);
+
+        historyMainLayout->addLayout(carouselNavigationLayout);
+
+        applicationLayout->addWidget(historyContainer);
 
         tabWidget->addTab(applicationTab, "Fond d'écran");
     }
@@ -1873,7 +2027,7 @@ protected:
         qDebug() << "Loading thumbnail image:" << filename;
 
         // Construire le chemin du cache pour la miniature
-        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/WallpaperIA/thumbnails";
+        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/thumbnails";
         QDir().mkpath(cacheDir);
         QString cachedThumbnailPath = cacheDir + "/" + filename;
 
@@ -2506,6 +2660,430 @@ private:
         errorAlertLabel->setText(message);
     }
 
+    // === FONCTIONS CARROUSEL D'HISTORIQUE ===
+
+    void populateHistoryScreenCombo()
+    {
+        historyScreenCombo->clear();
+
+        int screenCount = screenSelector ? screenSelector->screenCount() : 1;
+        for (int i = 0; i < screenCount; i++) {
+            historyScreenCombo->addItem(QString("Écran %1").arg(i + 1), i);
+        }
+
+        // Sélectionner le premier écran par défaut
+        if (historyScreenCombo->count() > 0) {
+            historyScreenCombo->setCurrentIndex(0);
+            loadHistoryForScreen(0);
+        }
+    }
+
+    void onHistoryScreenChanged(int index)
+    {
+        if (index < 0) return;
+        int screenIndex = historyScreenCombo->itemData(index).toInt();
+        loadHistoryForScreen(screenIndex);
+    }
+
+    void loadHistoryForScreen(int screenIndex)
+    {
+        currentHistoryScreen = screenIndex;
+        selectedHistoryImagePath.clear();
+        historyScrollOffset = 0;
+
+        // Charger l'historique complet depuis les logs (pas limité à 8)
+        currentHistoryImages = getFullHistoryFromLogs(screenIndex);
+
+        // Rafraîchir l'affichage
+        refreshHistoryCarousel();
+    }
+
+    void refreshHistoryCarousel()
+    {
+        // Nettoyer le carrousel
+        clearHistoryCarousel();
+
+        if (currentHistoryImages.isEmpty()) {
+            // Pas d'historique pour cet écran
+            QLabel *emptyLabel = new QLabel("Aucun historique disponible");
+            emptyLabel->setStyleSheet("color: #888888; font-size: 10pt;");
+            emptyLabel->setAlignment(Qt::AlignCenter);
+            historyCarouselLayout->addWidget(emptyLabel);
+            updateHistoryNavigationButtons();
+            return;
+        }
+
+        // Calculer combien d'images on peut afficher (largeur disponible / largeur miniature)
+        // Largeur carrousel ~= 625px (725 - 40 - 40 - marges), miniature = 140px + 10px spacing
+        int visibleCount = 4; // On affiche 4 miniatures à la fois
+
+        // Afficher les images visibles selon l'offset
+        int startIdx = historyScrollOffset;
+        int endIdx = qMin(startIdx + visibleCount, currentHistoryImages.size());
+
+        for (int i = startIdx; i < endIdx; i++) {
+            const QString &filename = currentHistoryImages[i];
+            addThumbnailToCarousel(filename);
+        }
+
+        // Mettre à jour l'état des boutons de navigation
+        updateHistoryNavigationButtons();
+    }
+
+    void updateHistoryNavigationButtons()
+    {
+        if (currentHistoryImages.isEmpty()) {
+            historyPrevButton->setEnabled(false);
+            historyNextButton->setEnabled(false);
+            return;
+        }
+
+        int visibleCount = 4;
+
+        // Bouton précédent : actif si on n'est pas au début
+        historyPrevButton->setEnabled(historyScrollOffset > 0);
+
+        // Bouton suivant : actif si on peut encore défiler à droite
+        historyNextButton->setEnabled(historyScrollOffset + visibleCount < currentHistoryImages.size());
+    }
+
+    void onHistoryPrevClicked()
+    {
+        if (historyScrollOffset > 0) {
+            historyScrollOffset--;
+            refreshHistoryCarousel();
+        }
+    }
+
+    void onHistoryNextClicked()
+    {
+        int visibleCount = 4;
+        if (historyScrollOffset + visibleCount < currentHistoryImages.size()) {
+            historyScrollOffset++;
+            refreshHistoryCarousel();
+        }
+    }
+
+    QStringList getFullHistoryFromLogs(int screenIndex)
+    {
+        QStringList fileNames;
+        QString screenId = getScreenUniqueId(screenIndex);
+        QString historyDir = getHistoryDirectory();
+        QString logFilePath = historyDir + "/" + screenId + ".log";
+
+        QFile logFile(logFilePath);
+        if (!logFile.open(QIODevice::ReadOnly)) {
+            return fileNames;
+        }
+
+        QTextStream stream(&logFile);
+        QStringList lines;
+        QString line;
+
+        // Lire toutes les lignes
+        while (stream.readLineInto(&line)) {
+            if (!line.isEmpty()) {
+                lines.append(line);
+            }
+        }
+        logFile.close();
+
+        // Parser les lignes dans l'ordre inverse (du plus récent au plus ancien)
+        QRegularExpression regex(R"(\[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\])");
+
+        for (int i = lines.size() - 1; i >= 0; i--) {
+            QRegularExpressionMatch match = regex.match(lines[i]);
+            if (match.hasMatch()) {
+                QString filename = match.captured(2);
+
+                // Retourner les noms de fichiers (pas les chemins complets)
+                // On utilisera l'API pour charger les miniatures
+                if (!fileNames.contains(filename)) {
+                    fileNames.append(filename);
+                }
+            }
+        }
+
+        return fileNames;
+    }
+
+    void clearHistoryCarousel()
+    {
+        // Supprimer tous les widgets du carrousel
+        QLayoutItem *item;
+        while ((item = historyCarouselLayout->takeAt(0)) != nullptr) {
+            if (item->widget()) {
+                delete item->widget();
+            }
+            delete item;
+        }
+    }
+
+    void addThumbnailToCarousel(const QString &filename)
+    {
+        // Créer un bouton cliquable pour la miniature
+        QPushButton *thumbnailButton = new QPushButton();
+        thumbnailButton->setFixedSize(140, 80);
+        thumbnailButton->setCursor(Qt::PointingHandCursor);
+        thumbnailButton->setCheckable(true);
+
+        thumbnailButton->setStyleSheet(
+            "QPushButton {"
+            "background-color: #3b3b3b;"
+            "border: 2px solid #555555;"
+            "border-radius: 4px;"
+            "padding: 0px;"
+            "}"
+            "QPushButton:hover {"
+            "border-color: #2196F3;"
+            "}"
+            "QPushButton:checked {"
+            "border-color: #2196F3;"
+            "border-width: 3px;"
+            "background-color: #2b2b2b;"
+            "}"
+        );
+
+        // Stocker le filename dans une propriété
+        thumbnailButton->setProperty("filename", filename);
+
+        connect(thumbnailButton, &QPushButton::clicked, [this, thumbnailButton]() {
+            onHistoryThumbnailClicked(thumbnailButton);
+        });
+
+        historyCarouselLayout->addWidget(thumbnailButton);
+
+        // Charger la miniature via l'API de manière asynchrone
+        loadHistoryThumbnail(filename, thumbnailButton);
+    }
+
+    void loadHistoryThumbnail(const QString &filename, QPushButton *thumbnailButton)
+    {
+        // Vérifier d'abord si la miniature est en cache
+        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/history_thumbnails";
+        QDir().mkpath(cacheDir);
+        QString cachedPath = cacheDir + "/" + filename;
+
+        if (QFile::exists(cachedPath)) {
+            // Charger depuis le cache
+            QPixmap pixmap(cachedPath);
+            if (!pixmap.isNull()) {
+                QPixmap scaledPixmap = pixmap.scaled(140, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                thumbnailButton->setIcon(QIcon(scaledPixmap));
+                thumbnailButton->setIconSize(QSize(140, 80));
+            }
+            return;
+        }
+
+        // Sinon télécharger via l'API
+        QString miniUrl = QString("http://localhost:8080/WallpaperIA/api/mini/%1").arg(filename);
+        QNetworkRequest request{QUrl(miniUrl)};
+        QNetworkReply *reply = networkManager->get(request);
+
+        // Utiliser QPointer pour éviter les crashes si le bouton est détruit pendant la requête
+        QPointer<QPushButton> safeButton = thumbnailButton;
+
+        connect(reply, &QNetworkReply::finished, [this, reply, safeButton, filename, cachedPath]() {
+            if (reply->error() == QNetworkReply::NoError) {
+                QByteArray imageData = reply->readAll();
+                QPixmap pixmap;
+                if (pixmap.loadFromData(imageData)) {
+                    // Sauvegarder dans le cache
+                    pixmap.save(cachedPath);
+
+                    // Afficher uniquement si le bouton existe toujours
+                    if (safeButton) {
+                        QPixmap scaledPixmap = pixmap.scaled(140, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                        safeButton->setIcon(QIcon(scaledPixmap));
+                        safeButton->setIconSize(QSize(140, 80));
+                    }
+
+                    // Nettoyer le cache si trop de fichiers (limite 100)
+                    cleanupHistoryThumbnailCache();
+                }
+            }
+            reply->deleteLater();
+        });
+    }
+
+    void cleanupHistoryThumbnailCache()
+    {
+        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/history_thumbnails";
+        QDir dir(cacheDir);
+        if (!dir.exists()) return;
+
+        QFileInfoList files = dir.entryInfoList(QDir::Files, QDir::Time);
+        int maxCacheFiles = 100;
+
+        // Supprimer les fichiers les plus anciens si on dépasse la limite
+        if (files.size() > maxCacheFiles) {
+            for (int i = maxCacheFiles; i < files.size(); i++) {
+                QFile::remove(files[i].absoluteFilePath());
+            }
+        }
+    }
+
+    void onHistoryThumbnailClicked(QPushButton *clickedButton)
+    {
+        // Désélectionner tous les autres boutons
+        for (int i = 0; i < historyCarouselLayout->count(); ++i) {
+            QWidget *widget = historyCarouselLayout->itemAt(i)->widget();
+            if (QPushButton *btn = qobject_cast<QPushButton*>(widget)) {
+                if (btn != clickedButton) {
+                    btn->setChecked(false);
+                }
+            }
+        }
+
+        // Marquer le bouton comme sélectionné
+        clickedButton->setChecked(true);
+
+        // Stocker le filename et reconstruire le chemin complet
+        QString filename = clickedButton->property("filename").toString();
+        QString screenId = getScreenUniqueId(currentHistoryScreen);
+        QString wallpapersDir = getWallpapersDirectory();
+        selectedHistoryImagePath = wallpapersDir + "/" + screenId + "/" + filename;
+    }
+
+    void onApplyHistoryClicked()
+    {
+        if (selectedHistoryImagePath.isEmpty()) {
+            QMessageBox::information(this, "Sélection requise", "Veuillez sélectionner une image de l'historique.");
+            return;
+        }
+
+        // Vérifier si le fichier existe encore
+        if (!QFile::exists(selectedHistoryImagePath)) {
+            // Le fichier n'existe plus, il faut le re-télécharger depuis l'API
+            QString filename = QFileInfo(selectedHistoryImagePath).fileName();
+            redownloadHistoryImage(filename);
+            return;
+        }
+
+        // Vérifier si plusieurs écrans sont sélectionnés
+        QList<int> selectedScreens;
+        if (multiScreenToggle->isChecked() && screenSelector && screenSelector->screenCount() > 1) {
+            selectedScreens = screenSelector->getSelectedScreens();
+        } else {
+            // Mode classique : tous les écrans
+            for (int i = 0; i < (screenSelector ? screenSelector->screenCount() : 1); i++) {
+                selectedScreens.append(i);
+            }
+        }
+
+        // Si plusieurs écrans et que l'avertissement n'est pas désactivé
+        if (selectedScreens.size() > 1 && !dontShowMultiScreenWarning) {
+            showMultiScreenWarningDialog(selectedScreens);
+        } else {
+            applyHistoryImageToScreens(selectedScreens);
+        }
+    }
+
+    void showMultiScreenWarningDialog(const QList<int> &selectedScreens)
+    {
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle("Application multi-écrans");
+        msgBox.setText(QString("Le fond d'écran sera appliqué sur %1 écrans sélectionnés.").arg(selectedScreens.size()));
+        msgBox.setInformativeText("Voulez-vous continuer ?");
+        msgBox.setIcon(QMessageBox::Question);
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setDefaultButton(QMessageBox::Yes);
+
+        // Ajouter une checkbox "Ne plus afficher"
+        QCheckBox *dontShowAgain = new QCheckBox("Ne plus afficher cet avertissement");
+        msgBox.setCheckBox(dontShowAgain);
+
+        msgBox.setStyleSheet(
+            "QMessageBox {"
+            "background-color: #2b2b2b;"
+            "color: #ffffff;"
+            "}"
+            "QMessageBox QPushButton {"
+            "background-color: #2196F3;"
+            "color: white;"
+            "border: none;"
+            "border-radius: 4px;"
+            "padding: 8px 16px;"
+            "min-width: 80px;"
+            "}"
+            "QMessageBox QPushButton:hover {"
+            "background-color: #42A5F5;"
+            "}"
+            "QCheckBox {"
+            "color: white;"
+            "}"
+        );
+
+        int result = msgBox.exec();
+
+        // Sauvegarder la préférence si la checkbox est cochée
+        if (dontShowAgain->isChecked()) {
+            dontShowMultiScreenWarning = true;
+            QSettings settings("WallpaperIA", "WallpaperSettings");
+            settings.setValue("dontShowMultiScreenWarning", true);
+        }
+
+        if (result == QMessageBox::Yes) {
+            applyHistoryImageToScreens(selectedScreens);
+        }
+    }
+
+    void redownloadHistoryImage(const QString &filename)
+    {
+        statusLabel->setText("Téléchargement de l'image depuis l'API...");
+
+        QString imageUrl = QString("http://localhost:8080/WallpaperIA/api/get/%1").arg(filename);
+        QNetworkRequest request{QUrl(imageUrl)};
+        QNetworkReply *reply = networkManager->get(request);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, filename]() {
+            if (reply->error() == QNetworkReply::NoError) {
+                QByteArray imageData = reply->readAll();
+
+                // Sauvegarder l'image téléchargée
+                QString screenId = getScreenUniqueId(currentHistoryScreen);
+                QString wallpapersDir = getWallpapersDirectory();
+                QString screenDir = wallpapersDir + "/" + screenId;
+                QDir().mkpath(screenDir);
+
+                QString savedPath = screenDir + "/" + filename;
+                QFile file(savedPath);
+                if (file.open(QIODevice::WriteOnly)) {
+                    file.write(imageData);
+                    file.close();
+
+                    selectedHistoryImagePath = savedPath;
+                    statusLabel->setText("Image téléchargée, prête à être appliquée");
+
+                    // Réessayer l'application
+                    onApplyHistoryClicked();
+                } else {
+                    statusLabel->setText("Erreur lors de la sauvegarde de l'image");
+                }
+            } else {
+                statusLabel->setText("Erreur lors du téléchargement de l'image");
+            }
+            reply->deleteLater();
+        });
+    }
+
+    void applyHistoryImageToScreens(const QList<int> &selectedScreens)
+    {
+        // Appliquer l'image sélectionnée sur les écrans choisis
+        statusLabel->setText("Application du fond d'écran...");
+
+        QMap<int, QString> imageMap;
+        for (int screenIndex : selectedScreens) {
+            imageMap[screenIndex] = selectedHistoryImagePath;
+        }
+
+        if (setMultipleWallpapers(imageMap)) {
+            statusLabel->setText("Fond d'écran appliqué avec succès !");
+        } else {
+            statusLabel->setText("Erreur lors de l'application");
+        }
+    }
+
     bool setWindowsWallpaper(const QString &imagePath, int screenIndex = -1)
     {
         #ifdef Q_OS_WIN
@@ -3094,6 +3672,11 @@ private:
         // Sauvegarder l'historique
         saveHistoryToSettings();
 
+        // Mettre à jour le carrousel d'historique si on affiche cet écran
+        if (screenIndex == currentHistoryScreen) {
+            loadHistoryForScreen(screenIndex);
+        }
+
         // Marquer cet écran comme pouvant être désélectionné (maintenant qu'il a un log)
         if (screenSelector) {
             screenSelector->setScreenCanBeDeselected(screenIndex, true);
@@ -3198,15 +3781,58 @@ private:
         // Lister tous les fichiers dans le répertoire de cet écran
         QFileInfoList files = dir.entryInfoList(QDir::Files);
 
-        // Supprimer tous les fichiers sauf le fichier actuel
+        // Supprimer tous les fichiers sauf le fichier actuel (nettoyage strict)
         for (const QFileInfo &fileInfo : files) {
             QString filePath = fileInfo.absoluteFilePath();
 
             // Ne pas supprimer le fichier actuel
             if (filePath != currentFilePath) {
+                qDebug() << "Cleaning up old wallpaper:" << filePath;
                 QFile::remove(filePath);
             }
         }
+    }
+
+    QStringList getFileNamesFromLogs(int screenIndex)
+    {
+        QStringList fileNames;
+        QString screenId = getScreenUniqueId(screenIndex);
+        QString historyDir = getHistoryDirectory();
+        QString logFilePath = historyDir + "/" + screenId + ".log";
+
+        QFile logFile(logFilePath);
+        if (!logFile.open(QIODevice::ReadOnly)) {
+            return fileNames;
+        }
+
+        QTextStream stream(&logFile);
+        QStringList lines;
+        QString line;
+
+        // Lire toutes les lignes
+        while (stream.readLineInto(&line)) {
+            if (!line.isEmpty()) {
+                lines.append(line);
+            }
+        }
+        logFile.close();
+
+        // Parser les lignes dans l'ordre inverse (du plus récent au plus ancien)
+        QRegularExpression regex(R"(\[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\])");
+
+        for (int i = lines.size() - 1; i >= 0; i--) {
+            QRegularExpressionMatch match = regex.match(lines[i]);
+            if (match.hasMatch()) {
+                QString filename = match.captured(2);
+
+                // Ajouter uniquement si pas déjà dans la liste (dédoublonnage)
+                if (!fileNames.contains(filename)) {
+                    fileNames.append(filename);
+                }
+            }
+        }
+
+        return fileNames;
     }
 
     void cleanupAllWallpapers()
@@ -3348,6 +3974,12 @@ private:
         // Charger l'historique des fonds d'écran
         loadHistoryFromSettings();
 
+        // Charger la préférence de l'avertissement multi-écrans
+        dontShowMultiScreenWarning = settings.value("dontShowMultiScreenWarning", false).toBool();
+
+        // Peupler le carrousel d'historique
+        populateHistoryScreenCombo();
+
         isLoadingSettings = false; // Réactiver la détection des changements
 
         // Initialiser le countdown avec les paramètres chargés
@@ -3443,6 +4075,19 @@ private:
     QMap<int, QStringList> screenWallpaperHistory;
     static const int MAX_HISTORY_SIZE = 8;
     static const qint64 MAX_HISTORY_DIR_SIZE = 3 * 1024 * 1024; // 3 Mo
+
+    // Carrousel d'historique
+    QScrollArea *historyCarouselScrollArea;
+    QWidget *historyCarouselWidget;
+    QHBoxLayout *historyCarouselLayout;
+    QComboBox *historyScreenCombo;
+    QPushButton *historyPrevButton;
+    QPushButton *historyNextButton;
+    int currentHistoryScreen;
+    int historyScrollOffset; // Offset de défilement en nombre d'images
+    QString selectedHistoryImagePath;
+    bool dontShowMultiScreenWarning;
+    QList<QString> currentHistoryImages; // Liste complète des images chargées
 
     // Sélectionne une catégorie aléatoire en utilisant la pondération par étoiles
     QString selectWeightedRandomCategory() const
