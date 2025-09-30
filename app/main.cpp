@@ -145,7 +145,7 @@ class ModernWindow : public QWidget
 
 public:
 
-    ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false)
+    ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false), retryCountdownSeconds(0)
     {
         setWindowTitle("WallpaperIA - Gestionnaire de Fonds d'écran");
         setWindowIcon(QIcon(getImagePath("icon.png")));
@@ -158,6 +158,10 @@ public:
         QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/WallpaperIA";
         QDir().mkpath(cacheDir);
         categoriesCachePath = cacheDir + "/categories_cache.json";
+
+        // Initialiser le timer de retry
+        retryTimer = new QTimer(this);
+        connect(retryTimer, &QTimer::timeout, this, &ModernWindow::onRetryTimerTick);
 
         setupUI();
         applyModernStyle();
@@ -518,6 +522,41 @@ private:
 
         // Espace pour le futur carrousel
         applicationLayout->addStretch();
+
+        // Widget d'alerte erreur API (masqué par défaut)
+        errorAlertWidget = new QWidget();
+        errorAlertWidget->setFixedHeight(70);
+        errorAlertWidget->setStyleSheet(
+            "QWidget {"
+            "background-color: #d14836;"
+            "border: 2px solid #a63929;"
+            "border-radius: 8px;"
+            "}"
+        );
+        errorAlertWidget->hide();
+
+        QHBoxLayout *errorAlertLayout = new QHBoxLayout(errorAlertWidget);
+        errorAlertLayout->setContentsMargins(15, 10, 15, 10);
+        errorAlertLayout->setSpacing(15);
+
+        // Icône warning
+        QLabel *warningIcon = new QLabel("⚠️");
+        warningIcon->setStyleSheet("font-size: 32pt; background: transparent; border: none;");
+        errorAlertLayout->addWidget(warningIcon);
+
+        // Message d'erreur avec compteur
+        errorAlertLabel = new QLabel();
+        errorAlertLabel->setStyleSheet(
+            "color: white;"
+            "font-size: 11pt;"
+            "font-weight: bold;"
+            "background: transparent;"
+            "border: none;"
+        );
+        errorAlertLabel->setWordWrap(true);
+        errorAlertLayout->addWidget(errorAlertLabel, 1);
+
+        applicationLayout->addWidget(errorAlertWidget);
 
         tabWidget->addTab(applicationTab, "Fond d'écran");
     }
@@ -2379,6 +2418,9 @@ private:
             // Nettoyer les fichiers temporaires après application réussie
             cleanupTemporaryFiles();
 
+            // Masquer l'alerte d'erreur si elle était affichée
+            hideApiErrorAlert();
+
             restoreButton("Succès !");
         } else {
             restoreButton("Erreur lors de l'application");
@@ -2391,60 +2433,78 @@ private:
 
     void handleMultiDownloadError(const QString &error)
     {
-        QString detailedError = QString("Erreur multi-écrans: %1").arg(error);
+        qDebug() << "handleMultiDownloadError:" << error;
+
         if (currentMultiDownload) {
-            detailedError += QString("\n\nProgression: %1/%2 écrans complétés")
-                            .arg(currentMultiDownload->completedDownloads)
-                            .arg(currentMultiDownload->pendingDownloads);
-
-            // Lister les écrans ciblés
-            QStringList screenNumbers;
-            for (int screen : currentMultiDownload->targetScreens) {
-                screenNumbers.append(QString::number(screen + 1));
-            }
-            detailedError += QString("\nÉcrans ciblés: %1").arg(screenNumbers.join(", "));
-
             delete currentMultiDownload;
             currentMultiDownload = nullptr;
         }
 
-        // Afficher une boîte de dialogue avec le message complet
-        QMessageBox errorBox(this);
-        errorBox.setWindowTitle("Erreur de téléchargement");
-        errorBox.setText("Une erreur s'est produite lors du téléchargement des fonds d'écran.");
-        errorBox.setDetailedText(detailedError);
-        errorBox.setIcon(QMessageBox::Warning);
-        errorBox.setStandardButtons(QMessageBox::Ok);
-        errorBox.setStyleSheet(
-            "QMessageBox {"
-            "background-color: #2b2b2b;"
-            "color: #ffffff;"
-            "}"
-            "QMessageBox QPushButton {"
-            "background-color: #d14836;"
-            "color: white;"
-            "border: none;"
-            "border-radius: 4px;"
-            "padding: 8px 16px;"
-            "min-width: 80px;"
-            "}"
-            "QMessageBox QPushButton:hover {"
-            "background-color: #b8392a;"
-            "}"
-            "QMessageBox QTextEdit {"
-            "background-color: #3b3b3b;"
-            "color: #ffffff;"
-            "border: 1px solid #555555;"
-            "}"
-        );
-        errorBox.exec();
+        // Réactiver le bouton
+        changeNowButton->setEnabled(true);
+        changeNowButton->setText("🖼️ Changer Maintenant");
+        statusLabel->setText("Erreur lors du téléchargement");
+
+        // Afficher l'alerte d'erreur API avec retry automatique
+        showApiErrorAlert();
+        startRetryTimer();
 
         // Aussi mettre un message court dans le statut
         restoreButton("Erreur de téléchargement - Voir détails");
     }
 
+    void showApiErrorAlert()
+    {
+        errorAlertWidget->show();
+        updateErrorAlertMessage();
+    }
 
+    void hideApiErrorAlert()
+    {
+        errorAlertWidget->hide();
+        retryTimer->stop();
+        retryCountdownSeconds = 0;
+    }
 
+    void startRetryTimer()
+    {
+        // 15 minutes = 900 secondes
+        retryCountdownSeconds = 900;
+        updateErrorAlertMessage();
+        retryTimer->start(1000); // Tick chaque seconde
+    }
+
+    void onRetryTimerTick()
+    {
+        retryCountdownSeconds--;
+
+        if (retryCountdownSeconds <= 0) {
+            // Temps écoulé, tenter de nouveau changement
+            qDebug() << "Retry timer expired - attempting wallpaper change";
+            retryTimer->stop();
+            hideApiErrorAlert();
+
+            // Relancer le changement de wallpaper
+            currentTriggerMode = "Retry automatique";
+            onChangeNowClicked();
+        } else {
+            // Mettre à jour l'affichage du compteur
+            updateErrorAlertMessage();
+        }
+    }
+
+    void updateErrorAlertMessage()
+    {
+        int minutes = retryCountdownSeconds / 60;
+        int seconds = retryCountdownSeconds % 60;
+
+        QString message = QString(
+            "Erreur lors du téléchargement du fond d'écran\n"
+            "Prochaine tentative dans : %1:%2"
+        ).arg(minutes, 2, 10, QChar('0')).arg(seconds, 2, 10, QChar('0'));
+
+        errorAlertLabel->setText(message);
+    }
 
     bool setWindowsWallpaper(const QString &imagePath, int screenIndex = -1)
     {
@@ -3367,6 +3427,12 @@ private:
     QMap<QString, int> categoryRatings; // Stockage des notations des catégories
     QSet<QString> excludedCategories; // Catégories exclues pour cette session
     ScreenSelector *screenSelector; // Sélecteur d'écran
+
+    // Widget d'alerte erreur API
+    QWidget *errorAlertWidget;
+    QLabel *errorAlertLabel;
+    QTimer *retryTimer;
+    int retryCountdownSeconds;
 
     // Cache des catégories
     QJsonArray cachedCategories;
