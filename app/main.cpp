@@ -574,29 +574,6 @@ private:
 
         historyHeaderLayout->addStretch();
 
-        // Combobox sélection d'écran
-        historyScreenCombo = new QComboBox();
-        historyScreenCombo->setFixedWidth(150);
-        historyScreenCombo->setStyleSheet(
-            "QComboBox {"
-            "background-color: #3b3b3b;"
-            "color: white;"
-            "border: 1px solid #555555;"
-            "border-radius: 4px;"
-            "padding: 5px;"
-            "}"
-            "QComboBox::drop-down {"
-            "border: none;"
-            "}"
-            "QComboBox QAbstractItemView {"
-            "background-color: #3b3b3b;"
-            "color: white;"
-            "selection-background-color: #2196F3;"
-            "}"
-        );
-        connect(historyScreenCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ModernWindow::onHistoryScreenChanged);
-        historyHeaderLayout->addWidget(historyScreenCombo);
-
         // Bouton Appliquer
         QPushButton *applyHistoryButton = new QPushButton("Appliquer");
         applyHistoryButton->setFixedWidth(100);
@@ -2265,6 +2242,19 @@ private:
     };
     MultiWallpaperDownload *currentMultiDownload = nullptr;
 
+    // Structure pour une entrée d'historique
+    struct HistoryEntry {
+        QString filename;
+        QDateTime timestamp;
+        int screenIndex;
+        QString triggerMode;
+        QString adjustMode;
+
+        bool operator<(const HistoryEntry &other) const {
+            return timestamp > other.timestamp; // Plus récent en premier
+        }
+    };
+
     void getMultipleRandomWallpapers(const QList<int> &targetScreens)
     {
         // Nettoyer un téléchargement précédent si nécessaire
@@ -2664,38 +2654,79 @@ private:
 
     void populateHistoryScreenCombo()
     {
-        historyScreenCombo->clear();
-
-        int screenCount = screenSelector ? screenSelector->screenCount() : 1;
-        for (int i = 0; i < screenCount; i++) {
-            historyScreenCombo->addItem(QString("Écran %1").arg(i + 1), i);
-        }
-
-        // Sélectionner le premier écran par défaut
-        if (historyScreenCombo->count() > 0) {
-            historyScreenCombo->setCurrentIndex(0);
-            loadHistoryForScreen(0);
-        }
+        // Cette fonction n'est plus nécessaire car on n'a plus de combobox
+        // On charge directement l'historique fusionné
+        loadMergedHistory();
     }
 
     void onHistoryScreenChanged(int index)
     {
-        if (index < 0) return;
-        int screenIndex = historyScreenCombo->itemData(index).toInt();
-        loadHistoryForScreen(screenIndex);
+        // Cette fonction n'est plus utilisée
     }
 
     void loadHistoryForScreen(int screenIndex)
     {
-        currentHistoryScreen = screenIndex;
+        // Cette fonction n'est plus utilisée
+        // On utilise maintenant loadMergedHistory()
+    }
+
+    void loadMergedHistory()
+    {
         selectedHistoryImagePath.clear();
+        selectedHistoryScreenIndex = -1;
         historyScrollOffset = 0;
 
-        // Charger l'historique complet depuis les logs (pas limité à 8)
-        currentHistoryImages = getFullHistoryFromLogs(screenIndex);
+        // Charger et fusionner tous les historiques
+        currentHistoryEntries = getAllHistoryEntriesMerged();
 
         // Rafraîchir l'affichage
         refreshHistoryCarousel();
+    }
+
+    QList<HistoryEntry> getAllHistoryEntriesMerged()
+    {
+        QList<HistoryEntry> allEntries;
+
+        int screenCount = screenSelector ? screenSelector->screenCount() : 1;
+
+        // Parcourir tous les écrans
+        for (int screenIndex = 0; screenIndex < screenCount; screenIndex++) {
+            QString screenId = getScreenUniqueId(screenIndex);
+            QString historyDir = getHistoryDirectory();
+            QString logFilePath = historyDir + "/" + screenId + ".log";
+
+            QFile logFile(logFilePath);
+            if (!logFile.open(QIODevice::ReadOnly)) {
+                continue;
+            }
+
+            QTextStream stream(&logFile);
+            QString line;
+            QRegularExpression regex(R"(\[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\])");
+
+            // Lire toutes les lignes
+            while (stream.readLineInto(&line)) {
+                if (!line.isEmpty()) {
+                    QRegularExpressionMatch match = regex.match(line);
+                    if (match.hasMatch()) {
+                        HistoryEntry entry;
+                        entry.timestamp = QDateTime::fromString(match.captured(1), "yyyy-MM-dd hh:mm:ss");
+                        entry.filename = match.captured(2);
+                        entry.triggerMode = match.captured(3);
+                        entry.adjustMode = match.captured(4);
+                        entry.screenIndex = screenIndex;
+
+                        allEntries.append(entry);
+                    }
+                }
+            }
+            logFile.close();
+        }
+
+        // Trier par date (plus récent en premier)
+        std::sort(allEntries.begin(), allEntries.end());
+
+        return allEntries;
     }
 
     void refreshHistoryCarousel()
@@ -2703,8 +2734,8 @@ private:
         // Nettoyer le carrousel
         clearHistoryCarousel();
 
-        if (currentHistoryImages.isEmpty()) {
-            // Pas d'historique pour cet écran
+        if (currentHistoryEntries.isEmpty()) {
+            // Pas d'historique
             QLabel *emptyLabel = new QLabel("Aucun historique disponible");
             emptyLabel->setStyleSheet("color: #888888; font-size: 10pt;");
             emptyLabel->setAlignment(Qt::AlignCenter);
@@ -2719,11 +2750,11 @@ private:
 
         // Afficher les images visibles selon l'offset
         int startIdx = historyScrollOffset;
-        int endIdx = qMin(startIdx + visibleCount, currentHistoryImages.size());
+        int endIdx = qMin(startIdx + visibleCount, currentHistoryEntries.size());
 
         for (int i = startIdx; i < endIdx; i++) {
-            const QString &filename = currentHistoryImages[i];
-            addThumbnailToCarousel(filename);
+            const HistoryEntry &entry = currentHistoryEntries[i];
+            addThumbnailToCarousel(entry.filename, entry.screenIndex);
         }
 
         // Mettre à jour l'état des boutons de navigation
@@ -2732,7 +2763,7 @@ private:
 
     void updateHistoryNavigationButtons()
     {
-        if (currentHistoryImages.isEmpty()) {
+        if (currentHistoryEntries.isEmpty()) {
             historyPrevButton->setEnabled(false);
             historyNextButton->setEnabled(false);
             return;
@@ -2744,7 +2775,7 @@ private:
         historyPrevButton->setEnabled(historyScrollOffset > 0);
 
         // Bouton suivant : actif si on peut encore défiler à droite
-        historyNextButton->setEnabled(historyScrollOffset + visibleCount < currentHistoryImages.size());
+        historyNextButton->setEnabled(historyScrollOffset + visibleCount < currentHistoryEntries.size());
     }
 
     void onHistoryPrevClicked()
@@ -2758,7 +2789,7 @@ private:
     void onHistoryNextClicked()
     {
         int visibleCount = 4;
-        if (historyScrollOffset + visibleCount < currentHistoryImages.size()) {
+        if (historyScrollOffset + visibleCount < currentHistoryEntries.size()) {
             historyScrollOffset++;
             refreshHistoryCarousel();
         }
@@ -2819,7 +2850,7 @@ private:
         }
     }
 
-    void addThumbnailToCarousel(const QString &filename)
+    void addThumbnailToCarousel(const QString &filename, int screenIndex)
     {
         // Créer un bouton cliquable pour la miniature
         QPushButton *thumbnailButton = new QPushButton();
@@ -2844,8 +2875,9 @@ private:
             "}"
         );
 
-        // Stocker le filename dans une propriété
+        // Stocker le filename et screenIndex dans des propriétés
         thumbnailButton->setProperty("filename", filename);
+        thumbnailButton->setProperty("screenIndex", screenIndex);
 
         connect(thumbnailButton, &QPushButton::clicked, [this, thumbnailButton]() {
             onHistoryThumbnailClicked(thumbnailButton);
@@ -2938,9 +2970,12 @@ private:
         // Marquer le bouton comme sélectionné
         clickedButton->setChecked(true);
 
-        // Stocker le filename et reconstruire le chemin complet
+        // Stocker le filename et l'écran d'origine, puis reconstruire le chemin complet
         QString filename = clickedButton->property("filename").toString();
-        QString screenId = getScreenUniqueId(currentHistoryScreen);
+        int screenIndex = clickedButton->property("screenIndex").toInt();
+        selectedHistoryScreenIndex = screenIndex;
+
+        QString screenId = getScreenUniqueId(screenIndex);
         QString wallpapersDir = getWallpapersDirectory();
         selectedHistoryImagePath = wallpapersDir + "/" + screenId + "/" + filename;
     }
@@ -3096,6 +3131,11 @@ private:
         }
 
         if (setMultipleWallpapers(completeImageMap)) {
+            // Ajouter à l'historique pour chaque écran ciblé (comme un changement normal)
+            for (int screenIndex : selectedScreens) {
+                addToScreenHistory(screenIndex, selectedHistoryImagePath, "Historique");
+            }
+
             statusLabel->setText("Fond d'écran appliqué avec succès !");
         } else {
             statusLabel->setText("Erreur lors de l'application");
@@ -3690,10 +3730,8 @@ private:
         // Sauvegarder l'historique
         saveHistoryToSettings();
 
-        // Mettre à jour le carrousel d'historique si on affiche cet écran
-        if (screenIndex == currentHistoryScreen) {
-            loadHistoryForScreen(screenIndex);
-        }
+        // Mettre à jour le carrousel d'historique fusionné
+        loadMergedHistory();
 
         // Marquer cet écran comme pouvant être désélectionné (maintenant qu'il a un log)
         if (screenSelector) {
@@ -4104,8 +4142,9 @@ private:
     int currentHistoryScreen;
     int historyScrollOffset; // Offset de défilement en nombre d'images
     QString selectedHistoryImagePath;
+    int selectedHistoryScreenIndex; // Écran d'origine de l'image sélectionnée
     bool dontShowMultiScreenWarning;
-    QList<QString> currentHistoryImages; // Liste complète des images chargées
+    QList<HistoryEntry> currentHistoryEntries; // Liste complète des entrées chargées
 
     // Sélectionne une catégorie aléatoire en utilisant la pondération par étoiles
     QString selectWeightedRandomCategory() const
