@@ -2960,12 +2960,13 @@ private:
             return;
         }
 
-        // Vérifier si plusieurs écrans sont sélectionnés
+        // Déterminer quels écrans cibler (logique identique à onChangeNowClicked)
         QList<int> selectedScreens;
         if (multiScreenToggle->isChecked() && screenSelector && screenSelector->screenCount() > 1) {
+            // Mode multi-écran activé : utiliser la sélection des écrans
             selectedScreens = screenSelector->getSelectedScreens();
         } else {
-            // Mode classique : tous les écrans
+            // Mode multi-écran désactivé : appliquer sur tous les écrans
             for (int i = 0; i < (screenSelector ? screenSelector->screenCount() : 1); i++) {
                 selectedScreens.append(i);
             }
@@ -3072,12 +3073,29 @@ private:
         // Appliquer l'image sélectionnée sur les écrans choisis
         statusLabel->setText("Application du fond d'écran...");
 
-        QMap<int, QString> imageMap;
+        // Construire une map complète avec l'image sélectionnée + images historiques pour écrans non sélectionnés
+        QMap<int, QString> completeImageMap;
+
+        // Ajouter l'image sélectionnée pour les écrans ciblés
         for (int screenIndex : selectedScreens) {
-            imageMap[screenIndex] = selectedHistoryImagePath;
+            completeImageMap[screenIndex] = selectedHistoryImagePath;
         }
 
-        if (setMultipleWallpapers(imageMap)) {
+        // Pour les écrans non sélectionnés, utiliser l'image la plus récente de l'historique
+        // (même logique que applyMultipleWallpapers)
+        if (screenSelector && multiScreenToggle->isChecked() && screenSelector->screenCount() > 1) {
+            for (int i = 0; i < screenSelector->screenCount(); i++) {
+                if (!selectedScreens.contains(i)) {
+                    // Écran non sélectionné, récupérer la dernière image de l'historique
+                    QString lastWallpaper = getLastWallpaperFromHistory(i);
+                    if (!lastWallpaper.isEmpty()) {
+                        completeImageMap[i] = lastWallpaper;
+                    }
+                }
+            }
+        }
+
+        if (setMultipleWallpapers(completeImageMap)) {
             statusLabel->setText("Fond d'écran appliqué avec succès !");
         } else {
             statusLabel->setText("Erreur lors de l'application");
