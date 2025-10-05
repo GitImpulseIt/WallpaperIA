@@ -93,7 +93,7 @@ public:
 
     ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false), retryCountdownSeconds(0), currentHistoryScreen(0), historyScrollOffset(0), dontShowMultiScreenWarning(false)
     {
-        setWindowTitle("WallpaperIA - Gestionnaire de Fonds d'écran");
+        setWindowTitle("WallpaperIA");
         setWindowIcon(QIcon(getImagePath("icon.png")));
         setFixedSize(725, 650);
 
