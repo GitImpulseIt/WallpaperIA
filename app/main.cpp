@@ -2470,7 +2470,7 @@ private:
         startRetryTimer();
 
         // Aussi mettre un message court dans le statut
-        restoreButton("Erreur de téléchargement - Voir détails");
+        restoreButton("Erreur de téléchargement");
     }
 
     void showApiErrorAlert()
