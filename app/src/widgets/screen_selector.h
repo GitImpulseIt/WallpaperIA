@@ -25,6 +25,7 @@ public:
     void setScreenCanBeDeselected(int screenIndex, bool canDeselect);
     bool canScreenBeDeselected(int screenIndex) const;
     int screenCount() const;
+    void refresh(); // Rafraîchir le widget après un changement de configuration
 
 signals:
     void screenSelectionChanged(const QList<int> &selectedScreens);

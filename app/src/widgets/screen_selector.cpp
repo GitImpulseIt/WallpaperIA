@@ -52,6 +52,34 @@ int ScreenSelector::screenCount() const
     return m_screenCount;
 }
 
+void ScreenSelector::refresh()
+{
+    // Sauvegarder l'état de sélection actuel
+    QMap<int, bool> oldSelection = m_selectedScreens;
+    QMap<int, bool> oldCanDeselect = m_canBeDeselected;
+
+    // Reconfigurer les écrans
+    setupScreens();
+    setupUI();
+
+    // Restaurer l'état de sélection pour les écrans qui existent encore
+    m_selectedScreens.clear();
+    m_canBeDeselected.clear();
+
+    for (int i = 0; i < m_screenCount; i++) {
+        // Restaurer la sélection si l'écran existait avant, sinon sélectionner par défaut
+        m_selectedScreens[i] = oldSelection.value(i, true);
+        // Restaurer l'état de désélection
+        m_canBeDeselected[i] = oldCanDeselect.value(i, true);
+    }
+
+    // Redessiner le widget
+    update();
+
+    // Émettre le signal de changement de sélection
+    emit screenSelectionChanged(getSelectedScreens());
+}
+
 void ScreenSelector::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);

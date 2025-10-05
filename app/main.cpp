@@ -1427,7 +1427,7 @@ protected:
         }
         QWidget::changeEvent(event);
     }
-    
+
     void closeEvent(QCloseEvent *event) override
     {
         // Fermer vraiment l'application
@@ -1437,6 +1437,33 @@ protected:
         event->accept();
         QApplication::quit();
     }
+
+#ifdef Q_OS_WIN
+    bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override
+    {
+        if (eventType == "windows_generic_MSG") {
+            MSG *msg = static_cast<MSG *>(message);
+
+            // Détecter les changements de configuration d'écran
+            if (msg->message == WM_DISPLAYCHANGE || msg->message == WM_DEVICECHANGE) {
+                // Utiliser un timer pour éviter les appels multiples rapides
+                static QTimer *displayChangeTimer = nullptr;
+                if (!displayChangeTimer) {
+                    displayChangeTimer = new QTimer(this);
+                    displayChangeTimer->setSingleShot(true);
+                    displayChangeTimer->setInterval(500); // 500ms de délai
+
+                    connect(displayChangeTimer, &QTimer::timeout, this, &ModernWindow::onDisplayConfigurationChanged);
+                }
+
+                // Redémarrer le timer à chaque événement
+                displayChangeTimer->start();
+            }
+        }
+
+        return QWidget::nativeEvent(eventType, message, result);
+    }
+#endif
 
     void loadCategories()
     {
@@ -2017,6 +2044,38 @@ private slots:
     }
 
 private slots:
+    void onDisplayConfigurationChanged()
+    {
+        // Rafraîchir le sélecteur d'écran si présent
+        if (screenSelector) {
+            screenSelector->refresh();
+        }
+
+        // Reconstruire l'image composite avec les wallpapers actuels de chaque écran
+        #ifdef Q_OS_WIN
+        int screenCount = QGuiApplication::screens().size();
+        if (screenCount <= 1) {
+            return; // Pas besoin de recomposer pour un seul écran
+        }
+
+        // Créer une liste pour stocker les chemins des wallpapers actuels
+        QMap<int, QString> currentWallpapers;
+
+        // Récupérer le wallpaper actuel de chaque écran depuis les logs
+        for (int i = 0; i < screenCount; i++) {
+            QString wallpaperPath = getCurrentWallpaperFromLog(i);
+            if (!wallpaperPath.isEmpty() && QFile::exists(wallpaperPath)) {
+                currentWallpapers[i] = wallpaperPath;
+            }
+        }
+
+        // Si on a au moins un wallpaper, reconstruire l'image composite
+        if (!currentWallpapers.isEmpty()) {
+            rebuildCompositeWallpaper(currentWallpapers);
+        }
+        #endif
+    }
+
     void onScreenSelectionChanged(const QList<int> &selectedScreens)
     {
         // Gérer l'état du bouton et du countdown selon la sélection
@@ -2146,6 +2205,23 @@ private:
             return timestamp > other.timestamp; // Plus récent en premier
         }
     };
+
+    void rebuildCompositeWallpaper(const QMap<int, QString> &wallpapers)
+    {
+        #ifdef Q_OS_WIN
+        // Utiliser WallpaperBuilder pour créer une nouvelle image composite
+        WallpaperBuilder builder;
+
+        // Déterminer le chemin de sortie
+        QString outputPath = builder.getTemporaryWallpaperPath();
+
+        // Créer l'image composite multi-écrans
+        if (builder.createMultiScreenWallpaper(wallpapers, outputPath)) {
+            // Appliquer le nouveau wallpaper composite
+            setWallpaperWithSmoothTransition(outputPath);
+        }
+        #endif
+    }
 
     void getMultipleRandomWallpapers(const QList<int> &targetScreens)
     {
