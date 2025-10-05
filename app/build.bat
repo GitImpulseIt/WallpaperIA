@@ -2,13 +2,13 @@
 setlocal
 
 echo ========================================
-echo  Compilation WallpaperIA avec Qt/MinGW
+echo  Compilation WallpaperAI avec Qt/MinGW
 echo ========================================
 echo.
 
 REM Arreter l'application si elle est en cours d'execution
 echo Arret de l'application en cours d'execution...
-powershell "Stop-Process -Name 'WallpaperIA' -Force -ErrorAction SilentlyContinue"
+powershell "Stop-Process -Name 'WallpaperAI' -Force -ErrorAction SilentlyContinue"
 echo.
 
 REM Ajouter Qt, MinGW et CMake au PATH
@@ -52,7 +52,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo Deploiement des dependances Qt...
-"C:\Installation\Qt\6.9.2\mingw_64\bin\windeployqt.exe" WallpaperIA.exe
+"C:\Installation\Qt\6.9.2\mingw_64\bin\windeployqt.exe" WallpaperAI.exe
 
 if %errorlevel% neq 0 (
     echo AVERTISSEMENT: Echec du deploiement Qt, mais l'executable est cree
@@ -71,7 +71,7 @@ if exist "release" (
 mkdir release
 
 echo Copie de l'executable...
-copy "build\WallpaperIA.exe" "release\"
+copy "build\WallpaperAI.exe" "release\"
 
 echo Copie des dependances Qt (DLL uniquement)...
 copy "build\*.dll" "release\"
@@ -92,7 +92,7 @@ echo  COMPILATION REUSSIE !
 echo ========================================
 echo.
 echo L'application complete se trouve dans: release\
-echo Executable principal: release\WallpaperIA.exe
+echo Executable principal: release\WallpaperAI.exe
 echo Images PNG: release\*.png
 echo.
 

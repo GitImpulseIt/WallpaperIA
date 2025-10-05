@@ -289,7 +289,7 @@ QPixmap WallpaperBuilder::wrapCoordinatesForWindows(const QPixmap &sourceImage, 
 
 QString WallpaperBuilder::getTemporaryWallpaperPath()
 {
-    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperAI";
     QDir().mkpath(tempDir);
     return tempDir + "/composite_wallpaper.bmp";
 }

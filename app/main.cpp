@@ -93,7 +93,7 @@ public:
 
     ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false), retryCountdownSeconds(0), currentHistoryScreen(0), historyScrollOffset(0), dontShowMultiScreenWarning(false)
     {
-        setWindowTitle("WallpaperIA");
+        setWindowTitle("WallpaperAI");
         setWindowIcon(QIcon(getImagePath("icon.png")));
         setFixedSize(725, 650);
 
@@ -211,7 +211,7 @@ private slots:
 
     void applyStartupSetting(bool enabled) {
         #ifdef Q_OS_WIN
-        QString appName = "WallpaperIA";
+        QString appName = "WallpaperAI";
         QString appPath = QCoreApplication::applicationFilePath();
 
         if (enabled) {
@@ -231,7 +231,7 @@ private slots:
 
     bool checkStartupStatus() {
         #ifdef Q_OS_WIN
-        return StartupManager::isInWindowsStartup("WallpaperIA");
+        return StartupManager::isInWindowsStartup("WallpaperAI");
         #else
         return false;
         #endif
@@ -348,7 +348,7 @@ private:
         mainLayout->setSpacing(10);
 
         // Titre principal
-        QLabel *titleLabel = new QLabel("WallpaperIA - Fonds d'écrans générés par IA");
+        QLabel *titleLabel = new QLabel("WallpaperAI - Fonds d'écrans générés par IA");
         titleLabel->setObjectName("titleLabel");
         titleLabel->setAlignment(Qt::AlignCenter);
         mainLayout->addWidget(titleLabel);
@@ -1391,7 +1391,7 @@ private:
         // Créer l'icône du system tray
         trayIcon = new QSystemTrayIcon(this);
         trayIcon->setIcon(QIcon(getImagePath("icon.png")));
-        trayIcon->setToolTip("WallpaperIA");
+        trayIcon->setToolTip("WallpaperAI");
 
         // Créer le menu contextuel
         trayMenu = new QMenu(this);
@@ -1449,7 +1449,7 @@ protected:
         }
 
         // Tenter de charger depuis l'API en arrière-plan
-        QNetworkRequest request(QUrl("http://localhost:8080/WallpaperIA/api/categories"));
+        QNetworkRequest request(QUrl("http://localhost:8080/WallpaperAI/api/categories"));
         QNetworkReply *reply = networkManager->get(request);
 
         connect(reply, &QNetworkReply::finished, [this, reply]() {
@@ -1820,7 +1820,7 @@ protected:
 
         // Sinon, charger depuis l'API
         QString currentDate = getCurrentDateString();
-        QString url = QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1&date=%2")
+        QString url = QString("http://localhost:8080/WallpaperAI/api/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(currentDate).replace("/", "%2F"));
 
@@ -1863,7 +1863,7 @@ protected:
         }
 
         QString previousDate = getPreviousDateString(daysBack);
-        QString url = QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1&date=%2")
+        QString url = QString("http://localhost:8080/WallpaperAI/api/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(previousDate).replace("/", "%2F"));
 
@@ -1917,7 +1917,7 @@ protected:
         }
 
         // Télécharger depuis l'API
-        QString miniUrl = QString("http://localhost:8080/WallpaperIA/api/mini/%1").arg(filename);
+        QString miniUrl = QString("http://localhost:8080/WallpaperAI/api/mini/%1").arg(filename);
 
         QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
@@ -1946,7 +1946,7 @@ protected:
     void loadThumbnailImageFallback(const QString &filename, QLabel *thumbnailLabel, const QString &cachedThumbnailPath)
     {
         // Méthode de fallback avec l'image complète (pour compatibilité)
-        QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperIA/api/get/%1").arg(filename)));
+        QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperAI/api/get/%1").arg(filename)));
         QNetworkReply *reply = networkManager->get(request);
 
         connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, cachedThumbnailPath, filename]() {
@@ -2178,7 +2178,7 @@ private:
         QString targetDate = (daysBack == 0) ? getCurrentDateString() : getPreviousDateString(daysBack);
 
         // Appeler l'API avec la catégorie et la date
-        QString url = QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1&date=%2")
+        QString url = QString("http://localhost:8080/WallpaperAI/api/wallpapers?category=%1&date=%2")
                       .arg(selectedCategoryId)
                       .arg(QString(targetDate).replace("/", "%2F")); // URL encode les "/"
 
@@ -2272,7 +2272,7 @@ private:
                 QString bmpFilePath = localImagePath;
                 QPixmap pixmap(localImagePath);
                 if (!pixmap.isNull()) {
-                    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+                    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperAI";
                     QDir().mkpath(tempDir);
                     QString bmpPath = tempDir + "/" + QFileInfo(selectedFilename).baseName() + "_screen" + QString::number(screenIndex) + ".bmp";
                     pixmap.save(bmpPath, "BMP");
@@ -2307,7 +2307,7 @@ private:
         }
 
         // Construire l'URL complète pour le téléchargement
-        QString imageUrl = QString("http://localhost:8080/WallpaperIA/api/get/%1").arg(filename);
+        QString imageUrl = QString("http://localhost:8080/WallpaperAI/api/get/%1").arg(filename);
 
         // Télécharger cette image pour cet écran
         downloadImageForScreen(imageUrl, screenIndex);
@@ -2342,7 +2342,7 @@ private:
                 QByteArray imageData = reply->readAll();
 
                 // Sauvegarder l'image temporairement
-                QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+                QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperAI";
                 QDir().mkpath(tempDir);
 
                 QString filename = QUrl(imageUrl).fileName();
@@ -2803,7 +2803,7 @@ private:
         }
 
         // Sinon télécharger via l'API
-        QString miniUrl = QString("http://localhost:8080/WallpaperIA/api/mini/%1").arg(filename);
+        QString miniUrl = QString("http://localhost:8080/WallpaperAI/api/mini/%1").arg(filename);
         QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
 
@@ -2950,7 +2950,7 @@ private:
         // Sauvegarder la préférence si la checkbox est cochée
         if (dontShowAgain->isChecked()) {
             dontShowMultiScreenWarning = true;
-            QSettings settings("WallpaperIA", "WallpaperSettings");
+            QSettings settings("WallpaperAI", "WallpaperSettings");
             settings.setValue("dontShowMultiScreenWarning", true);
         }
 
@@ -2963,7 +2963,7 @@ private:
     {
         statusLabel->setText("Téléchargement de l'image depuis l'API...");
 
-        QString imageUrl = QString("http://localhost:8080/WallpaperIA/api/get/%1").arg(filename);
+        QString imageUrl = QString("http://localhost:8080/WallpaperAI/api/get/%1").arg(filename);
         QNetworkRequest request{QUrl(imageUrl)};
         QNetworkReply *reply = networkManager->get(request);
 
@@ -3138,7 +3138,7 @@ private:
         }
 
         // Sauvegarder l'image composite
-        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperAI";
         QDir().mkpath(tempDir);
         QString compositePath = tempDir + "/wallpaper_composite.bmp";
 
@@ -3479,7 +3479,7 @@ private:
         }
 
         // Sauvegarder l'image composite
-        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperAI";
         QDir().mkpath(tempDir);
         QString compositePath = tempDir + "/wallpaper_composite.bmp";
 
@@ -3807,7 +3807,7 @@ private:
 
     void cleanupTemporaryFiles()
     {
-        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperAI";
         QDir dir(tempDir);
 
         if (!dir.exists()) {
@@ -3833,7 +3833,7 @@ private:
 
     void saveSettings()
     {
-        QSettings settings("WallpaperIA", "WallpaperSettings");
+        QSettings settings("WallpaperAI", "WallpaperSettings");
 
         // Sauvegarder la fréquence de changement
         settings.setValue("frequency/combo", frequencyCombo->currentIndex());
@@ -3854,7 +3854,7 @@ private:
 
     void saveHistoryToSettings()
     {
-        QSettings settings("WallpaperIA", "WallpaperSettings");
+        QSettings settings("WallpaperAI", "WallpaperSettings");
 
         // Effacer l'historique précédent
         settings.remove("ScreenHistory");
@@ -3878,7 +3878,7 @@ private:
     void loadSettings()
     {
         isLoadingSettings = true; // Empêcher l'activation du bouton pendant le chargement
-        QSettings settings("WallpaperIA", "WallpaperSettings");
+        QSettings settings("WallpaperAI", "WallpaperSettings");
 
         // Charger la fréquence de changement
         int frequencyIndex = settings.value("frequency/combo", 0).toInt();
@@ -3946,7 +3946,7 @@ private:
 
     void loadHistoryFromSettings()
     {
-        QSettings settings("WallpaperIA", "WallpaperSettings");
+        QSettings settings("WallpaperAI", "WallpaperSettings");
 
         // Charger l'historique par écran
         settings.beginGroup("ScreenHistory");
@@ -3989,7 +3989,7 @@ private:
 
     void saveCategoryRating(const QString &categoryId, int rating)
     {
-        QSettings settings("WallpaperIA", "WallpaperSettings");
+        QSettings settings("WallpaperAI", "WallpaperSettings");
         settings.beginGroup("categoryRatings");
         settings.setValue(categoryId, rating);
         settings.endGroup();
@@ -4296,7 +4296,7 @@ private:
         // Copier le fichier
         if (QFile::copy(sourcePath, localPath)) {
             // Si le fichier source se trouve dans le répertoire temporaire, le supprimer après copie
-            QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperIA";
+            QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/WallpaperAI";
             if (sourcePath.startsWith(tempDir)) {
                 QFile::remove(sourcePath);
             }
