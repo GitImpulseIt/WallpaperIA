@@ -1,4 +1,4 @@
-# Consignes Claude Code - WallpaperIA
+# Consignes Claude Code - WallpaperAI
 
 ## 🔧 Compilation obligatoire
 - **TOUJOURS compiler après chaque modification** de code
@@ -46,9 +46,11 @@
 
 ## 📁 Structure du projet
 - `app/main.cpp` : Fichier principal avec toutes les classes
+- `app/src/` : Modules extraits (config/, api/, utils/)
 - `app/build.bat` : Script de compilation Qt/MinGW
 - `app/assets/` : Images et ressources (PNG)
 - `app/release/` : Build final avec dépendances
+- `api/` : Backend PHP REST pour wallpapers
 
 ## 🚫 Éviter
 - Modifications sans compilation préalable
@@ -73,17 +75,10 @@
 - **wrapCoordinatesForWindows()** : Système de wrapping complet (quadrants A,B,C,D)
 - **Suppression du scaling** : Plus de scaling incorrect des coordonnées
 
-### 🧪 Outils de debug disponibles
-- **screenmap.cpp** : Outil de test pour vérifier le mapping des écrans
-- **compile_screenmap.bat** : Script de compilation Visual Studio pour les tests
-- **Debug détaillé** : Logs complets des calculs avec résolutions réelles
-- **Image composite** : Sauvée dans `/temp/WallpaperIA/composite_wallpaper.bmp`
-
 ### 📝 Notes techniques importantes
 - **Coordonnées logiques Windows** : Conservées telles quelles pour le positionnement
 - **Résolutions natives écrans** : Utilisées uniquement pour les tailles des rectangles
 - **Plus de tiling** : Problème résolu sur les écrans haute résolution avec scaling
-- **Tests** : Utiliser `./screenmap.exe` pour diagnostiquer le mapping si besoin
 
 ---
 
@@ -117,36 +112,21 @@
 - **Cohérence des couleurs** : Respect strict du thème (#2196F3, #d14836, #8b4513)
 - **Fallbacks visuels** : Emojis de secours (🔄) si images non chargées
 
-### 🎯 Système intelligent de sélection de wallpapers (Commit 7daea8b)
-- **Pondération par étoiles** : Sélection probabiliste des catégories selon leur notation [A,B,C,C,C] si C=3⭐
-- **API modernisée** : Tous les appels utilisent les paramètres `category` + `date` obligatoires
+### 🎯 Système intelligent de sélection de wallpapers
+- **Pondération par étoiles** : Sélection probabiliste des catégories selon leur notation
 - **Fallback en cascade** : Date actuelle → 7 jours précédents → exclusion catégorie → historique local
-- **Évitement doublons** : Vérification historique avant sélection pour éviter répétitions
+- **Évitement doublons** : Vérification historique avant sélection, filtrage doublons dans carrousel
 - **Exclusion temporaire** : Catégories épuisées exclues pour la session en cours
-- **Miniatures corrigées** : `loadCategoryThumbnail()` compatible avec nouvelle API
-- **Logs de debug** : Diagnostic complet du processus de sélection et chargement
 
-### 🛠️ Architecture technique avancée
-- **`selectWeightedRandomCategory()`** : Pondération intelligente basée sur les étoiles utilisateur
-- **`tryGetWallpaperWithWeightedCategory()`** : Logique principale avec fallback automatique
-- **`getRandomWallpaperFromHistory()`** : Fallback final vers historique local
-- **`loadCategoryThumbnailFallback()`** : Système de fallback pour miniatures sur 7 jours
-- **Variable `excludedCategories`** : Set des catégories temporairement épuisées
-- **Gestion dates intelligente** : `getCurrentDateString()` et `getPreviousDateString()` pour API
+### 🗂️ Architecture modulaire
+- **StartupManager** : Gestion du démarrage Windows (registre)
+- **PathHelper** : Gestion centralisée des chemins (AppConfigLocation)
+- **DateHelper** : Utilitaires de date pour l'API
+- **Cache unifié** : `/thumbnails` partagé (catégories + historique), limite 100 fichiers
 
-## 📋 TESTS VALIDÉS
-- ✅ **Démarrage automatique avec Windows** : Fonctionnel
-- ✅ **System tray au boot** : Démarrage silencieux opérationnel
-- ✅ **Changement au démarrage** : Détection `--startup` + option "Au démarrage" = changement automatique
-- ✅ **Système de pondération** : Sélection intelligente selon préférences utilisateur
-- ✅ **API modernisée** : Compatibility avec endpoints obligeant `category` + `date`
-- ✅ **Miniatures catégories** : Affichage corrigé avec fallback sur dates antérieures
-- ✅ **Fallback historique** : Utilisation cache local si aucun wallpaper API disponible
-
-## 🔧 SYSTÈME API INTÉGRÉ
-- **API REST** : Architecture modulaire dans `/api/` avec endpoints modernes
-- **Paramètres obligatoires** : `category` + `date` pour tous les appels wallpapers
-- **Endpoint miniatures** : `/mini/{filename}` pour vignettes optimisées (204x115px)
-- **URL encoding** : Gestion automatique des dates DD%2FMM%2FYYYY
-- **Fallback intelligent** : Remontée automatique jusqu'à 7 jours en arrière
-- **Cache local** : Gestion historique et réutilisation fichiers téléchargés
+## 🔧 API REST (Backend PHP)
+- **Endpoint `/categories`** : Retourne catégories avec miniature par défaut (wallpaper le plus récent)
+- **Endpoint `/wallpapers`** : Paramètres obligatoires `category` + `date` (DD/MM/YYYY)
+- **Endpoint `/mini/{filename}`** : Miniatures optimisées (204x115px)
+- **Optimisation** : Réduction drastique des appels API grâce aux thumbnails dans `/categories`
+- **Fallback intelligent** : Remontée automatique jusqu'à 7 jours en arrière si date vide
