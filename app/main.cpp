@@ -1541,14 +1541,15 @@ protected:
     {
         int row = 0, col = 0;
         const int maxCols = 3;
-        
+
         for (const QJsonValue &value : categories) {
             QJsonObject category = value.toObject();
             QString categoryName = category["name"].toString();
             QString categoryId = category["id"].toString();
-            
-            createCategoryWidget(categoryName, categoryId, row, col);
-            
+            QString thumbnail = category["thumbnail"].toString();
+
+            createCategoryWidget(categoryName, categoryId, thumbnail, row, col);
+
             col++;
             if (col >= maxCols) {
                 col = 0;
@@ -1557,7 +1558,7 @@ protected:
         }
     }
     
-    void createCategoryWidget(const QString &name, const QString &id, int row, int col)
+    void createCategoryWidget(const QString &name, const QString &id, const QString &thumbnail, int row, int col)
     {
         QFrame *categoryFrame = new QFrame();
         categoryFrame->setObjectName("categoryFrame");
@@ -1598,8 +1599,15 @@ protected:
 
         categoriesGridLayout->addWidget(categoryFrame, row, col);
 
-        // Charger la première image de la catégorie comme miniature
-        loadCategoryThumbnail(id, thumbnailLabel);
+        // Charger la miniature directement depuis le filename fourni par l'API
+        if (!thumbnail.isEmpty()) {
+            // Sauvegarder le filename dans le cache
+            categoryThumbnailCache[id] = thumbnail;
+            saveCategoriesCache();
+
+            // Charger l'image de la miniature
+            loadThumbnailImage(thumbnail, thumbnailLabel);
+        }
     }
 
     void createRatingSystem(QWidget *parent, const QString &categoryId)

@@ -53,7 +53,7 @@ class WallpaperService {
     }
 
     /**
-     * Obtient les catégories uniques avec leurs IDs
+     * Obtient les catégories uniques avec leurs IDs et miniature par défaut
      */
     public function getCategories() {
         try {
@@ -71,11 +71,31 @@ class WallpaperService {
             // Sort categories alphabetically
             sort($found_categories);
 
-            // Build response with IDs
+            // Build response with IDs and default thumbnail
             foreach ($found_categories as $category) {
+                // Trouver le wallpaper le plus récent pour cette catégorie
+                $defaultThumbnail = null;
+                $latestDate = null;
+
+                foreach ($wallpapers as $wallpaper) {
+                    if (strcasecmp($wallpaper['category'], $category) === 0 && $wallpaper['date']) {
+                        // Convertir la date DD/MM/YYYY en timestamp pour comparaison
+                        $parts = explode('/', $wallpaper['date']);
+                        if (count($parts) === 3) {
+                            $timestamp = mktime(0, 0, 0, intval($parts[1]), intval($parts[0]), intval($parts[2]));
+
+                            if ($latestDate === null || $timestamp > $latestDate) {
+                                $latestDate = $timestamp;
+                                $defaultThumbnail = $wallpaper['filename'];
+                            }
+                        }
+                    }
+                }
+
                 $categories[] = [
                     'id' => $this->category_ids[$category] ?? strtolower(substr(str_replace(' ', '', $category), 0, 2)),
-                    'name' => $category
+                    'name' => $category,
+                    'thumbnail' => $defaultThumbnail
                 ];
             }
 
