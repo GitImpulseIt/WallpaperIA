@@ -1934,6 +1934,9 @@ protected:
                     QPixmap scaledPixmap = pixmap.scaled(200, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                     thumbnailLabel->setPixmap(scaledPixmap);
                     thumbnailLabel->setText("");
+
+                    // Nettoyer le cache si trop de fichiers (limite 100)
+                    cleanupThumbnailCache();
                 }
             } else {
                 // En cas d'erreur avec /mini/, fallback vers l'ancienne méthode
@@ -1961,6 +1964,9 @@ protected:
                     QPixmap scaledPixmap = pixmap.scaled(200, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                     thumbnailLabel->setPixmap(scaledPixmap);
                     thumbnailLabel->setText("");
+
+                    // Nettoyer le cache si trop de fichiers (limite 100)
+                    cleanupThumbnailCache();
                 }
             }
             reply->deleteLater();
@@ -2786,8 +2792,8 @@ private:
 
     void loadHistoryThumbnail(const QString &filename, QPushButton *thumbnailButton)
     {
-        // Vérifier d'abord si la miniature est en cache
-        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/history_thumbnails";
+        // Vérifier d'abord si la miniature est en cache (répertoire partagé avec les catégories)
+        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/thumbnails";
         QDir().mkpath(cacheDir);
         QString cachedPath = cacheDir + "/" + filename;
 
@@ -2826,16 +2832,16 @@ private:
                     }
 
                     // Nettoyer le cache si trop de fichiers (limite 100)
-                    cleanupHistoryThumbnailCache();
+                    cleanupThumbnailCache();
                 }
             }
             reply->deleteLater();
         });
     }
 
-    void cleanupHistoryThumbnailCache()
+    void cleanupThumbnailCache()
     {
-        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/history_thumbnails";
+        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/thumbnails";
         QDir dir(cacheDir);
         if (!dir.exists()) return;
 
