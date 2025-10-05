@@ -2601,7 +2601,27 @@ private:
         // Trier par date (plus récent en premier)
         std::sort(allEntries.begin(), allEntries.end());
 
-        return allEntries;
+        // Filtrer les doublons consécutifs (même filename)
+        QList<HistoryEntry> filteredEntries;
+        for (int i = 0; i < allEntries.size(); i++) {
+            bool isDuplicate = false;
+
+            if (i > 0) {
+                const HistoryEntry &current = allEntries[i];
+                const HistoryEntry &previous = allEntries[i - 1];
+
+                // Vérifier si c'est le même fichier (peu importe l'écran dans le carrousel fusionné)
+                if (current.filename == previous.filename) {
+                    isDuplicate = true;
+                }
+            }
+
+            if (!isDuplicate) {
+                filteredEntries.append(allEntries[i]);
+            }
+        }
+
+        return filteredEntries;
     }
 
     void refreshHistoryCarousel()
