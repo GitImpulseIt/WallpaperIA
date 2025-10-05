@@ -2,14 +2,14 @@
 
 QString PathHelper::getWallpapersDirectory()
 {
-    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/wallpapers";
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/wallpapers";
     QDir().mkpath(dir);
     return dir;
 }
 
 QString PathHelper::getHistoryDirectory()
 {
-    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/history";
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/history";
     QDir().mkpath(dir);
     return dir;
 }
