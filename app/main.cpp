@@ -50,6 +50,9 @@
 
 // Includes des modules séparés
 #include "src/utils/utils.h"
+#include "src/utils/path_helper.h"
+#include "src/utils/date_helper.h"
+#include "src/config/startup_manager.h"
 #include "src/system/wallpaper_manager.h"
 #include "src/widgets/hover_filters.h"
 #include "src/widgets/screen_selector.h"
@@ -80,66 +83,7 @@
 
 // La classe ToggleSwitch est maintenant dans src/widgets/toggle_switch.h
 
-// Fonctions utilitaires pour la gestion du démarrage Windows
-#ifdef Q_OS_WIN
-bool addToWindowsStartup(const QString &appName, const QString &appPath) {
-    HKEY hKey;
-    LONG result = RegOpenKeyExW(HKEY_CURRENT_USER,
-                               L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
-                               0, KEY_SET_VALUE, &hKey);
-
-    if (result != ERROR_SUCCESS) {
-        return false;
-    }
-
-    std::wstring wAppName = appName.toStdWString();
-    std::wstring wAppPath = appPath.toStdWString();
-
-    result = RegSetValueExW(hKey, wAppName.c_str(), 0, REG_SZ,
-                           reinterpret_cast<const BYTE*>(wAppPath.c_str()),
-                           (wAppPath.length() + 1) * sizeof(wchar_t));
-
-    RegCloseKey(hKey);
-    return result == ERROR_SUCCESS;
-}
-
-bool removeFromWindowsStartup(const QString &appName) {
-    HKEY hKey;
-    LONG result = RegOpenKeyExW(HKEY_CURRENT_USER,
-                               L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
-                               0, KEY_SET_VALUE, &hKey);
-
-    if (result != ERROR_SUCCESS) {
-        return false;
-    }
-
-    std::wstring wAppName = appName.toStdWString();
-    result = RegDeleteValueW(hKey, wAppName.c_str());
-
-    RegCloseKey(hKey);
-    return result == ERROR_SUCCESS;
-}
-
-bool isInWindowsStartup(const QString &appName) {
-    HKEY hKey;
-    LONG result = RegOpenKeyExW(HKEY_CURRENT_USER,
-                               L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
-                               0, KEY_QUERY_VALUE, &hKey);
-
-    if (result != ERROR_SUCCESS) {
-        return false;
-    }
-
-    std::wstring wAppName = appName.toStdWString();
-    DWORD dataType;
-    DWORD dataSize = 0;
-
-    result = RegQueryValueExW(hKey, wAppName.c_str(), nullptr, &dataType, nullptr, &dataSize);
-
-    RegCloseKey(hKey);
-    return result == ERROR_SUCCESS;
-}
-#endif
+// Les fonctions de gestion du démarrage Windows sont maintenant dans src/config/startup_manager.h
 
 class ModernWindow : public QWidget
 {
@@ -157,9 +101,7 @@ public:
         setWindowFlags(Qt::Window | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
 
         // Initialiser le chemin du cache des catégories
-        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-        QDir().mkpath(cacheDir);
-        categoriesCachePath = cacheDir + "/categories_cache.json";
+        categoriesCachePath = PathHelper::getCategoriesCachePath();
 
         // Initialiser le timer de retry
         retryTimer = new QTimer(this);
@@ -277,19 +219,19 @@ private slots:
             // Convertir le chemin en format Windows avec backslashes
             QString windowsPath = QDir::toNativeSeparators(appPath);
             QString startupCommand = QString("\"%1\" --startup").arg(windowsPath);
-            if (!addToWindowsStartup(appName, startupCommand)) {
+            if (!StartupManager::addToWindowsStartup(appName, startupCommand)) {
                 // En cas d'erreur, désactiver le toggle
                 startupToggle->setChecked(false);
             }
         } else {
-            removeFromWindowsStartup(appName);
+            StartupManager::removeFromWindowsStartup(appName);
         }
         #endif
     }
 
     bool checkStartupStatus() {
         #ifdef Q_OS_WIN
-        return isInWindowsStartup("WallpaperIA");
+        return StartupManager::isInWindowsStartup("WallpaperIA");
         #else
         return false;
         #endif
@@ -1498,14 +1440,11 @@ protected:
 
     void loadCategories()
     {
-        qDebug() << "Loading categories...";
-
         // Charger le cache existant
         loadCategoriesCache();
 
         // Afficher immédiatement le cache si disponible
         if (!cachedCategories.isEmpty()) {
-            qDebug() << "Displaying cached categories immediately while checking API";
             displayCategories(cachedCategories);
         }
 
@@ -1520,30 +1459,18 @@ protected:
 
                 if (obj["success"].toBool()) {
                     QJsonArray apiCategories = obj["data"].toArray();
-                    qDebug() << "API returned" << apiCategories.size() << "categories";
 
                     // Vérifier s'il y a de nouvelles catégories
                     if (cachedCategories.isEmpty() || apiCategories.size() != cachedCategories.size()) {
-                        qDebug() << "New categories detected - updating display and cache";
                         cachedCategories = apiCategories;
                         saveCategoriesCache();
 
                         // Effacer l'affichage actuel et réafficher avec les nouvelles catégories
                         clearCategoriesDisplay();
                         displayCategories(apiCategories);
-                    } else {
-                        qDebug() << "No new categories - keeping cached display";
-                        // Pas besoin de réafficher, on a déjà le cache à l'écran
-                    }
-                } else {
-                    qDebug() << "API error - keeping cached categories";
-                    // Si pas de cache déjà affiché, afficher maintenant
-                    if (cachedCategories.isEmpty()) {
-                        qDebug() << "No cache available and API error";
                     }
                 }
             } else {
-                qDebug() << "Network error:" << reply->errorString() << "- keeping cached categories";
                 // Si pas de cache déjà affiché, rien à faire (déjà géré avant l'appel API)
             }
             reply->deleteLater();
@@ -1567,9 +1494,6 @@ protected:
             }
 
             cacheFile.close();
-            qDebug() << "Loaded" << cachedCategories.size() << "categories from cache with" << categoryThumbnailCache.size() << "thumbnails";
-        } else {
-            qDebug() << "No categories cache found";
         }
     }
 
@@ -1591,25 +1515,18 @@ protected:
             QJsonDocument doc(cacheObj);
             cacheFile.write(doc.toJson());
             cacheFile.close();
-            qDebug() << "Saved" << cachedCategories.size() << "categories to cache with" << categoryThumbnailCache.size() << "thumbnails";
-        } else {
-            qDebug() << "Failed to save categories cache";
         }
     }
 
     void displayCategoriesFromCache()
     {
         if (!cachedCategories.isEmpty()) {
-            qDebug() << "Displaying" << cachedCategories.size() << "categories from cache";
             displayCategories(cachedCategories);
-        } else {
-            qDebug() << "No cached categories available";
         }
     }
 
     void clearCategoriesDisplay()
     {
-        qDebug() << "Clearing categories display";
         // Supprimer tous les widgets du layout
         QLayoutItem *item;
         while ((item = categoriesGridLayout->takeAt(0)) != nullptr) {
@@ -1897,20 +1814,15 @@ protected:
         // Vérifier d'abord si on a le filename en cache
         if (categoryThumbnailCache.contains(categoryId)) {
             QString cachedFilename = categoryThumbnailCache[categoryId];
-            qDebug() << "Using cached thumbnail filename for" << categoryId << ":" << cachedFilename;
             loadThumbnailImage(cachedFilename, thumbnailLabel);
             return;
         }
 
         // Sinon, charger depuis l'API
-        qDebug() << "No cached thumbnail filename for" << categoryId << "- fetching from API";
-
         QString currentDate = getCurrentDateString();
         QString url = QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(currentDate).replace("/", "%2F"));
-
-        qDebug() << "Loading thumbnail for category:" << categoryId << "with date:" << currentDate;
 
         QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
@@ -1925,7 +1837,6 @@ protected:
                     QJsonArray wallpapers = obj["data"].toArray();
                     if (!wallpapers.isEmpty()) {
                         QString filename = wallpapers[0].toObject()["filename"].toString();
-                        qDebug() << "Found wallpaper for" << categoryId << ":" << filename;
 
                         // Sauvegarder le filename dans le cache
                         categoryThumbnailCache[categoryId] = filename;
@@ -1933,15 +1844,12 @@ protected:
 
                         loadThumbnailImage(filename, thumbnailLabel);
                     } else {
-                        qDebug() << "No wallpapers found for" << categoryId << "on" << currentDate << "- trying fallback";
                         loadCategoryThumbnailFallback(categoryId, thumbnailLabel, 1);
                     }
                 } else {
-                    qDebug() << "API error for" << categoryId << ":" << obj["error"].toString() << "- trying fallback";
                     loadCategoryThumbnailFallback(categoryId, thumbnailLabel, 1);
                 }
             } else {
-                qDebug() << "Network error for" << categoryId << ":" << reply->errorString() << "- trying fallback";
                 loadCategoryThumbnailFallback(categoryId, thumbnailLabel, 1);
             }
             reply->deleteLater();
@@ -1951,7 +1859,6 @@ protected:
     void loadCategoryThumbnailFallback(const QString &categoryId, QLabel *thumbnailLabel, int daysBack)
     {
         if (daysBack > 7) {
-            qDebug() << "Giving up thumbnail for category" << categoryId << "after 7 days";
             return;
         }
 
@@ -1959,8 +1866,6 @@ protected:
         QString url = QString("http://localhost:8080/WallpaperIA/api/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(previousDate).replace("/", "%2F"));
-
-        qDebug() << "Fallback for category" << categoryId << "day" << daysBack << "date:" << previousDate;
 
         QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
@@ -1975,7 +1880,6 @@ protected:
                     QJsonArray wallpapers = obj["data"].toArray();
                     if (!wallpapers.isEmpty()) {
                         QString filename = wallpapers[0].toObject()["filename"].toString();
-                        qDebug() << "Fallback SUCCESS for" << categoryId << "on" << previousDate << ":" << filename;
 
                         // Sauvegarder le filename dans le cache
                         categoryThumbnailCache[categoryId] = filename;
@@ -1983,14 +1887,9 @@ protected:
 
                         loadThumbnailImage(filename, thumbnailLabel);
                         return;
-                    } else {
-                        qDebug() << "Fallback: No wallpapers for" << categoryId << "on" << previousDate;
                     }
-                } else {
-                    qDebug() << "Fallback API error for" << categoryId << "on" << previousDate << ":" << obj["error"].toString();
                 }
             } else {
-                qDebug() << "Fallback network error for" << categoryId << "on" << previousDate << ":" << reply->errorString();
             }
 
             // Essayer le jour suivant
@@ -2001,8 +1900,6 @@ protected:
     
     void loadThumbnailImage(const QString &filename, QLabel *thumbnailLabel)
     {
-        qDebug() << "Loading thumbnail image:" << filename;
-
         // Construire le chemin du cache pour la miniature
         QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/thumbnails";
         QDir().mkpath(cacheDir);
@@ -2010,21 +1907,17 @@ protected:
 
         // Vérifier si la miniature est déjà en cache
         if (QFile::exists(cachedThumbnailPath)) {
-            qDebug() << "Loading thumbnail from cache:" << cachedThumbnailPath;
             QPixmap pixmap(cachedThumbnailPath);
             if (!pixmap.isNull()) {
                 QPixmap scaledPixmap = pixmap.scaled(200, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                 thumbnailLabel->setPixmap(scaledPixmap);
                 thumbnailLabel->setText("");
                 return;
-            } else {
-                qDebug() << "Cached thumbnail is corrupted, redownloading";
             }
         }
 
         // Télécharger depuis l'API
         QString miniUrl = QString("http://localhost:8080/WallpaperIA/api/mini/%1").arg(filename);
-        qDebug() << "Downloading thumbnail from API:" << miniUrl;
 
         QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
@@ -2035,21 +1928,14 @@ protected:
                 QPixmap pixmap;
                 if (pixmap.loadFromData(imageData)) {
                     // Sauvegarder dans le cache
-                    if (pixmap.save(cachedThumbnailPath)) {
-                        qDebug() << "Thumbnail saved to cache:" << cachedThumbnailPath;
-                    } else {
-                        qDebug() << "Failed to save thumbnail to cache";
-                    }
+                    pixmap.save(cachedThumbnailPath);
 
                     // Afficher la miniature
                     QPixmap scaledPixmap = pixmap.scaled(200, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                     thumbnailLabel->setPixmap(scaledPixmap);
                     thumbnailLabel->setText("");
-                } else {
-                    qDebug() << "Failed to load pixmap from downloaded data";
                 }
             } else {
-                qDebug() << "Network error loading thumbnail:" << reply->errorString();
                 // En cas d'erreur avec /mini/, fallback vers l'ancienne méthode
                 loadThumbnailImageFallback(filename, thumbnailLabel, cachedThumbnailPath);
             }
@@ -2059,8 +1945,6 @@ protected:
     
     void loadThumbnailImageFallback(const QString &filename, QLabel *thumbnailLabel, const QString &cachedThumbnailPath)
     {
-        qDebug() << "Fallback: Loading full image for thumbnail:" << filename;
-
         // Méthode de fallback avec l'image complète (pour compatibilité)
         QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperIA/api/get/%1").arg(filename)));
         QNetworkReply *reply = networkManager->get(request);
@@ -2071,19 +1955,13 @@ protected:
                 QPixmap pixmap;
                 if (pixmap.loadFromData(imageData)) {
                     // Sauvegarder dans le cache
-                    if (pixmap.save(cachedThumbnailPath)) {
-                        qDebug() << "Fallback thumbnail saved to cache:" << cachedThumbnailPath;
-                    }
+                    pixmap.save(cachedThumbnailPath);
 
                     // Redimensionner l'image pour la miniature
                     QPixmap scaledPixmap = pixmap.scaled(200, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                     thumbnailLabel->setPixmap(scaledPixmap);
                     thumbnailLabel->setText("");
-                } else {
-                    qDebug() << "Failed to load pixmap from fallback data";
                 }
-            } else {
-                qDebug() << "Fallback network error:" << reply->errorString();
             }
             reply->deleteLater();
         });
@@ -2577,8 +2455,6 @@ private:
 
     void handleMultiDownloadError(const QString &error)
     {
-        qDebug() << "handleMultiDownloadError:" << error;
-
         if (currentMultiDownload) {
             delete currentMultiDownload;
             currentMultiDownload = nullptr;
@@ -2624,7 +2500,6 @@ private:
 
         if (retryCountdownSeconds <= 0) {
             // Temps écoulé, tenter de nouveau changement
-            qDebug() << "Retry timer expired - attempting wallpaper change";
             retryTimer->stop();
             hideApiErrorAlert();
 
@@ -3843,7 +3718,6 @@ private:
 
             // Ne pas supprimer le fichier actuel
             if (filePath != currentFilePath) {
-                qDebug() << "Cleaning up old wallpaper:" << filePath;
                 QFile::remove(filePath);
             }
         }
@@ -4179,27 +4053,23 @@ private:
     // Obtient la date du jour au format DD/MM/YYYY
     QString getCurrentDateString() const
     {
-        return QDate::currentDate().toString("dd/MM/yyyy");
+        return DateHelper::getCurrentDateString();
     }
 
     // Obtient une date antérieure au format DD/MM/YYYY
     QString getPreviousDateString(int daysBack) const
     {
-        return QDate::currentDate().addDays(-daysBack).toString("dd/MM/yyyy");
+        return DateHelper::getPreviousDateString(daysBack);
     }
 
     QString getHistoryDirectory() const
     {
-        QString historyDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/history";
-        QDir().mkpath(historyDir);
-        return historyDir;
+        return PathHelper::getHistoryDirectory();
     }
 
     QString getWallpapersDirectory() const
     {
-        QString wallpapersDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/wallpapers";
-        QDir().mkpath(wallpapersDir);
-        return wallpapersDir;
+        return PathHelper::getWallpapersDirectory();
     }
 
     QString getScreenUniqueId(int screenIndex) const

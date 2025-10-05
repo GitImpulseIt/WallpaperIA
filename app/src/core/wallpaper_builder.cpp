@@ -32,11 +32,6 @@ bool WallpaperBuilder::createMultiScreenWallpaper(const QMap<int, QString> &imag
         return false;
     }
 
-    qDebug() << QString("Image composite sauvegardée: %1 (%2x%3)")
-                .arg(outputPath)
-                .arg(finalImage.width())
-                .arg(finalImage.height());
-
     return true;
 }
 
@@ -49,7 +44,6 @@ QRect WallpaperBuilder::calculateVirtualDesktopBounds()
     int minX = 0, minY = 0, maxX = 0, maxY = 0;
 
     QScreen* qtPrimaryScreen = QApplication::primaryScreen();
-    qDebug() << "Calcul bureau virtuel - Écrans:" << screens.size();
 
     for (int i = 0; i < screens.size(); i++) {
         QScreen* screen = screens[i];
@@ -72,7 +66,6 @@ QRect WallpaperBuilder::calculateVirtualDesktopBounds()
     }
 
     QRect bounds(minX, minY, maxX - minX, maxY - minY);
-    qDebug() << QString("Bureau virtuel: %1x%2").arg(bounds.width()).arg(bounds.height());
     return bounds;
 }
 
@@ -106,8 +99,6 @@ QList<ScreenMapping> WallpaperBuilder::generateScreenMappings(const QMap<int, QS
         if (realY + realH > maxY) maxY = realY + realH;
     }
 
-    qDebug() << QString("Génération mappings pour %1 écrans").arg(imagePaths.size());
-
     // Créer les mappings pour chaque écran avec ses images
     for (auto it = imagePaths.constBegin(); it != imagePaths.constEnd(); ++it) {
         int screenIndex = it.key();
@@ -136,7 +127,6 @@ QList<ScreenMapping> WallpaperBuilder::generateScreenMappings(const QMap<int, QS
         }
     }
 
-    qDebug() << QString("Mappings générés: %1").arg(mappings.size());
     return mappings;
 }
 
@@ -148,8 +138,6 @@ QPixmap WallpaperBuilder::createCompositeImageFromMappings(const QList<ScreenMap
     QPainter painter(&composite);
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
     painter.setRenderHint(QPainter::Antialiasing);
-
-    qDebug() << QString("Création composite %1x%2").arg(composite.width()).arg(composite.height());
 
     for (const ScreenMapping &mapping : mappings) {
         QPixmap sourceImage(mapping.imagePath);
@@ -246,9 +234,6 @@ bool WallpaperBuilder::needsCoordinateWrapping(const QRect &virtualDesktop)
     bool hasNegativeCoords = (virtualDesktop.left() < 0 || virtualDesktop.top() < 0);
     bool isOldWindows = !isWindows8OrLater();
 
-    qDebug() << QString("Version Windows >= 8: %1, Coords négatives: %2")
-                .arg(!isOldWindows).arg(hasNegativeCoords);
-
     return hasNegativeCoords && isOldWindows;
 }
 
@@ -257,8 +242,6 @@ QPixmap WallpaperBuilder::wrapCoordinatesForWindows(const QPixmap &sourceImage, 
     if (!needsCoordinateWrapping(virtualDesktop)) {
         return sourceImage; // Pas besoin de wrapping
     }
-
-    qDebug() << "Application du wrapping pour Windows < 8";
 
     // Créer une nouvelle image avec les coordonnées wrappées
     QPixmap wrappedImage(sourceImage.size());
@@ -272,17 +255,11 @@ QPixmap WallpaperBuilder::wrapCoordinatesForWindows(const QPixmap &sourceImage, 
     int xNotWrap = sourceImage.width() - xWrap;
     int yNotWrap = sourceImage.height() - yWrap;
 
-    qDebug() << QString("Paramètres wrapping - xWrap:%1, yWrap:%2, xNotWrap:%3, yNotWrap:%4")
-                .arg(xWrap).arg(yWrap).arg(xNotWrap).arg(yNotWrap);
-
     // Quadrant en haut à droite (a)
     if (xWrap > 0 && yWrap > 0) {
         QRect srcRect(0, 0, xWrap, yWrap);
         QRect destRect(xNotWrap, yNotWrap, xWrap, yWrap);
         painter.drawPixmap(destRect, sourceImage, srcRect);
-        qDebug() << QString("Quadrant A: src(%1,%2,%3,%4) -> dest(%5,%6,%7,%8)")
-                    .arg(srcRect.x()).arg(srcRect.y()).arg(srcRect.width()).arg(srcRect.height())
-                    .arg(destRect.x()).arg(destRect.y()).arg(destRect.width()).arg(destRect.height());
     }
 
     // Quadrant en haut à gauche (b)
@@ -290,9 +267,6 @@ QPixmap WallpaperBuilder::wrapCoordinatesForWindows(const QPixmap &sourceImage, 
         QRect srcRect(xWrap, 0, xNotWrap, yWrap);
         QRect destRect(0, yNotWrap, xNotWrap, yWrap);
         painter.drawPixmap(destRect, sourceImage, srcRect);
-        qDebug() << QString("Quadrant B: src(%1,%2,%3,%4) -> dest(%5,%6,%7,%8)")
-                    .arg(srcRect.x()).arg(srcRect.y()).arg(srcRect.width()).arg(srcRect.height())
-                    .arg(destRect.x()).arg(destRect.y()).arg(destRect.width()).arg(destRect.height());
     }
 
     // Quadrant en bas à droite (c)
@@ -300,9 +274,6 @@ QPixmap WallpaperBuilder::wrapCoordinatesForWindows(const QPixmap &sourceImage, 
         QRect srcRect(0, yWrap, xWrap, yNotWrap);
         QRect destRect(xNotWrap, 0, xWrap, yNotWrap);
         painter.drawPixmap(destRect, sourceImage, srcRect);
-        qDebug() << QString("Quadrant C: src(%1,%2,%3,%4) -> dest(%5,%6,%7,%8)")
-                    .arg(srcRect.x()).arg(srcRect.y()).arg(srcRect.width()).arg(srcRect.height())
-                    .arg(destRect.x()).arg(destRect.y()).arg(destRect.width()).arg(destRect.height());
     }
 
     // Quadrant en bas à gauche (d) - écran principal

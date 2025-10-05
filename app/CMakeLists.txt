@@ -25,6 +25,9 @@ qt6_standard_project_setup()
 add_executable(WallpaperIA WIN32
     main.cpp
     src/utils/utils.cpp
+    src/utils/path_helper.cpp
+    src/utils/date_helper.cpp
+    src/config/startup_manager.cpp
     src/system/wallpaper_manager.cpp
     src/core/wallpaper_builder.cpp
     src/widgets/hover_filters.cpp
