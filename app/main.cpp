@@ -348,7 +348,7 @@ private:
         mainLayout->setSpacing(10);
 
         // Titre principal
-        QLabel *titleLabel = new QLabel("WallpaperIA - Gestionnaire de Fonds d'écran");
+        QLabel *titleLabel = new QLabel("WallpaperIA - Fonds d'écrans générés par IA");
         titleLabel->setObjectName("titleLabel");
         titleLabel->setAlignment(Qt::AlignCenter);
         mainLayout->addWidget(titleLabel);
