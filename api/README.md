@@ -66,8 +66,9 @@ curl http://localhost:8000/
 ### 📂 Catégories
 
 **GET** `/categories`
-- **Description** : Liste toutes les catégories disponibles
-- **Réponse** : Tableau des catégories avec ID court et nom complet
+- **Description** : Liste toutes les catégories disponibles avec miniature par défaut
+- **Réponse** : Tableau des catégories avec ID court, nom complet et miniature la plus récente
+- **Optimisation** : Inclut le `filename` du wallpaper le plus récent pour éviter des appels supplémentaires
 
 ```bash
 curl http://localhost:8000/categories
@@ -80,11 +81,13 @@ curl http://localhost:8000/categories
   "data": [
     {
       "id": "as",
-      "name": "AUTUMN SEASONS"
+      "name": "AUTUMN SEASONS",
+      "thumbnail": "autumn_forest_2025.png"
     },
     {
       "id": "om",
-      "name": "OCEAN & MARINE"
+      "name": "OCEAN & MARINE",
+      "thumbnail": "ocean_sunset.png"
     }
   ],
   "count": 15
@@ -268,6 +271,7 @@ Access-Control-Allow-Headers: Content-Type
 - **Redimensionnement progressif** pour images > 50% réduction
 - **Libération mémoire** immédiate après traitement
 - **Garbage collection** forcé si disponible
+- **Thumbnails dans `/categories`** : Évite N appels `/wallpapers` lors du chargement initial des catégories
 
 ## 📈 Monitoring
 
