@@ -4027,9 +4027,15 @@ private:
         filters << "*.bmp" << "*.png";
         QFileInfoList tempFiles = dir.entryInfoList(filters, QDir::Files);
 
-        // Supprimer tous les fichiers temporaires
+        // Supprimer tous les fichiers temporaires SAUF composite_wallpaper.bmp
+        // qui est utilisé par Windows comme source du wallpaper
         for (const QFileInfo &fileInfo : tempFiles) {
-            QFile::remove(fileInfo.absoluteFilePath());
+            QString filename = fileInfo.fileName();
+
+            // Ne pas supprimer le composite wallpaper actif
+            if (filename != "composite_wallpaper.bmp") {
+                QFile::remove(fileInfo.absoluteFilePath());
+            }
         }
     }
 
