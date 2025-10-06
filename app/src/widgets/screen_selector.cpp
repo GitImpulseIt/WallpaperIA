@@ -54,6 +54,13 @@ int ScreenSelector::screenCount() const
 
 void ScreenSelector::refresh()
 {
+    // Protection contre les appels simultanés
+    if (m_isRefreshing) {
+        return; // Ignorer si un refresh est déjà en cours
+    }
+
+    m_isRefreshing = true;
+
     // Sauvegarder l'état de sélection actuel
     QMap<int, bool> oldSelection = m_selectedScreens;
     QMap<int, bool> oldCanDeselect = m_canBeDeselected;
@@ -78,6 +85,8 @@ void ScreenSelector::refresh()
 
     // Émettre le signal de changement de sélection
     emit screenSelectionChanged(getSelectedScreens());
+
+    m_isRefreshing = false;
 }
 
 void ScreenSelector::paintEvent(QPaintEvent *)

@@ -1,4 +1,5 @@
 #include "wallpaper_builder.h"
+#include "../utils/logger.h"
 #include <QOperatingSystemVersion>
 
 #ifdef Q_OS_WIN
@@ -7,32 +8,59 @@
 
 WallpaperBuilder::WallpaperBuilder()
 {
+    LOG_INFO("WallpaperBuilder instance created");
 }
 
 bool WallpaperBuilder::createMultiScreenWallpaper(const QMap<int, QString> &imagePaths, const QString &outputPath)
 {
-    // 1. Calculer les dimensions du bureau virtuel
-    QRect virtualDesktop = calculateVirtualDesktopBounds();
+    LOG_INFO(">>> WallpaperBuilder::createMultiScreenWallpaper() STARTED");
+    LOG_INFO(QString("Image paths count: %1, Output: %2").arg(imagePaths.size()).arg(outputPath));
 
-    // 2. Générer les mappings pour chaque écran
-    QList<ScreenMapping> mappings = generateScreenMappings(imagePaths);
+    try {
+        // 1. Calculer les dimensions du bureau virtuel
+        LOG_INFO("Step 1: Calculating virtual desktop bounds...");
+        QRect virtualDesktop = calculateVirtualDesktopBounds();
+        LOG_INFO(QString("Virtual desktop: x=%1, y=%2, w=%3, h=%4")
+            .arg(virtualDesktop.x()).arg(virtualDesktop.y())
+            .arg(virtualDesktop.width()).arg(virtualDesktop.height()));
 
-    if (mappings.isEmpty()) {
+        // 2. Générer les mappings pour chaque écran
+        LOG_INFO("Step 2: Generating screen mappings...");
+        QList<ScreenMapping> mappings = generateScreenMappings(imagePaths);
+        LOG_INFO(QString("Mappings generated: %1").arg(mappings.size()));
+
+        if (mappings.isEmpty()) {
+            LOG_ERROR("No mappings generated, aborting");
+            return false;
+        }
+
+        // 3. Créer l'image composite avec mapping précis
+        LOG_INFO("Step 3: Creating composite image...");
+        QPixmap composite = createCompositeImageFromMappings(mappings, virtualDesktop);
+        LOG_INFO(QString("Composite created: %1x%2").arg(composite.width()).arg(composite.height()));
+
+        // 4. Appliquer le wrapping selon la logique DMT (Windows < 8 uniquement)
+        LOG_INFO("Step 4: Applying coordinate wrapping...");
+        QPixmap finalImage = wrapCoordinatesForWindows(composite, virtualDesktop);
+        LOG_INFO(QString("Final image: %1x%2").arg(finalImage.width()).arg(finalImage.height()));
+
+        // 5. Sauvegarder l'image finale
+        LOG_INFO("Step 5: Saving final image...");
+        if (!finalImage.save(outputPath, "BMP")) {
+            LOG_ERROR("Failed to save final image");
+            return false;
+        }
+
+        LOG_INFO("Image saved successfully");
+        LOG_INFO("<<< WallpaperBuilder::createMultiScreenWallpaper() ENDED (success)");
+        return true;
+    } catch (const std::exception &e) {
+        LOG_CRITICAL(QString("Exception in createMultiScreenWallpaper: %1").arg(e.what()));
+        return false;
+    } catch (...) {
+        LOG_CRITICAL("Unknown exception in createMultiScreenWallpaper");
         return false;
     }
-
-    // 3. Créer l'image composite avec mapping précis
-    QPixmap composite = createCompositeImageFromMappings(mappings, virtualDesktop);
-
-    // 4. Appliquer le wrapping selon la logique DMT (Windows < 8 uniquement)
-    QPixmap finalImage = wrapCoordinatesForWindows(composite, virtualDesktop);
-
-    // 5. Sauvegarder l'image finale
-    if (!finalImage.save(outputPath, "BMP")) {
-        return false;
-    }
-
-    return true;
 }
 
 QRect WallpaperBuilder::calculateVirtualDesktopBounds()
@@ -44,9 +72,11 @@ QRect WallpaperBuilder::calculateVirtualDesktopBounds()
     int minX = 0, minY = 0, maxX = 0, maxY = 0;
 
     QScreen* qtPrimaryScreen = QApplication::primaryScreen();
+    if (!qtPrimaryScreen) return QRect(); // Protection contre primaryScreen null
 
     for (int i = 0; i < screens.size(); i++) {
         QScreen* screen = screens[i];
+        if (!screen) continue; // Protection contre écran null
         QRect geom = screen->geometry();
         QSize realSize = screen->size() * screen->devicePixelRatio();
         bool isQtPrimary = (screen == qtPrimaryScreen);
@@ -106,6 +136,8 @@ QList<ScreenMapping> WallpaperBuilder::generateScreenMappings(const QMap<int, QS
 
         if (screenIndex >= 0 && screenIndex < screens.size()) {
             QScreen* screen = screens[screenIndex];
+            if (!screen) continue; // Protection contre écran null
+
             QRect geom = screen->geometry();
             QSize realSize = screen->size() * screen->devicePixelRatio();
 

@@ -42,4 +42,5 @@ private:
     int m_screenCount;
     QMap<int, bool> m_selectedScreens;      // Écrans sélectionnés
     QMap<int, bool> m_canBeDeselected;      // Écrans qui peuvent être désélectionnés
+    bool m_isRefreshing = false;            // Protection contre les appels simultanés
 };

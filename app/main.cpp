@@ -52,6 +52,7 @@
 #include "src/utils/utils.h"
 #include "src/utils/path_helper.h"
 #include "src/utils/date_helper.h"
+#include "src/utils/logger.h"
 #include "src/config/startup_manager.h"
 #include "src/system/wallpaper_manager.h"
 #include "src/widgets/hover_filters.h"
@@ -1446,18 +1447,21 @@ protected:
 
             // Détecter les changements de configuration d'écran
             if (msg->message == WM_DISPLAYCHANGE || msg->message == WM_DEVICECHANGE) {
-                // Utiliser un timer pour éviter les appels multiples rapides
-                static QTimer *displayChangeTimer = nullptr;
-                if (!displayChangeTimer) {
-                    displayChangeTimer = new QTimer(this);
-                    displayChangeTimer->setSingleShot(true);
-                    displayChangeTimer->setInterval(500); // 500ms de délai
+                QString eventName = (msg->message == WM_DISPLAYCHANGE) ? "WM_DISPLAYCHANGE" : "WM_DEVICECHANGE";
+                LOG_INFO(QString("%1 event detected - wParam: %2, lParam: %3")
+                    .arg(eventName).arg(msg->wParam).arg(msg->lParam));
 
-                    connect(displayChangeTimer, &QTimer::timeout, this, &ModernWindow::onDisplayConfigurationChanged);
+                // Utiliser un timer unique pour éviter les appels multiples rapides
+                if (!m_displayChangeTimer) {
+                    m_displayChangeTimer = new QTimer(this);
+                    m_displayChangeTimer->setSingleShot(true);
+                    m_displayChangeTimer->setInterval(500); // 500ms de délai
+
+                    connect(m_displayChangeTimer, &QTimer::timeout, this, &ModernWindow::onDisplayConfigurationChanged);
                 }
 
-                // Redémarrer le timer à chaque événement
-                displayChangeTimer->start();
+                // Redémarrer le timer à chaque événement (cela annule les précédents)
+                m_displayChangeTimer->start();
             }
         }
 
@@ -2046,32 +2050,139 @@ private slots:
 private slots:
     void onDisplayConfigurationChanged()
     {
-        // Rafraîchir le sélecteur d'écran si présent
-        if (screenSelector) {
-            screenSelector->refresh();
+        // Protection contre les appels simultanés
+        if (m_isHandlingDisplayChange) {
+            LOG_WARNING("Display change already in progress, ignoring this call");
+            return;
         }
 
-        // Reconstruire l'image composite avec les wallpapers actuels de chaque écran
+        m_isHandlingDisplayChange = true;
+        LOG_INFO(">>> onDisplayConfigurationChanged() STARTED");
+
         #ifdef Q_OS_WIN
-        int screenCount = QGuiApplication::screens().size();
-        if (screenCount <= 1) {
-            return; // Pas besoin de recomposer pour un seul écran
-        }
+        try {
+            // Protection : vérifier que QGuiApplication::screens() est valide
+            LOG_INFO("Getting screens list...");
+            QList<QScreen*> screens = QGuiApplication::screens();
+            LOG_INFO(QString("Screens count: %1").arg(screens.size()));
 
-        // Créer une liste pour stocker les chemins des wallpapers actuels
-        QMap<int, QString> currentWallpapers;
-
-        // Récupérer le wallpaper actuel de chaque écran depuis les logs
-        for (int i = 0; i < screenCount; i++) {
-            QString wallpaperPath = getCurrentWallpaperFromLog(i);
-            if (!wallpaperPath.isEmpty() && QFile::exists(wallpaperPath)) {
-                currentWallpapers[i] = wallpaperPath;
+            if (screens.isEmpty()) {
+                LOG_WARNING("No screens detected, returning early");
+                m_isHandlingDisplayChange = false;
+                return; // Pas d'écran détecté, ne rien faire
             }
-        }
 
-        // Si on a au moins un wallpaper, reconstruire l'image composite
-        if (!currentWallpapers.isEmpty()) {
-            rebuildCompositeWallpaper(currentWallpapers);
+            int screenCount = screens.size();
+
+            // Rafraîchir le sélecteur d'écran si présent
+            if (screenSelector) {
+                LOG_INFO("Refreshing ScreenSelector synchronously...");
+                try {
+                    screenSelector->refresh();
+                    LOG_INFO("ScreenSelector refreshed successfully");
+                } catch (...) {
+                    LOG_ERROR("Exception in ScreenSelector refresh");
+                }
+            }
+
+            // Si un seul écran, pas besoin de recomposer
+            if (screenCount <= 1) {
+                LOG_INFO("Single screen detected, no composite rebuild needed");
+                LOG_INFO("<<< onDisplayConfigurationChanged() ENDED (single screen)");
+                m_isHandlingDisplayChange = false;
+                return;
+            }
+
+            // Créer une liste pour stocker les chemins des wallpapers actuels
+            QMap<int, QString> currentWallpapers;
+
+            // Stratégie : utiliser l'ID unique de l'écran pour retrouver le bon wallpaper
+            // Cela permet de suivre l'écran physique même si son index change
+            LOG_INFO("Retrieving current wallpapers from logs by unique screen ID...");
+
+            // Créer un mapping : ID unique -> index actuel
+            QMap<QString, int> screenIdToIndex;
+            for (int i = 0; i < screenCount; i++) {
+                QString uniqueId = getScreenUniqueId(i);
+                screenIdToIndex[uniqueId] = i;
+                LOG_INFO(QString("Screen %1 unique ID: %2").arg(i).arg(uniqueId));
+            }
+
+            // Lister tous les fichiers de log disponibles
+            QString historyDir = getHistoryDirectory();
+            QDir dir(historyDir);
+            QStringList logFiles = dir.entryList(QStringList() << "*.log", QDir::Files);
+
+            LOG_INFO(QString("Found %1 log files in history").arg(logFiles.size()));
+
+            // Pour chaque fichier de log, trouver à quel écran actuel il correspond
+            for (const QString &logFileName : logFiles) {
+                QString screenId = logFileName;
+                screenId.chop(4); // Enlever ".log"
+
+                LOG_INFO(QString("Processing log file: %1 (screen ID: %2)").arg(logFileName).arg(screenId));
+
+                // Trouver l'index actuel de cet écran
+                if (screenIdToIndex.contains(screenId)) {
+                    int currentIndex = screenIdToIndex[screenId];
+                    LOG_INFO(QString("Screen ID %1 is now at index %2").arg(screenId).arg(currentIndex));
+
+                    // Lire le wallpaper depuis ce fichier de log
+                    QString logFilePath = historyDir + "/" + logFileName;
+                    QFile logFile(logFilePath);
+
+                    if (logFile.open(QIODevice::ReadOnly)) {
+                        QTextStream stream(&logFile);
+                        QString lastLine;
+                        QString line;
+
+                        while (stream.readLineInto(&line)) {
+                            if (!line.isEmpty()) {
+                                lastLine = line;
+                            }
+                        }
+                        logFile.close();
+
+                        if (!lastLine.isEmpty()) {
+                            QRegularExpression regex(R"(\[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\])");
+                            QRegularExpressionMatch match = regex.match(lastLine);
+                            if (match.hasMatch()) {
+                                QString filename = match.captured(2);
+                                QString wallpapersDir = getWallpapersDirectory();
+                                QString fullPath = wallpapersDir + "/" + screenId + "/" + filename;
+
+                                if (QFile::exists(fullPath)) {
+                                    currentWallpapers[currentIndex] = fullPath;
+                                    LOG_INFO(QString("Screen %1 (ID: %2) wallpaper: %3").arg(currentIndex).arg(screenId).arg(fullPath));
+                                } else {
+                                    LOG_WARNING(QString("Wallpaper file doesn't exist: %1").arg(fullPath));
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    LOG_WARNING(QString("Screen ID %1 from log file not found in current screens (screen disconnected?)").arg(screenId));
+                }
+            }
+
+            // Si on a au moins un wallpaper, reconstruire l'image composite
+            LOG_INFO(QString("Current wallpapers map size: %1").arg(currentWallpapers.size()));
+            if (!currentWallpapers.isEmpty()) {
+                LOG_INFO("Starting composite rebuild...");
+                rebuildCompositeWallpaper(currentWallpapers);
+                LOG_INFO("Composite rebuild completed");
+            } else {
+                LOG_WARNING("No wallpapers to rebuild composite");
+            }
+
+            LOG_INFO("<<< onDisplayConfigurationChanged() ENDED");
+            m_isHandlingDisplayChange = false;
+        } catch (const std::exception &e) {
+            LOG_CRITICAL(QString("Exception in onDisplayConfigurationChanged: %1").arg(e.what()));
+            m_isHandlingDisplayChange = false;
+        } catch (...) {
+            LOG_CRITICAL("Unknown exception in onDisplayConfigurationChanged");
+            m_isHandlingDisplayChange = false;
         }
         #endif
     }
@@ -2208,17 +2319,62 @@ private:
 
     void rebuildCompositeWallpaper(const QMap<int, QString> &wallpapers)
     {
+        LOG_INFO(">>> rebuildCompositeWallpaper() STARTED");
+
         #ifdef Q_OS_WIN
-        // Utiliser WallpaperBuilder pour créer une nouvelle image composite
-        WallpaperBuilder builder;
+        try {
+            // Vérifications de sécurité
+            if (wallpapers.isEmpty()) {
+                LOG_WARNING("Wallpapers map is empty, returning");
+                return;
+            }
 
-        // Déterminer le chemin de sortie
-        QString outputPath = builder.getTemporaryWallpaperPath();
+            LOG_INFO(QString("Wallpapers to rebuild: %1").arg(wallpapers.size()));
 
-        // Créer l'image composite multi-écrans
-        if (builder.createMultiScreenWallpaper(wallpapers, outputPath)) {
-            // Appliquer le nouveau wallpaper composite
-            setWallpaperWithSmoothTransition(outputPath);
+            // Vérifier que tous les chemins existent avant de continuer
+            bool allPathsValid = true;
+            for (auto it = wallpapers.constBegin(); it != wallpapers.constEnd(); ++it) {
+                const QString &path = it.value();
+                LOG_INFO(QString("Checking path for screen %1: %2").arg(it.key()).arg(path));
+
+                if (!QFile::exists(path)) {
+                    LOG_ERROR(QString("Path does not exist: %1").arg(path));
+                    allPathsValid = false;
+                    break;
+                }
+            }
+
+            if (!allPathsValid) {
+                LOG_WARNING("Not all wallpaper paths are valid, aborting rebuild");
+                return; // Ne pas tenter de reconstruire si certains fichiers n'existent pas
+            }
+
+            LOG_INFO("All wallpaper paths validated, creating WallpaperBuilder");
+
+            // Utiliser WallpaperBuilder pour créer une nouvelle image composite
+            WallpaperBuilder builder;
+
+            // Déterminer le chemin de sortie
+            LOG_INFO("Getting temporary wallpaper path...");
+            QString outputPath = builder.getTemporaryWallpaperPath();
+            LOG_INFO(QString("Output path: %1").arg(outputPath));
+
+            // Créer l'image composite multi-écrans
+            LOG_INFO("Calling createMultiScreenWallpaper...");
+            if (builder.createMultiScreenWallpaper(wallpapers, outputPath)) {
+                LOG_INFO("Composite created successfully, applying wallpaper...");
+                // Appliquer le nouveau wallpaper composite
+                setWallpaperWithSmoothTransition(outputPath);
+                LOG_INFO("Wallpaper applied successfully");
+            } else {
+                LOG_ERROR("Failed to create composite wallpaper");
+            }
+
+            LOG_INFO("<<< rebuildCompositeWallpaper() ENDED");
+        } catch (const std::exception &e) {
+            LOG_CRITICAL(QString("Exception in rebuildCompositeWallpaper: %1").arg(e.what()));
+        } catch (...) {
+            LOG_CRITICAL("Unknown exception in rebuildCompositeWallpaper");
         }
         #endif
     }
@@ -3141,8 +3297,36 @@ private:
             return setWallpaperWithSmoothTransition(imagePath);
         }
 
-        // Pour un écran spécifique, utiliser IDesktopWallpaper (Windows 8+)
-        return setWallpaperForSpecificScreen(imagePath, screenIndex);
+        // Pour un écran spécifique, utiliser WallpaperBuilder (méthode moderne)
+        LOG_INFO(QString("Setting wallpaper for specific screen %1 using WallpaperBuilder").arg(screenIndex));
+
+        // Créer un map avec seulement l'écran ciblé
+        QMap<int, QString> imagePaths;
+
+        // Récupérer les wallpapers actuels pour tous les autres écrans
+        int screenCount = QApplication::screens().size();
+        for (int i = 0; i < screenCount; i++) {
+            if (i == screenIndex) {
+                // Nouvelle image pour l'écran cible
+                imagePaths[i] = imagePath;
+            } else {
+                // Garder le wallpaper actuel pour les autres écrans
+                QString currentPath = getCurrentWallpaperFromLog(i);
+                if (!currentPath.isEmpty() && QFile::exists(currentPath)) {
+                    imagePaths[i] = currentPath;
+                }
+            }
+        }
+
+        // Utiliser WallpaperBuilder pour créer l'image composite
+        WallpaperBuilder builder;
+        QString outputPath = builder.getTemporaryWallpaperPath();
+
+        if (builder.createMultiScreenWallpaper(imagePaths, outputPath)) {
+            return setWallpaperWithSmoothTransition(outputPath);
+        }
+
+        return false;
         #else
         return false;
         #endif
@@ -4100,6 +4284,10 @@ private:
     QSet<QString> excludedCategories; // Catégories exclues pour cette session
     ScreenSelector *screenSelector; // Sélecteur d'écran
 
+    // Protection contre les appels multiples de onDisplayConfigurationChanged
+    bool m_isHandlingDisplayChange = false;
+    QTimer *m_displayChangeTimer = nullptr;
+
     // Widget d'alerte erreur API
     QWidget *errorAlertWidget;
     QLabel *errorAlertLabel;
@@ -4287,6 +4475,11 @@ private:
     QString getCurrentWallpaperFromLog(int screenIndex) const
     {
         QString screenId = getScreenUniqueId(screenIndex);
+        return getCurrentWallpaperByScreenId(screenId);
+    }
+
+    QString getCurrentWallpaperByScreenId(const QString &screenId) const
+    {
         QString historyDir = getHistoryDirectory();
         QString logFilePath = historyDir + "/" + screenId + ".log";
 
@@ -4313,7 +4506,6 @@ private:
 
                     // Construire le chemin complet du fichier dans le sous-répertoire de l'écran
                     QString wallpapersDir = getWallpapersDirectory();
-                    QString screenId = getScreenUniqueId(screenIndex);
                     QString fullPath = wallpapersDir + "/" + screenId + "/" + filename;
 
                     // Vérifier si le fichier existe
