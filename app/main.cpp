@@ -2072,12 +2072,6 @@ private slots:
                 }
             }
 
-            // Si un seul écran, pas besoin de recomposer
-            if (screenCount <= 1) {
-                m_isHandlingDisplayChange = false;
-                return;
-            }
-
             // Créer une liste pour stocker les chemins des wallpapers actuels
             QMap<int, QString> currentWallpapers;
 
@@ -2136,8 +2130,18 @@ private slots:
                 }
             }
 
-            // Si on a au moins un wallpaper, reconstruire l'image composite
-            if (!currentWallpapers.isEmpty()) {
+            // Cas spécial : si un seul écran, appliquer directement le wallpaper de cet écran
+            if (screenCount == 1 && !currentWallpapers.isEmpty()) {
+                QString singleWallpaper = currentWallpapers.value(0);
+                if (!singleWallpaper.isEmpty() && QFile::exists(singleWallpaper)) {
+                    setWallpaperWithSmoothTransition(singleWallpaper);
+                }
+                m_isHandlingDisplayChange = false;
+                return;
+            }
+
+            // Si multi-écrans et on a au moins un wallpaper, reconstruire l'image composite
+            if (screenCount > 1 && !currentWallpapers.isEmpty()) {
                 rebuildCompositeWallpaper(currentWallpapers);
             }
 
