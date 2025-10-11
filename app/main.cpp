@@ -2409,15 +2409,107 @@ private:
                         }
                     }
 
-                    // Aucun wallpaper disponible pour cette catégorie/date
-                    if (daysBack < 7) { // Essayer maximum 7 jours en arrière
-                        // Essayer la date précédente
-                        tryGetWallpaperWithWeightedCategory(screenIndex, daysBack + 1);
+                    // Aucun wallpaper nouveau pour cette date
+                    // Vérifier si l'API suggère une date antérieure
+                    QString nearestPreviousDate = obj["nearest_previous_date"].toString();
+
+                    if (!nearestPreviousDate.isEmpty() && nearestPreviousDate != targetDate) {
+                        // Relancer la recherche avec la date suggérée par l'API
+                        tryGetWallpaperWithSpecificDate(screenIndex, selectedCategoryId, nearestPreviousDate);
                     } else {
-                        // Exclure cette catégorie pour cette session
+                        // Plus aucune date disponible pour cette catégorie
+                        // Exclure cette catégorie et essayer une autre
                         excludedCategories.insert(selectedCategoryId);
-                        // Recommencer avec une nouvelle catégorie
-                        tryGetWallpaperWithWeightedCategory(screenIndex, 0);
+
+                        QString nextCategory = selectWeightedRandomCategory();
+                        if (!nextCategory.isEmpty()) {
+                            // Recommencer avec une nouvelle catégorie
+                            tryGetWallpaperWithWeightedCategory(screenIndex, 0);
+                        } else {
+                            // Plus aucune catégorie disponible, utiliser l'historique
+                            getRandomWallpaperFromHistory(screenIndex);
+                        }
+                    }
+                } else {
+                    handleMultiDownloadError(QString("Erreur API wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(obj["error"].toString()));
+                }
+            } else {
+                handleMultiDownloadError(QString("Erreur de connexion wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(reply->errorString()));
+            }
+            reply->deleteLater();
+        });
+    }
+
+    void tryGetWallpaperWithSpecificDate(int screenIndex, const QString &categoryId, const QString &date)
+    {
+        // Vérifier que le téléchargement multi-écrans est toujours actif
+        if (!currentMultiDownload) {
+            return;
+        }
+
+        // Appeler l'API avec la catégorie et la date spécifique
+        QString url = QString("http://localhost:8080/WallpaperAI/api/wallpapers?category=%1&date=%2")
+                      .arg(categoryId)
+                      .arg(QString(date).replace("/", "%2F"));
+
+        QNetworkRequest request{QUrl(url)};
+        QNetworkReply *reply = networkManager->get(request);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, screenIndex, categoryId, date]() {
+            // Vérifier que le téléchargement multi-écrans est toujours actif
+            if (!currentMultiDownload) {
+                reply->deleteLater();
+                return;
+            }
+
+            if (reply->error() == QNetworkReply::NoError) {
+                QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+                QJsonObject obj = doc.object();
+
+                if (obj["success"].toBool()) {
+                    QJsonArray wallpapers = obj["data"].toArray();
+
+                    if (!wallpapers.isEmpty()) {
+                        // Filtrer les wallpapers pour éviter les doublons de l'historique
+                        QStringList availableWallpapers;
+                        for (const QJsonValue &wallpaperValue : wallpapers) {
+                            QJsonObject wallpaper = wallpaperValue.toObject();
+                            QString filename = wallpaper["filename"].toString();
+
+                            // Vérifier si ce wallpaper n'est pas dans l'historique de cet écran
+                            if (!screenWallpaperHistory[screenIndex].contains(filename)) {
+                                availableWallpapers.append(filename);
+                            }
+                        }
+
+                        if (!availableWallpapers.isEmpty()) {
+                            // Choisir un wallpaper aléatoire parmi ceux disponibles
+                            int randomIndex = QRandomGenerator::global()->bounded(availableWallpapers.size());
+                            QString selectedFilename = availableWallpapers.at(randomIndex);
+
+                            // Télécharger ce wallpaper
+                            downloadWallpaperForScreen(selectedFilename, screenIndex);
+                            return;
+                        }
+                    }
+
+                    // Toujours aucun wallpaper nouveau, vérifier la date antérieure suivante
+                    QString nearestPreviousDate = obj["nearest_previous_date"].toString();
+
+                    if (!nearestPreviousDate.isEmpty() && nearestPreviousDate != date) {
+                        // Relancer avec la date encore plus ancienne
+                        tryGetWallpaperWithSpecificDate(screenIndex, categoryId, nearestPreviousDate);
+                    } else {
+                        // Catégorie épuisée, passer à une autre
+                        excludedCategories.insert(categoryId);
+
+                        QString nextCategory = selectWeightedRandomCategory();
+                        if (!nextCategory.isEmpty()) {
+                            tryGetWallpaperWithWeightedCategory(screenIndex, 0);
+                        } else {
+                            // Plus aucune catégorie disponible, utiliser l'historique
+                            getRandomWallpaperFromHistory(screenIndex);
+                        }
                     }
                 } else {
                     handleMultiDownloadError(QString("Erreur API wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(obj["error"].toString()));

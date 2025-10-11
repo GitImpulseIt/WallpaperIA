@@ -140,11 +140,39 @@ class WallpaperService {
                 ];
             }
 
+            // Convertir la date demandée en timestamp
+            $dateParts = explode('/', $date);
+            $requestedTimestamp = mktime(0, 0, 0, intval($dateParts[1]), intval($dateParts[0]), intval($dateParts[2]));
+
             // Filter by category and date
             foreach ($wallpapers as $wallpaper) {
                 if (strcasecmp($wallpaper['category'], $target_category) === 0 &&
                     $wallpaper['date'] === $date) {
                     $filtered[] = $wallpaper;
+                }
+            }
+
+            // Si aucun wallpaper trouvé, chercher la date antérieure la plus proche
+            $nearestPreviousDate = null;
+            if (empty($filtered)) {
+                $nearestTimestamp = null;
+
+                foreach ($wallpapers as $wallpaper) {
+                    if (strcasecmp($wallpaper['category'], $target_category) === 0 && $wallpaper['date']) {
+                        $parts = explode('/', $wallpaper['date']);
+                        if (count($parts) === 3) {
+                            $timestamp = mktime(0, 0, 0, intval($parts[1]), intval($parts[0]), intval($parts[2]));
+
+                            // Si la date est antérieure à celle demandée
+                            if ($timestamp < $requestedTimestamp) {
+                                // Et si c'est la plus proche trouvée jusqu'à maintenant
+                                if ($nearestTimestamp === null || $timestamp > $nearestTimestamp) {
+                                    $nearestTimestamp = $timestamp;
+                                    $nearestPreviousDate = $wallpaper['date'];
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -154,7 +182,8 @@ class WallpaperService {
                 'category_id' => $category_id,
                 'date' => $date,
                 'data' => $filtered,
-                'count' => count($filtered)
+                'count' => count($filtered),
+                'nearest_previous_date' => $nearestPreviousDate
             ];
 
         } catch (Exception $e) {
