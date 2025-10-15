@@ -77,12 +77,22 @@ function connectFtp(string $configFile)
         throw new Exception("Invalid FTP config file");
     }
 
+    $scheme = parse_url($config['host'], PHP_URL_SCHEME);
     $host = parse_url($config['host'], PHP_URL_HOST) ?: $config['host'];
     $port = parse_url($config['host'], PHP_URL_PORT) ?: 21;
 
-    $connection = ftp_connect($host, $port, 30);
+    // Utiliser ftp_ssl_connect pour FTPES (FTP over explicit TLS/SSL)
+    $useSsl = ($scheme === 'ftpes' || $scheme === 'ftps');
+
+    if ($useSsl) {
+        $connection = @ftp_ssl_connect($host, $port, 30);
+    } else {
+        $connection = @ftp_connect($host, $port, 30);
+    }
+
     if (!$connection) {
-        throw new Exception("Failed to connect to FTP server: $host:$port");
+        $protocol = $useSsl ? 'FTPES' : 'FTP';
+        throw new Exception("Failed to connect to $protocol server: $host:$port");
     }
 
     if (!ftp_login($connection, $config['user'], $config['password'])) {
