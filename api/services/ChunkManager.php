@@ -150,15 +150,43 @@ class ChunkManager
 
         foreach ($chunksData['chunks'] as $chunk) {
             $tempFile = tempnam(sys_get_temp_dir(), 'chunk_');
-            file_put_contents($tempFile, $chunk['data']);
+
+            // Écrire le chunk dans un fichier temporaire
+            $writeResult = file_put_contents($tempFile, $chunk['data']);
+            if ($writeResult === false) {
+                throw new Exception("Failed to write temp file for chunk: {$chunk['hash']}");
+            }
 
             $remotePath = rtrim($remoteDir, '/') . '/' . $chunk['hash'];
+            $tempFileSize = filesize($tempFile);
 
-            $uploaded = @ftp_put($ftpConnection, $remotePath, $tempFile, FTP_BINARY);
-            unlink($tempFile);
+            // Activer le reporting d'erreurs pour FTP
+            error_clear_last();
+            $uploaded = ftp_put($ftpConnection, $remotePath, $tempFile, FTP_BINARY);
+
+            // Capturer l'erreur PHP si présente
+            $lastError = error_get_last();
+
+            // Nettoyer le fichier temporaire
+            if (file_exists($tempFile)) {
+                unlink($tempFile);
+            }
 
             if (!$uploaded) {
-                throw new Exception("Failed to upload chunk to FTP: {$chunk['hash']}");
+                $errorMsg = "Failed to upload chunk to FTP: {$chunk['hash']}";
+                if ($lastError) {
+                    $errorMsg .= " | PHP Error: " . $lastError['message'];
+                }
+
+                // Essayer d'obtenir le répertoire courant FTP pour debug
+                $currentDir = @ftp_pwd($ftpConnection);
+                if ($currentDir) {
+                    $errorMsg .= " | FTP PWD: $currentDir";
+                }
+
+                $errorMsg .= " | Remote path: $remotePath | Temp file size: $tempFileSize bytes";
+
+                throw new Exception($errorMsg);
             }
 
             $savedChunks[] = [
