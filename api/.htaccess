@@ -1,11 +1,23 @@
+# Sécurité : Interdire l'accès direct aux fichiers sensibles
+<FilesMatch "^(encryption\.key|ftp\.json|file_mappings\.json|wallpapers\.csv)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Exception : Autoriser l'accès depuis PHP uniquement
+<Files ~ "\.(key|json|csv)$">
+    # Les scripts PHP locaux peuvent toujours lire ces fichiers
+    # Mais aucun accès HTTP direct n'est autorisé
+</Files>
+
 RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Augmenter les limites PHP pour le traitement d'images
-php_value memory_limit 512M
+# Augmenter les limites PHP pour le traitement d'images et uploads chiffrés
+php_value memory_limit 1024M
 php_value max_execution_time 300
 php_value max_input_time 300
-php_value upload_max_filesize 100M
-php_value post_max_size 100M
+php_value upload_max_filesize 500M
+php_value post_max_size 500M

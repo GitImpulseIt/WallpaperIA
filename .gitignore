@@ -1,5 +1,7 @@
 # Configuration sensible
 api/ftp.json
+api/encryption.key
+api/file_mappings.json
 
 # Claude Code
 .claude/
