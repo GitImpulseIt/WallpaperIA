@@ -19,7 +19,7 @@ Réduction de **~65%** de l'espace disque en supprimant les redondances et infor
     "created_at": "2025-10-14T10:30:00+00:00",
     "metadata": {
       "upload_mode": "ftp",
-      "storage_location": "SanDisk/encrypted_chunks",
+      "storage_location": "SanDisk/data",
       "category": "nature"
     },
     "chunks": [
@@ -50,7 +50,7 @@ Réduction de **~65%** de l'espace disque en supprimant les redondances et infor
     "c": 1048576,
     "t": 1728900600,
     "m": "image/png",
-    "l": "SanDisk/encrypted_chunks",
+    "l": "SanDisk/data",
     "h": ["abc123...", "xyz987..."],
     "x": {"category": "nature"}
   }

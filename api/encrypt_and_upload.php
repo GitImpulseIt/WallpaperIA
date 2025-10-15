@@ -12,7 +12,7 @@ function printUsage(): void
     echo "                        If not provided, uses encryption.key file\n";
     echo "  --chunk-size <bytes>  Chunk size in bytes (default: 1048576 = 1MB)\n";
     echo "  --ftp-config <file>   FTP configuration file (default: ftp.json)\n";
-    echo "  --remote-dir <dir>    Remote directory on FTP (default: SanDisk/encrypted_chunks)\n";
+    echo "  --remote-dir <dir>    Remote directory on FTP (default: SanDisk/data)\n";
     echo "  --metadata <json>     Additional metadata as JSON string\n";
     echo "  --help                Show this help message\n\n";
     echo "Examples:\n";
@@ -29,7 +29,7 @@ function parseArguments(array $argv): array
         'key' => null,
         'chunk_size' => 1048576,
         'ftp_config' => 'ftp.json',
-        'remote_dir' => 'SanDisk/encrypted_chunks',
+        'remote_dir' => 'SanDisk/data',
         'metadata' => []
     ];
 

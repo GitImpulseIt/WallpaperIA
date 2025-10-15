@@ -74,7 +74,7 @@ try {
 
     $chunkSize = isset($_POST['chunk_size']) ? (int)$_POST['chunk_size'] : 1048576;
     $metadata = isset($_POST['metadata']) ? json_decode($_POST['metadata'], true) : [];
-    $remoteDir = isset($_POST['remote_dir']) ? $_POST['remote_dir'] : 'SanDisk/encrypted_chunks';
+    $remoteDir = isset($_POST['remote_dir']) ? $_POST['remote_dir'] : 'SanDisk/data';
 
     $encryptionService = new EncryptionService();
     $chunkManager = new ChunkManager($encryptionService, $chunkSize);

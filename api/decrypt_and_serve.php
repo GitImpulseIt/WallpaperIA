@@ -223,7 +223,7 @@ try {
     $encryptionService = new EncryptionService($options['key']);
     $chunkManager = new ChunkManager($encryptionService);
 
-    $storageLocation = $mapping['metadata']['storage_location'] ?? 'SanDisk/encrypted_chunks';
+    $storageLocation = $mapping['metadata']['storage_location'] ?? 'SanDisk/data';
 
     fprintf(STDERR, "Step 1: Downloading chunks from FTP...\n");
 
