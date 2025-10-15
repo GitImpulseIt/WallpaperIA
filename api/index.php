@@ -9,6 +9,11 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
+// Configuration des limites PHP (car php_value n'est pas supporté par tous les hébergeurs)
+ini_set('memory_limit', '1024M');
+ini_set('max_execution_time', '300');
+ini_set('max_input_time', '300');
+
 require_once __DIR__ . '/config/Config.php';
 require_once __DIR__ . '/core/Router.php';
 require_once __DIR__ . '/controllers/ApiController.php';
