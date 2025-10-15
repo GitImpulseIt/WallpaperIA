@@ -62,7 +62,9 @@ function connectFtp(string $configFile) {
         throw new Exception("Failed to login to FTP server");
     }
 
-    ftp_pasv($connection, true);
+    // Mode passif configurable (par défaut: true)
+    $passiveMode = isset($config['passive']) ? (bool)$config['passive'] : true;
+    ftp_pasv($connection, $passiveMode);
 
     return $connection;
 }
@@ -90,24 +92,12 @@ try {
     $chunkManager = new ChunkManager($encryptionService, $chunkSize);
     $mappingDb = new MappingDatabase();
 
-    // Étape 1 : Chiffrement et découpage
-    error_log("[UPLOAD] Starting encryption for: $originalFilename (size: $fileSize bytes)");
     $chunksData = $chunkManager->splitAndEncrypt($tmpPath);
-    error_log("[UPLOAD] Created {$chunksData['chunk_count']} chunks");
 
-    // Étape 2 : Connexion FTP
-    error_log("[UPLOAD] Connecting to FTP...");
+    // Upload vers FTP uniquement
     $ftpConnection = connectFtp(__DIR__ . '/ftp.json');
-    error_log("[UPLOAD] FTP connected successfully");
-
     try {
-        // Étape 3 : Upload vers FTP
-        error_log("[UPLOAD] Uploading to remote dir: $remoteDir");
         $savedChunks = $chunkManager->uploadChunksToFtp($chunksData, $ftpConnection, $remoteDir);
-        error_log("[UPLOAD] All chunks uploaded successfully");
-    } catch (Exception $e) {
-        error_log("[UPLOAD] FTP upload failed: " . $e->getMessage());
-        throw $e;
     } finally {
         ftp_close($ftpConnection);
     }

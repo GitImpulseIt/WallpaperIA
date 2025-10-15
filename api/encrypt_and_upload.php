@@ -100,7 +100,9 @@ function connectFtp(string $configFile)
         throw new Exception("Failed to login to FTP server");
     }
 
-    ftp_pasv($connection, true);
+    // Mode passif configurable (par défaut: true)
+    $passiveMode = isset($config['passive']) ? (bool)$config['passive'] : true;
+    ftp_pasv($connection, $passiveMode);
 
     return $connection;
 }

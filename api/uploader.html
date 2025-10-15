@@ -304,6 +304,18 @@
             background: #d32f2f;
         }
 
+        .btn-retry {
+            background: #ff9800;
+            color: white;
+            padding: 6px 12px;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .btn-retry:hover {
+            background: #f57c00;
+        }
+
         .action-buttons {
             display: flex;
             gap: 10px;
@@ -583,8 +595,17 @@
                         <div class="file-info" style="color: #f44336;">
                             <strong>Erreur:</strong> ${fileObj.error}
                         </div>
+                        <button class="btn btn-retry" data-file-id="${fileObj.id}">🔄 Réessayer</button>
                     ` : ''}
                 `;
+
+                // Ajouter l'event listener pour le bouton retry
+                if (fileObj.status === 'error') {
+                    const retryBtn = div.querySelector('.btn-retry');
+                    if (retryBtn) {
+                        retryBtn.addEventListener('click', () => this.retryUpload(fileObj.id));
+                    }
+                }
 
                 return div;
             }
@@ -714,6 +735,32 @@
                 }
                 document.getElementById('stat-success').textContent = this.stats.success;
                 document.getElementById('stat-error').textContent = this.stats.error;
+            }
+
+            retryUpload(fileId) {
+                const fileObj = this.files.find(f => f.id === fileId);
+                if (!fileObj) return;
+
+                // Réinitialiser le statut du fichier
+                fileObj.status = 'pending';
+                fileObj.progress = 0;
+                fileObj.error = null;
+                fileObj.result = null;
+
+                // Décrémenter le compteur d'erreurs
+                if (this.stats.error > 0) {
+                    this.stats.error--;
+                }
+
+                this.updateUI();
+
+                // Si pas d'upload en cours, activer le bouton de démarrage
+                if (!this.uploading) {
+                    this.startUploadBtn.disabled = false;
+                } else {
+                    // Si un upload est en cours, lancer directement ce fichier
+                    this.uploadFile(fileObj);
+                }
             }
 
             clearQueue() {
