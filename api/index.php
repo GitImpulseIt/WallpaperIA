@@ -4,6 +4,11 @@
  * Version refactorisée avec architecture modulaire
  */
 
+// Activer l'affichage des erreurs pour le debug
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+
 require_once __DIR__ . '/config/Config.php';
 require_once __DIR__ . '/core/Router.php';
 require_once __DIR__ . '/controllers/ApiController.php';
@@ -33,12 +38,18 @@ try {
     }
 
 } catch (Exception $e) {
-    // Global error handler
+    // Global error handler avec détails complets pour le debug
     $error_response = [
         'success' => false,
-        'error' => 'Internal server error: ' . $e->getMessage()
+        'error' => 'Internal server error: ' . $e->getMessage(),
+        'debug' => [
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]
     ];
 
+    http_response_code(500);
     echo json_encode($error_response, JSON_PRETTY_PRINT);
 }
 ?>
