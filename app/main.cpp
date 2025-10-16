@@ -17,6 +17,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QSslSocket>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -93,6 +94,11 @@ public:
 
     ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false), retryCountdownSeconds(0), currentHistoryScreen(0), historyScrollOffset(0), dontShowMultiScreenWarning(false)
     {
+        qDebug() << "[INIT] Démarrage de WallpaperAI";
+        qDebug() << "[INIT] QNetworkAccessManager créé:" << (networkManager != nullptr);
+        qDebug() << "[INIT] Support SSL:" << QSslSocket::supportsSsl();
+        qDebug() << "[INIT] Version SSL:" << QSslSocket::sslLibraryBuildVersionString();
+
         setWindowTitle("WallpaperAI");
         setWindowIcon(QIcon(getImagePath("icon.png")));
         setFixedSize(725, 650);
@@ -1483,17 +1489,26 @@ protected:
         }
 
         // Tenter de charger depuis l'API en arrière-plan
-        QNetworkRequest request(QUrl("https://kazflow.com/categories"));
+        QUrl apiUrl("https://kazflow.com/categories");
+        qDebug() << "[API] Requête categories vers:" << apiUrl.toString();
+        QNetworkRequest request(apiUrl);
         QNetworkReply *reply = networkManager->get(request);
         setupSslErrorHandling(reply);
 
         connect(reply, &QNetworkReply::finished, [this, reply]() {
+            qDebug() << "[API] Réponse categories - Code HTTP:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            qDebug() << "[API] Erreur réseau:" << reply->error() << reply->errorString();
+
             if (reply->error() == QNetworkReply::NoError) {
-                QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+                QByteArray responseData = reply->readAll();
+                qDebug() << "[API] Données reçues:" << responseData.left(200);
+
+                QJsonDocument doc = QJsonDocument::fromJson(responseData);
                 QJsonObject obj = doc.object();
 
                 if (obj["success"].toBool()) {
                     QJsonArray apiCategories = obj["data"].toArray();
+                    qDebug() << "[API] Nombre de catégories reçues:" << apiCategories.size();
 
                     // Vérifier s'il y a de nouvelles catégories
                     if (cachedCategories.isEmpty() || apiCategories.size() != cachedCategories.size()) {
@@ -1504,9 +1519,16 @@ protected:
                         clearCategoriesDisplay();
                         displayCategories(apiCategories);
                     }
+                } else {
+                    qDebug() << "[API] Erreur: success=false dans la réponse JSON";
                 }
             } else {
-                qDebug() << "Erreur API categories:" << reply->errorString();
+                qDebug() << "[API] ERREUR categories:" << reply->errorString();
+                // Afficher l'erreur dans le statusLabel pour debug
+                if (statusLabel) {
+                    statusLabel->setText(QString("Erreur API: %1").arg(reply->errorString()));
+                    statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
+                }
             }
             reply->deleteLater();
         });
