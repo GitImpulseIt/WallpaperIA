@@ -1464,6 +1464,14 @@ protected:
     }
 #endif
 
+    void setupSslErrorHandling(QNetworkReply *reply)
+    {
+        connect(reply, QOverload<const QList<QSslError>&>::of(&QNetworkReply::sslErrors),
+                [reply](const QList<QSslError> &errors) {
+            reply->ignoreSslErrors();
+        });
+    }
+
     void loadCategories()
     {
         // Charger le cache existant
@@ -1477,6 +1485,7 @@ protected:
         // Tenter de charger depuis l'API en arrière-plan
         QNetworkRequest request(QUrl("https://kazflow.com/api/categories"));
         QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
 
         connect(reply, &QNetworkReply::finished, [this, reply]() {
             if (reply->error() == QNetworkReply::NoError) {
@@ -1497,7 +1506,7 @@ protected:
                     }
                 }
             } else {
-                // Si pas de cache déjà affiché, rien à faire (déjà géré avant l'appel API)
+                qDebug() << "Erreur API categories:" << reply->errorString();
             }
             reply->deleteLater();
         });
@@ -1860,6 +1869,7 @@ protected:
 
         QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
 
         connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, categoryId, currentDate]() {
             if (reply->error() == QNetworkReply::NoError) {
@@ -1903,6 +1913,7 @@ protected:
 
         QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
 
         connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, categoryId, daysBack, previousDate]() {
             if (reply->error() == QNetworkReply::NoError) {
@@ -1955,6 +1966,7 @@ protected:
 
         QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
 
         connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, filename, cachedThumbnailPath]() {
             if (reply->error() == QNetworkReply::NoError) {
@@ -1985,6 +1997,7 @@ protected:
         // Méthode de fallback avec l'image complète (pour compatibilité)
         QNetworkRequest request(QUrl(QString("https://kazflow.com/api/get/%1").arg(filename)));
         QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
 
         connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, cachedThumbnailPath, filename]() {
             if (reply->error() == QNetworkReply::NoError) {
@@ -2371,6 +2384,7 @@ private:
 
         QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
 
         connect(reply, &QNetworkReply::finished, [this, reply, screenIndex, selectedCategoryId, daysBack, targetDate]() {
             // Vérifier que le téléchargement multi-écrans est toujours actif
@@ -2454,6 +2468,7 @@ private:
 
         QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
 
         connect(reply, &QNetworkReply::finished, [this, reply, screenIndex, categoryId, date]() {
             // Vérifier que le téléchargement multi-écrans est toujours actif
@@ -2609,6 +2624,7 @@ private:
         QNetworkRequest request;
         request.setUrl(url);
         QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
 
         connect(reply, &QNetworkReply::finished, [this, reply, screenIndex, imageUrl]() {
             // Vérifier que le téléchargement multi-écrans est toujours actif
@@ -3085,6 +3101,7 @@ private:
         QString miniUrl = QString("https://kazflow.com/api/mini/%1").arg(filename);
         QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
 
         // Utiliser QPointer pour éviter les crashes si le bouton est détruit pendant la requête
         QPointer<QPushButton> safeButton = thumbnailButton;
@@ -3245,6 +3262,7 @@ private:
         QString imageUrl = QString("https://kazflow.com/api/get/%1").arg(filename);
         QNetworkRequest request{QUrl(imageUrl)};
         QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
 
         connect(reply, &QNetworkReply::finished, [this, reply, filename]() {
             if (reply->error() == QNetworkReply::NoError) {
