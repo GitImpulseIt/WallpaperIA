@@ -2643,6 +2643,7 @@ private:
             return;
         }
 
+        qDebug() << "[DOWNLOAD] Téléchargement image pour écran" << screenIndex << ":" << imageUrl;
         QNetworkRequest request;
         request.setUrl(url);
         QNetworkReply *reply = networkManager->get(request);
@@ -2654,6 +2655,9 @@ private:
                 reply->deleteLater();
                 return;
             }
+
+            qDebug() << "[DOWNLOAD] Réponse écran" << screenIndex << "- Code HTTP:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            qDebug() << "[DOWNLOAD] Erreur réseau:" << reply->error() << reply->errorString();
 
             if (reply->error() == QNetworkReply::NoError) {
                 QByteArray imageData = reply->readAll();
@@ -2709,7 +2713,13 @@ private:
                     handleMultiDownloadError(QString("Erreur de sauvegarde pour écran %1").arg(screenIndex + 1));
                 }
             } else {
-                handleMultiDownloadError(QString("Erreur de téléchargement d'image pour écran %1: %2").arg(screenIndex + 1).arg(reply->errorString()));
+                QString errorMsg = QString("Erreur de téléchargement d'image pour écran %1: %2").arg(screenIndex + 1).arg(reply->errorString());
+                qDebug() << "[DOWNLOAD]" << errorMsg;
+                if (statusLabel) {
+                    statusLabel->setText(errorMsg);
+                    statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
+                }
+                handleMultiDownloadError(errorMsg);
             }
             reply->deleteLater();
         });
