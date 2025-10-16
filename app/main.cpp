@@ -2782,6 +2782,8 @@ private:
 
     void handleMultiDownloadError(const QString &error)
     {
+        qDebug() << "[ERROR]" << error;
+
         if (currentMultiDownload) {
             delete currentMultiDownload;
             currentMultiDownload = nullptr;
@@ -2790,14 +2792,17 @@ private:
         // Réactiver le bouton
         changeNowButton->setEnabled(true);
         changeNowButton->setText("🖼️ Changer Maintenant");
-        statusLabel->setText("Erreur lors du téléchargement");
+
+        // Afficher l'erreur détaillée dans le statusLabel
+        statusLabel->setText(error);
+        statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
 
         // Afficher l'alerte d'erreur API avec retry automatique
         showApiErrorAlert();
         startRetryTimer();
 
         // Aussi mettre un message court dans le statut
-        restoreButton("Erreur de téléchargement");
+        restoreButton(error);
     }
 
     void showApiErrorAlert()
