@@ -81,6 +81,7 @@ if exist "build\platforms" xcopy "build\platforms" "release\platforms\" /s /e /y
 if exist "build\imageformats" xcopy "build\imageformats" "release\imageformats\" /s /e /y /i
 if exist "build\iconengines" xcopy "build\iconengines" "release\iconengines\" /s /e /y /i
 if exist "build\styles" xcopy "build\styles" "release\styles\" /s /e /y /i
+if exist "build\tls" xcopy "build\tls" "release\tls\" /s /e /y /i
 
 echo Copie des images PNG...
 REM Copier uniquement les fichiers PNG du repertoire assets vers la racine de release
