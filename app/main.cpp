@@ -1475,7 +1475,7 @@ protected:
         }
 
         // Tenter de charger depuis l'API en arrière-plan
-        QNetworkRequest request(QUrl("http://localhost:8080/WallpaperAI/api/categories"));
+        QNetworkRequest request(QUrl("https://kazflow.com/api/categories"));
         QNetworkReply *reply = networkManager->get(request);
 
         connect(reply, &QNetworkReply::finished, [this, reply]() {
@@ -1854,7 +1854,7 @@ protected:
 
         // Sinon, charger depuis l'API
         QString currentDate = getCurrentDateString();
-        QString url = QString("http://localhost:8080/WallpaperAI/api/wallpapers?category=%1&date=%2")
+        QString url = QString("https://kazflow.com/api/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(currentDate).replace("/", "%2F"));
 
@@ -1897,7 +1897,7 @@ protected:
         }
 
         QString previousDate = getPreviousDateString(daysBack);
-        QString url = QString("http://localhost:8080/WallpaperAI/api/wallpapers?category=%1&date=%2")
+        QString url = QString("https://kazflow.com/api/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(previousDate).replace("/", "%2F"));
 
@@ -1951,7 +1951,7 @@ protected:
         }
 
         // Télécharger depuis l'API
-        QString miniUrl = QString("http://localhost:8080/WallpaperAI/api/mini/%1").arg(filename);
+        QString miniUrl = QString("https://kazflow.com/api/mini/%1").arg(filename);
 
         QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
@@ -1983,7 +1983,7 @@ protected:
     void loadThumbnailImageFallback(const QString &filename, QLabel *thumbnailLabel, const QString &cachedThumbnailPath)
     {
         // Méthode de fallback avec l'image complète (pour compatibilité)
-        QNetworkRequest request(QUrl(QString("http://localhost:8080/WallpaperAI/api/get/%1").arg(filename)));
+        QNetworkRequest request(QUrl(QString("https://kazflow.com/api/get/%1").arg(filename)));
         QNetworkReply *reply = networkManager->get(request);
 
         connect(reply, &QNetworkReply::finished, [this, reply, thumbnailLabel, cachedThumbnailPath, filename]() {
@@ -2365,7 +2365,7 @@ private:
         QString targetDate = (daysBack == 0) ? getCurrentDateString() : getPreviousDateString(daysBack);
 
         // Appeler l'API avec la catégorie et la date
-        QString url = QString("http://localhost:8080/WallpaperAI/api/wallpapers?category=%1&date=%2")
+        QString url = QString("https://kazflow.com/api/wallpapers?category=%1&date=%2")
                       .arg(selectedCategoryId)
                       .arg(QString(targetDate).replace("/", "%2F")); // URL encode les "/"
 
@@ -2448,7 +2448,7 @@ private:
         }
 
         // Appeler l'API avec la catégorie et la date spécifique
-        QString url = QString("http://localhost:8080/WallpaperAI/api/wallpapers?category=%1&date=%2")
+        QString url = QString("https://kazflow.com/api/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(date).replace("/", "%2F"));
 
@@ -2586,7 +2586,7 @@ private:
         }
 
         // Construire l'URL complète pour le téléchargement
-        QString imageUrl = QString("http://localhost:8080/WallpaperAI/api/get/%1").arg(filename);
+        QString imageUrl = QString("https://kazflow.com/api/get/%1").arg(filename);
 
         // Télécharger cette image pour cet écran
         downloadImageForScreen(imageUrl, screenIndex);
@@ -3082,7 +3082,7 @@ private:
         }
 
         // Sinon télécharger via l'API
-        QString miniUrl = QString("http://localhost:8080/WallpaperAI/api/mini/%1").arg(filename);
+        QString miniUrl = QString("https://kazflow.com/api/mini/%1").arg(filename);
         QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
 
@@ -3242,7 +3242,7 @@ private:
     {
         statusLabel->setText("Téléchargement de l'image depuis l'API...");
 
-        QString imageUrl = QString("http://localhost:8080/WallpaperAI/api/get/%1").arg(filename);
+        QString imageUrl = QString("https://kazflow.com/api/get/%1").arg(filename);
         QNetworkRequest request{QUrl(imageUrl)};
         QNetworkReply *reply = networkManager->get(request);
 
