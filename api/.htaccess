@@ -1,3 +1,21 @@
+# Désactiver MultiViews pour éviter les conflits entre endpoints et fichiers physiques
+# MultiViews permet à Apache de chercher des fichiers avec des extensions similaires
+# ce qui causait le conflit entre l'endpoint /wallpapers et le fichier wallpapers.csv
+Options -MultiViews
+
+RewriteEngine On
+
+# Forcer la réécriture pour les endpoints API même si des fichiers physiques existent
+RewriteRule ^categories$ index.php [QSA,L]
+RewriteRule ^wallpapers$ index.php [QSA,L]
+RewriteRule ^get/.+ index.php [QSA,L]
+RewriteRule ^mini/.+ index.php [QSA,L]
+
+# Pour tous les autres cas, router vers index.php si le fichier/dossier n'existe pas
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
 # Sécurité : Interdire l'accès direct aux fichiers sensibles
 <FilesMatch "^(encryption\.key|ftp\.json|file_mappings\.json|wallpapers\.csv)$">
     Order Allow,Deny
@@ -9,11 +27,6 @@
     # Les scripts PHP locaux peuvent toujours lire ces fichiers
     # Mais aucun accès HTTP direct n'est autorisé
 </Files>
-
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Note: Les limites PHP (memory_limit, max_execution_time, etc.)
 # doivent être configurées dans php.ini ou via ini_set() dans le code

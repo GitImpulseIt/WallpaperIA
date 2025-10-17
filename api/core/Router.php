@@ -21,14 +21,22 @@ class Router {
      */
     private function parseRequest() {
         // Parse the URI to get the endpoint
-        $uri_parts = explode('/', trim($this->request_uri, '/'));
+        // Remove query string first
+        $uri_without_query = strtok($this->request_uri, '?');
+
+        // Split by / and filter empty parts
+        $uri_parts = array_values(array_filter(explode('/', $uri_without_query)));
+
+        // Remove 'api' from path if present (for /api/wallpapers structure)
+        $uri_parts = array_values(array_filter($uri_parts, function($part) {
+            return $part !== 'api' && $part !== 'index.php';
+        }));
+
+        // Get the last part as endpoint
         $this->endpoint = end($uri_parts);
 
-        // Remove query parameters
-        $this->endpoint = strtok($this->endpoint, '?');
-
         // Handle empty endpoint (root path)
-        if (empty($this->endpoint)) {
+        if (empty($this->endpoint) || $this->endpoint === 'index.php') {
             $this->endpoint = '';
         }
 

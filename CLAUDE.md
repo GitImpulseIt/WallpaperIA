@@ -130,3 +130,4 @@
 - **Endpoint `/mini/{filename}`** : Miniatures optimisées (204x115px)
 - **Optimisation** : Réduction drastique des appels API grâce aux thumbnails dans `/categories`
 - **Fallback intelligent** : Remontée automatique jusqu'à 7 jours en arrière si date vide
+- **Configuration Apache** : `Options -MultiViews` dans `.htaccess` pour résoudre conflit endpoint `/wallpapers` vs fichier `wallpapers.csv`
