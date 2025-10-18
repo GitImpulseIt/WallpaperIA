@@ -21,7 +21,7 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Sécurité : Interdire l'accès direct aux fichiers sensibles
-<FilesMatch "^(encryption\.key|ftp\.json|file_mappings\.json|wallpapers\.csv|\.credentials)$">
+<FilesMatch "^(ftp\.json|wallpapers\.csv|\.credentials)$">
     Order Allow,Deny
     Deny from all
 </FilesMatch>

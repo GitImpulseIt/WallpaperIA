@@ -1,6 +1,6 @@
 # WallpaperIA API
 
-API REST pour servir les wallpapers chiffrés depuis le FTP.
+API REST pour servir les wallpapers depuis un FTP sécurisé.
 
 ## Endpoints
 
@@ -44,12 +44,9 @@ Ajoute une nouvelle entrée dans le fichier wallpapers.csv.
 
 ## Services
 
-- **FtpService** : Téléchargement depuis FTP/FTPES
-- **EncryptionService** : Déchiffrement AES-256-GCM
-- **ChunkManager** : Téléchargement et réassemblage des chunks
-- **MappingDatabase** : Lecture de la base de mappings (lecture seule)
-- **WallpaperService** : Logique métier wallpapers
-- **ThumbnailService** : Génération de miniatures
+- **FtpService** : Téléchargement direct depuis FTP/FTPES sécurisé
+- **WallpaperService** : Logique métier wallpapers (lecture CSV, catégories)
+- **ThumbnailService** : Génération de miniatures avec cache
 - **AuthService** : Authentification HTTP Basic Auth
 - **CsvManager** : Gestion du fichier wallpapers.csv (ajout d'entrées)
 
@@ -69,8 +66,7 @@ Protection des fichiers sensibles, configuration PHP.
 }
 ```
 
-### encryption.key
-Clé de déchiffrement (256 bits hex).
+**Note** : L'API se connecte directement au FTP sécurisé (FTPES) pour récupérer les wallpapers. Aucun chiffrement ou chunking n'est nécessaire grâce à la sécurité du protocole FTPES.
 
 ### .credentials
 Fichier d'authentification pour POST /wallpapers.

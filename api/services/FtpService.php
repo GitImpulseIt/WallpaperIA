@@ -1,24 +1,15 @@
 <?php
 require_once __DIR__ . '/../config/Config.php';
-require_once __DIR__ . '/EncryptionService.php';
-require_once __DIR__ . '/ChunkManager.php';
-require_once __DIR__ . '/MappingDatabase.php';
 
 /**
- * Service pour le téléchargement sécurisé depuis FTP avec déchiffrement
+ * Service simple pour le téléchargement direct depuis FTP sécurisé
  */
 class FtpService {
     private $ftp_config;
     private $ftp_connection;
-    private $encryptionService;
-    private $chunkManager;
-    private $mappingDb;
 
     public function __construct() {
         $this->loadFtpConfig();
-        $this->encryptionService = new EncryptionService();
-        $this->chunkManager = new ChunkManager($this->encryptionService);
-        $this->mappingDb = new MappingDatabase();
     }
 
     /**
@@ -85,46 +76,51 @@ class FtpService {
     }
 
     /**
-     * Télécharge et déchiffre un fichier depuis le FTP
-     * Utilise obligatoirement le mapping database et le déchiffrement
+     * Télécharge un fichier directement depuis le FTP
+     * @param string $filename Nom du fichier à télécharger
+     * @return array ['success' => bool, 'content' => string|null, 'content_type' => string|null, 'filename' => string, 'error' => string|null]
      */
     public function getFileFromFtp($filename) {
         try {
-            // 1. Rechercher le fichier dans la base de mapping
-            $mapping = $this->mappingDb->getMappingByOriginalFilename($filename);
-
-            if (!$mapping) {
-                throw new Exception('File not found in mapping database');
-            }
-
-            // 2. Se connecter au FTP
+            // Se connecter au FTP
             $ftpConnection = $this->connect();
 
-            // 3. Déterminer le répertoire de stockage
-            $storageLocation = $mapping['metadata']['storage_location'] ?? 'SanDisk/data';
+            // Construire le chemin complet sur le FTP
+            $ftpDirectory = $this->ftp_config['directory'] ?? '/wallpapers';
+            $remotePath = rtrim($ftpDirectory, '/') . '/' . $filename;
 
-            // 4. Télécharger les chunks depuis le FTP
-            $chunks = $this->chunkManager->downloadChunksFromFtp(
-                $mapping['chunks'],
-                $ftpConnection,
-                $storageLocation
-            );
+            // Créer un fichier temporaire local
+            $tempFile = tempnam(sys_get_temp_dir(), 'ftp_');
 
-            // 5. Déchiffrer et réassembler le fichier
-            $decryptedContent = $this->chunkManager->decryptAndReassemble($chunks);
+            // Télécharger le fichier depuis le FTP
+            if (!ftp_get($ftpConnection, $tempFile, $remotePath, FTP_BINARY)) {
+                unlink($tempFile);
+                throw new Exception("Failed to download file from FTP: $remotePath");
+            }
 
-            // 6. Retourner le contenu déchiffré
+            // Lire le contenu du fichier
+            $content = file_get_contents($tempFile);
+
+            // Déterminer le type MIME
+            $mimeType = $this->getMimeType($filename);
+
+            // Supprimer le fichier temporaire
+            unlink($tempFile);
+
             return [
                 'success' => true,
-                'content' => $decryptedContent,
-                'content_type' => $mapping['mime_type'],
+                'content' => $content,
+                'content_type' => $mimeType,
                 'filename' => $filename,
-                'original_size' => $mapping['original_size']
+                'error' => null
             ];
 
         } catch (Exception $e) {
             return [
                 'success' => false,
+                'content' => null,
+                'content_type' => null,
+                'filename' => $filename,
                 'error' => $e->getMessage()
             ];
         } finally {
@@ -133,29 +129,81 @@ class FtpService {
     }
 
     /**
-     * Vérifie si un fichier existe dans la base de mapping
+     * Vérifie si un fichier existe sur le FTP
+     * @param string $filename Nom du fichier
+     * @return bool
      */
     public function fileExists($filename) {
-        return $this->mappingDb->fileExists($filename);
+        try {
+            $ftpConnection = $this->connect();
+            $ftpDirectory = $this->ftp_config['directory'] ?? '/wallpapers';
+            $remotePath = rtrim($ftpDirectory, '/') . '/' . $filename;
+
+            // Essayer d'obtenir la taille du fichier (méthode rapide pour vérifier l'existence)
+            $size = ftp_size($ftpConnection, $remotePath);
+
+            return $size !== -1;
+
+        } catch (Exception $e) {
+            return false;
+        } finally {
+            $this->disconnect();
+        }
     }
 
     /**
      * Obtient les informations d'un fichier sans le télécharger
+     * @param string $filename Nom du fichier
+     * @return array|null
      */
     public function getFileInfo($filename) {
-        $mapping = $this->mappingDb->getMappingByOriginalFilename($filename);
+        try {
+            $ftpConnection = $this->connect();
+            $ftpDirectory = $this->ftp_config['directory'] ?? '/wallpapers';
+            $remotePath = rtrim($ftpDirectory, '/') . '/' . $filename;
 
-        if (!$mapping) {
+            $size = ftp_size($ftpConnection, $remotePath);
+
+            if ($size === -1) {
+                return null;
+            }
+
+            $mtime = ftp_mdtm($ftpConnection, $remotePath);
+
+            return [
+                'filename' => $filename,
+                'size' => $size,
+                'mime_type' => $this->getMimeType($filename),
+                'modified_time' => $mtime !== -1 ? date('Y-m-d H:i:s', $mtime) : null
+            ];
+
+        } catch (Exception $e) {
             return null;
+        } finally {
+            $this->disconnect();
         }
+    }
 
-        return [
-            'filename' => $mapping['original_filename'],
-            'size' => $mapping['original_size'],
-            'mime_type' => $mapping['mime_type'],
-            'chunk_count' => $mapping['chunk_count'],
-            'created_at' => $mapping['created_at']
+    /**
+     * Détermine le type MIME d'un fichier basé sur son extension
+     * @param string $filename
+     * @return string
+     */
+    private function getMimeType($filename) {
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'bmp' => 'image/bmp',
+            'svg' => 'image/svg+xml',
+            'ico' => 'image/x-icon'
         ];
+
+        return $mimeTypes[$extension] ?? 'application/octet-stream';
     }
 
     public function __destruct() {
