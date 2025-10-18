@@ -108,26 +108,15 @@ class ComfyUIUploader {
 
     /**
      * Upload un fichier vers le FTP
+     * Tous les fichiers sont uploadés dans le même répertoire (pas de sous-répertoires)
      */
-    private function uploadToFtp($localFile, $remoteFile) {
+    private function uploadToFtp($localFile, $filename) {
         $ftpConnection = $this->connectFtp();
         $ftpConfig = $this->config['ftp'];
         $remoteDirectory = $ftpConfig['remote_directory'] ?? '/wallpapers';
 
-        // Construire le chemin distant complet
-        $remotePath = rtrim($remoteDirectory, '/') . '/' . $remoteFile;
-
-        // Créer les sous-répertoires si nécessaire
-        $pathParts = explode('/', dirname($remoteFile));
-        $currentPath = rtrim($remoteDirectory, '/');
-
-        foreach ($pathParts as $dir) {
-            if (empty($dir)) continue;
-            $currentPath .= '/' . $dir;
-
-            // Essayer de créer le répertoire (ignore si existe déjà)
-            @ftp_mkdir($ftpConnection, $currentPath);
-        }
+        // Construire le chemin distant complet (fichier directement dans le répertoire racine)
+        $remotePath = rtrim($remoteDirectory, '/') . '/' . $filename;
 
         // Upload du fichier
         if (!ftp_put($ftpConnection, $remotePath, $localFile, FTP_BINARY)) {
@@ -159,10 +148,18 @@ class ComfyUIUploader {
         ]);
         curl_setopt($ch, CURLOPT_USERPWD, $apiConfig['username'] . ':' . $apiConfig['password']);
         curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
+
+        if ($response === false || $httpCode === 0) {
+            throw new Exception("API connection failed: $curlError");
+        }
 
         if ($httpCode !== 200) {
             throw new Exception("API registration failed (HTTP $httpCode): $response");
@@ -171,7 +168,9 @@ class ComfyUIUploader {
         $result = json_decode($response, true);
 
         if (!$result || !isset($result['success']) || !$result['success']) {
-            throw new Exception("API registration failed: " . ($result['message'] ?? 'Unknown error'));
+            $errorMsg = $result['message'] ?? 'Unknown error';
+            $fullResponse = $response ? " (Response: $response)" : '';
+            throw new Exception("API registration failed: $errorMsg$fullResponse");
         }
 
         $this->log("Registered in API: $category / $filename");
@@ -252,28 +251,25 @@ class ComfyUIUploader {
                     // Extraire le nom de base (sans l'indice)
                     $baseName = $this->extractBaseName($file);
 
-                    // Construire le chemin distant: category/filename
-                    $remoteFile = $category . '/' . $baseName;
-
                     // Vérifier si déjà uploadé dans cette session
-                    if (in_array($remoteFile, $this->uploadedFiles)) {
-                        $this->log("Already uploaded in this session: $remoteFile", 'SKIP');
+                    if (in_array($baseName, $this->uploadedFiles)) {
+                        $this->log("Already uploaded in this session: $baseName", 'SKIP');
                         continue;
                     }
 
-                    $this->log("Processing: $file -> $baseName");
+                    $this->log("Processing: $file -> $baseName (category: $category)");
 
                     if (!$dryRun) {
-                        // Upload vers le FTP
-                        $this->uploadToFtp($filePath, $remoteFile);
+                        // Upload vers le FTP (tous les fichiers dans le même répertoire)
+                        $this->uploadToFtp($filePath, $baseName);
 
-                        // Enregistrer dans l'API
+                        // Enregistrer dans l'API avec la catégorie
                         $this->registerInApi($category, $baseName, $currentDate);
 
                         // Marquer comme uploadé
-                        $this->uploadedFiles[] = $remoteFile;
+                        $this->uploadedFiles[] = $baseName;
                     } else {
-                        $this->log("[DRY RUN] Would upload: $remoteFile");
+                        $this->log("[DRY RUN] Would upload: $baseName (category: $category)");
                     }
 
                     $processedCount++;

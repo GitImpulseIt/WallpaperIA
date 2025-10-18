@@ -2,6 +2,8 @@
 api/ftp.json
 api/encryption.key
 api/file_mappings.json
+ComfyUIBot/config.json
+ComfyUIBot/upload.log
 
 # Claude Code
 .claude/

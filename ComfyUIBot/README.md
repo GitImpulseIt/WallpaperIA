@@ -76,8 +76,8 @@ C:\Installation\ComfyUI\output\
 Le script :
 - Détecte la catégorie : `CYBERPUNK/FUTURISTIC`
 - Extrait le nom de base : `neon_city_night_00001_.png` → `neon_city_night.png`
-- Upload vers FTP : `/wallpapers/CYBERPUNK/FUTURISTIC/neon_city_night.png`
-- Enregistre dans l'API avec la date du jour
+- Upload vers FTP : `/wallpapers/neon_city_night.png` (tous les fichiers regroupés dans le même répertoire)
+- Enregistre dans l'API avec la catégorie et la date du jour
 
 ### 3. Pattern de nom de fichier
 
@@ -92,6 +92,8 @@ Exemples de conversion :
 
 Le script vérifie si un fichier a déjà été uploadé dans la session en cours pour éviter les doublons (si plusieurs variantes `_00001_`, `_00002_` existent).
 
+**Important** : Tous les fichiers sont uploadés dans le même répertoire FTP (pas de sous-répertoires par catégorie). La catégorie est uniquement conservée pour l'enregistrement dans l'API.
+
 ## Logs
 
 Les opérations sont enregistrées dans `upload.log` :
@@ -99,8 +101,8 @@ Les opérations sont enregistrées dans `upload.log` :
 [2025-01-15 14:30:00] [INFO] Starting image processing from: C:\Installation\ComfyUI\output
 [2025-01-15 14:30:01] [INFO] Connected to FTP server: example.com
 [2025-01-15 14:30:02] [INFO] Processing category: CYBERPUNK/FUTURISTIC
-[2025-01-15 14:30:03] [INFO] Processing: neon_city_night_00001_.png -> neon_city_night.png
-[2025-01-15 14:30:04] [INFO] Uploaded to FTP: /wallpapers/CYBERPUNK/FUTURISTIC/neon_city_night.png
+[2025-01-15 14:30:03] [INFO] Processing: neon_city_night_00001_.png -> neon_city_night.png (category: CYBERPUNK/FUTURISTIC)
+[2025-01-15 14:30:04] [INFO] Uploaded to FTP: /wallpapers/neon_city_night.png
 [2025-01-15 14:30:05] [INFO] Registered in API: CYBERPUNK/FUTURISTIC / neon_city_night.png
 [2025-01-15 14:30:06] [INFO] Processing completed: 15 files processed, 0 errors
 ```
