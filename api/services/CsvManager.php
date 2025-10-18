@@ -36,13 +36,9 @@ class CsvManager {
         // Calculer le prochain ID pour cette catégorie/date
         $nextId = $this->getNextId($category, $date);
 
-        // Préparer la ligne CSV
-        $csvLine = [
-            $category,
-            $filename,
-            $date,
-            $nextId
-        ];
+        // Préparer la ligne CSV manuellement (sans quotes autour des valeurs)
+        // Format: category,filename,date,id
+        $csvLine = $category . ',' . $filename . ',' . $date . ',' . $nextId . "\n";
 
         // Ouvrir le fichier en mode append
         $handle = fopen($this->csvFile, 'a');
@@ -55,7 +51,7 @@ class CsvManager {
         }
 
         // Ajouter la ligne
-        if (fputcsv($handle, $csvLine, ',', '"', '\\') === false) {
+        if (fwrite($handle, $csvLine) === false) {
             fclose($handle);
             return [
                 'success' => false,
