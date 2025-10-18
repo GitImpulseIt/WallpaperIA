@@ -5,6 +5,10 @@ Options -MultiViews
 
 RewriteEngine On
 
+# Transmettre les headers d'authentification à PHP
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+
 # Forcer la réécriture pour les endpoints API même si des fichiers physiques existent
 RewriteRule ^categories$ index.php [QSA,L]
 RewriteRule ^wallpapers$ index.php [QSA,L]
@@ -17,7 +21,7 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Sécurité : Interdire l'accès direct aux fichiers sensibles
-<FilesMatch "^(encryption\.key|ftp\.json|file_mappings\.json|wallpapers\.csv)$">
+<FilesMatch "^(encryption\.key|ftp\.json|file_mappings\.json|wallpapers\.csv|\.credentials)$">
     Order Allow,Deny
     Deny from all
 </FilesMatch>

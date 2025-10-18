@@ -2,6 +2,8 @@
 require_once __DIR__ . '/../services/WallpaperService.php';
 require_once __DIR__ . '/../services/FtpService.php';
 require_once __DIR__ . '/../services/ThumbnailService.php';
+require_once __DIR__ . '/../services/AuthService.php';
+require_once __DIR__ . '/../services/CsvManager.php';
 require_once __DIR__ . '/../core/Router.php';
 
 /**
@@ -11,11 +13,15 @@ class ApiController {
     private $wallpaperService;
     private $ftpService;
     private $thumbnailService;
+    private $authService;
+    private $csvManager;
 
     public function __construct() {
         $this->wallpaperService = new WallpaperService();
         $this->ftpService = new FtpService();
         $this->thumbnailService = new ThumbnailService();
+        $this->authService = new AuthService();
+        $this->csvManager = new CsvManager();
     }
 
     /**
@@ -34,6 +40,9 @@ class ApiController {
 
             case 'wallpapers':
                 return $this->handleWallpapersRequest($request['category'] ?? null, $request['date'] ?? null);
+
+            case 'add_wallpaper':
+                return $this->handleAddWallpaperRequest($request['data'] ?? []);
 
             case 'info':
                 return $this->handleInfoRequest();
@@ -131,6 +140,71 @@ class ApiController {
         }
 
         return $this->wallpaperService->getWallpapersByCategoryAndDate($category, $date);
+    }
+
+    /**
+     * Gère les requêtes d'ajout de wallpaper
+     */
+    private function handleAddWallpaperRequest($data) {
+        // Vérifier l'authentification
+        $authResult = $this->authService->authenticate();
+
+        if (!$authResult['success']) {
+            // Envoyer les headers pour demander l'authentification
+            $this->authService->requireAuth();
+            return [
+                'success' => false,
+                'error' => $authResult['error']
+            ];
+        }
+
+        // Extraire les données
+        $category = $data['category'] ?? null;
+        $filename = $data['filename'] ?? null;
+        $date = $data['date'] ?? null;
+
+        // Valider les paramètres requis
+        if (!$category || !$filename || !$date) {
+            return [
+                'success' => false,
+                'error' => 'Missing required parameters: category, filename, date',
+                'required_format' => [
+                    'category' => 'string (e.g., "CYBERPUNK/FUTURISTIC")',
+                    'filename' => 'string with extension (e.g., "neon_city_night.png")',
+                    'date' => 'string DD/MM/YYYY (e.g., "29/09/2025")'
+                ]
+            ];
+        }
+
+        // Vérifier si l'entrée existe déjà
+        if ($this->csvManager->entryExists($category, $filename, $date)) {
+            return [
+                'success' => false,
+                'error' => 'Entry already exists',
+                'entry' => [
+                    'category' => $category,
+                    'filename' => $filename,
+                    'date' => $date
+                ]
+            ];
+        }
+
+        // Ajouter l'entrée au CSV
+        $result = $this->csvManager->addEntry($category, $filename, $date);
+
+        if ($result['success']) {
+            return [
+                'success' => true,
+                'message' => 'Wallpaper entry added successfully',
+                'entry' => $result['entry'],
+                'authenticated_as' => $authResult['username']
+            ];
+        } else {
+            return [
+                'success' => false,
+                'error' => $result['error']
+            ];
+        }
     }
 
     /**

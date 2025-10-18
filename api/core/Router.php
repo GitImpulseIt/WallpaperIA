@@ -60,6 +60,8 @@ class Router {
         switch ($this->request_method) {
             case 'GET':
                 return $this->handleGetRequest();
+            case 'POST':
+                return $this->handlePostRequest();
             default:
                 return $this->methodNotAllowed();
         }
@@ -111,6 +113,24 @@ class Router {
     }
 
     /**
+     * Gère les requêtes POST
+     */
+    private function handlePostRequest() {
+        if ($this->endpoint === 'wallpapers') {
+            // Parse JSON body
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+
+            return [
+                'type' => 'add_wallpaper',
+                'data' => $data
+            ];
+        } else {
+            return $this->endpointNotFound();
+        }
+    }
+
+    /**
      * Méthode non autorisée
      */
     private function methodNotAllowed() {
@@ -119,7 +139,7 @@ class Router {
             'response' => [
                 'success' => false,
                 'error' => 'Method not allowed',
-                'allowed_methods' => ['GET']
+                'allowed_methods' => ['GET', 'POST']
             ]
         ];
     }
@@ -136,7 +156,8 @@ class Router {
                 'GET /categories' => 'Get all available categories',
                 'GET /wallpapers?category={id}&date={DD/MM/YYYY}' => 'Get wallpapers by category and date (both required)',
                 'GET /get/{filename}' => 'Get file from FTP server',
-                'GET /mini/{filename}' => 'Get thumbnail (204x115 JPG) - generates if not exists'
+                'GET /mini/{filename}' => 'Get thumbnail (204x115 JPG) - generates if not exists',
+                'POST /wallpapers' => 'Add new wallpaper entry (requires HTTP Basic Auth)'
             ]
         ];
     }
