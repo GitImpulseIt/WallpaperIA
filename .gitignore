@@ -8,11 +8,16 @@ api/file_mappings.json
 
 # Build/Release directories
 app/build/
+app/build_debug/
+app/build_debug_release/
 **/build/
 app/release/
 
 # Miniatures générées (cache)
 api/miniatures/
+
+# Datasets de prompts (fichiers de travail)
+prompts/image_titles_dataset_v6.csv
 
 # Visual Studio files
 *.vcxproj.user
