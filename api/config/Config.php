@@ -6,12 +6,51 @@ class Config {
 
     /**
      * Configuration des headers CORS
+     *
+     * CORS (Cross-Origin Resource Sharing) est une sécurité des NAVIGATEURS WEB uniquement.
+     * Les applications desktop (Qt, Electron, etc.) ne sont PAS affectées par CORS.
+     *
+     * Scénarios supportés :
+     * 1. Application Qt Desktop (WallpaperIA.exe) -> Pas de CORS nécessaire, fonctionne toujours
+     * 2. Interface web locale (fichier HTML ouvert directement) -> Origin: null
+     * 3. Interface web hébergée -> Whitelist de domaines autorisés
      */
     public static function setCorsHeaders() {
         header('Content-Type: application/json');
-        header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type');
+
+        // Liste blanche des origines autorisées
+        $allowed_origins = [
+            'https://kazflow.com',           // Votre domaine principal
+            'https://www.kazflow.com',       // Variante www
+            'http://localhost',              // Développement local
+            'http://127.0.0.1',              // Développement local
+            'null'                           // Fichiers HTML locaux (file://)
+        ];
+
+        // Récupérer l'origine de la requête
+        $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+
+        // Vérifier si l'origine est dans la whitelist
+        $origin_allowed = false;
+        foreach ($allowed_origins as $allowed) {
+            // Correspondance exacte ou correspondance de début pour localhost avec port
+            if ($origin === $allowed ||
+                ($allowed === 'http://localhost' && strpos($origin, 'http://localhost:') === 0) ||
+                ($allowed === 'http://127.0.0.1' && strpos($origin, 'http://127.0.0.1:') === 0)) {
+                $origin_allowed = true;
+                break;
+            }
+        }
+
+        // Si l'origine est autorisée, la renvoyer. Sinon, pas de header CORS.
+        // Note : Les applications desktop (Qt) ne envoient pas de header Origin, donc elles passent toujours
+        if ($origin_allowed && $origin !== '') {
+            header('Access-Control-Allow-Origin: ' . $origin);
+            header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+            header('Access-Control-Allow-Headers: Content-Type, Authorization');
+            header('Access-Control-Allow-Credentials: true');
+        }
+        // Si pas d'origine dans la requête (application desktop), pas de header CORS = autorisé par défaut
     }
 
     /**
