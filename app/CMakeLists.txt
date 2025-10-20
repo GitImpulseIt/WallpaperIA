@@ -34,6 +34,7 @@ add_executable(WallpaperAI WIN32
     src/widgets/screen_selector.cpp
     src/widgets/countdown_widget.cpp
     src/widgets/toggle_switch.cpp
+    src/widgets/apply_category_dialog.cpp
     resources.qrc
     app.rc
 )

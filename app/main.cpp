@@ -59,6 +59,7 @@
 #include "src/widgets/screen_selector.h"
 #include "src/widgets/countdown_widget.h"
 #include "src/widgets/toggle_switch.h"
+#include "src/widgets/apply_category_dialog.h"
 #include "src/core/wallpaper_builder.h"
 
 #ifdef Q_OS_WIN
@@ -1658,6 +1659,38 @@ protected:
         thumbnailLabel->setText("Miniature\n" + name);
         thumbnailLabel->setWordWrap(true);
 
+        // Bouton "Appliquer" au centre de la miniature (masqué par défaut)
+        QPushButton *applyBtn = new QPushButton("Appliquer", thumbnailContainer);
+        applyBtn->setObjectName("applyBtn_" + id);
+        applyBtn->setGeometry((165 - 90) / 2, (90 - 30) / 2, 90, 30); // Centré
+        applyBtn->setStyleSheet(
+            "QPushButton {"
+            "   background-color: rgba(33, 150, 243, 0.9);"
+            "   color: white;"
+            "   border: none;"
+            "   border-radius: 5px;"
+            "   font-size: 11pt;"
+            "   font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "   background-color: rgba(25, 118, 210, 0.95);"
+            "}"
+            "QPushButton:pressed {"
+            "   background-color: rgba(13, 71, 161, 1);"
+            "}"
+        );
+        applyBtn->setCursor(Qt::PointingHandCursor);
+        applyBtn->hide(); // Masqué par défaut, affiché au survol
+
+        // Stocker le filename de la miniature pour une utilisation ultérieure
+        applyBtn->setProperty("thumbnailFilename", thumbnail);
+        applyBtn->setProperty("categoryName", name);
+
+        // Connexion au clic du bouton Appliquer
+        connect(applyBtn, &QPushButton::clicked, [this, id, name, thumbnail]() {
+            showApplyCategoryDialog(id, name, thumbnail);
+        });
+
         // Système de notation superposé
         createRatingSystem(thumbnailContainer, id);
 
@@ -1804,6 +1837,225 @@ protected:
                 }
             }
         }
+    }
+
+    void showApplyCategoryDialog(const QString &categoryId, const QString &categoryName, const QString &thumbnailFilename)
+    {
+        // Compter le nombre d'écrans disponibles
+        int screenCount = QGuiApplication::screens().count();
+        bool multiScreenMode = multiScreenToggle->isChecked();
+
+        // Créer et afficher le dialogue
+        ApplyCategoryDialog *dialog = new ApplyCategoryDialog(categoryId, categoryName, thumbnailFilename,
+                                                              multiScreenMode, screenCount, this);
+
+        // Connexion pour appliquer la miniature comme fond d'écran
+        connect(dialog, &ApplyCategoryDialog::applyThumbnail, this,
+                [this, thumbnailFilename](int screenIndex) {
+            applyThumbnailAsWallpaper(thumbnailFilename, screenIndex);
+        });
+
+        // Connexion pour appliquer une image aléatoire de la catégorie
+        connect(dialog, &ApplyCategoryDialog::applyRandomFromCategory, this,
+                [this, categoryId](int screenIndex) {
+            applyRandomCategoryWallpaper(categoryId, screenIndex);
+        });
+
+        dialog->exec();
+        dialog->deleteLater();
+    }
+
+    void applyThumbnailAsWallpaper(const QString &filename, int screenIndex)
+    {
+        if (filename.isEmpty()) {
+            QMessageBox::warning(this, "Erreur", "Aucune miniature disponible pour cette catégorie.");
+            return;
+        }
+
+        // Télécharger l'image complète depuis l'API
+        QString url = QString("https://kazflow.com/get/%1").arg(filename);
+        QNetworkRequest request{QUrl(url)};
+        QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, screenIndex, filename]() {
+            if (reply->error() == QNetworkReply::NoError) {
+                QByteArray imageData = reply->readAll();
+                QPixmap pixmap;
+                if (pixmap.loadFromData(imageData)) {
+                    // Créer le chemin de sauvegarde
+                    QString screenId = getScreenUniqueId(screenIndex);
+                    QString wallpapersDir = getWallpapersDirectory();
+                    QString screenDir = wallpapersDir + "/" + screenId;
+
+                    // Créer le répertoire s'il n'existe pas
+                    QDir().mkpath(screenDir);
+
+                    QString savePath = screenDir + "/" + filename;
+
+                    if (pixmap.save(savePath)) {
+                        // Appliquer le wallpaper
+                        if (multiScreenToggle->isChecked() && QGuiApplication::screens().count() > 1) {
+                            // Mode multi-écrans : reconstruire le composite
+                            QMap<int, QString> wallpapers;
+                            wallpapers[screenIndex] = savePath;
+                            rebuildCompositeWallpaper(wallpapers);
+                        } else {
+                            // Mode simple : appliquer directement
+                            setWallpaperWithSmoothTransition(savePath);
+                        }
+
+                        statusLabel->setText("Fond d'écran appliqué avec succès !");
+                        statusLabel->setStyleSheet("color: #2196F3; font-weight: bold;");
+                    } else {
+                        statusLabel->setText("Erreur lors de la sauvegarde de l'image.");
+                        statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
+                    }
+                } else {
+                    statusLabel->setText("Erreur lors du chargement de l'image.");
+                    statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
+                }
+            } else {
+                statusLabel->setText("Erreur de téléchargement : " + reply->errorString());
+                statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
+            }
+            reply->deleteLater();
+        });
+    }
+
+    void applyRandomCategoryWallpaper(const QString &categoryId, int screenIndex)
+    {
+        // Réutiliser la logique existante de sélection aléatoire
+        // mais pour une seule catégorie spécifique
+        QString currentDate = getCurrentDateString();
+        QString url = QString("https://kazflow.com/wallpapers?category=%1&date=%2")
+                      .arg(categoryId)
+                      .arg(QString(currentDate).replace("/", "%2F"));
+
+        QNetworkRequest request{QUrl(url)};
+        QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, categoryId, currentDate, screenIndex]() {
+            if (reply->error() == QNetworkReply::NoError) {
+                QByteArray responseData = reply->readAll();
+                QJsonDocument doc = QJsonDocument::fromJson(responseData);
+                QJsonObject obj = doc.object();
+
+                if (obj["success"].toBool()) {
+                    QJsonArray wallpapers = obj["data"].toArray();
+
+                    if (wallpapers.isEmpty()) {
+                        // Fallback : essayer la date précédente
+                        tryPreviousDateForCategory(categoryId, 1, screenIndex);
+                        return;
+                    }
+
+                    // Sélectionner aléatoirement un wallpaper
+                    int randomIndex = QRandomGenerator::global()->bounded(wallpapers.size());
+                    QJsonObject wallpaper = wallpapers[randomIndex].toObject();
+                    QString filename = wallpaper["filename"].toString();
+
+                    // Télécharger et appliquer l'image
+                    downloadAndApplyWallpaper(filename, screenIndex);
+                } else {
+                    statusLabel->setText("Aucune image disponible pour cette catégorie.");
+                    statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
+                }
+            } else {
+                statusLabel->setText("Erreur API : " + reply->errorString());
+                statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
+            }
+            reply->deleteLater();
+        });
+    }
+
+    void tryPreviousDateForCategory(const QString &categoryId, int daysBack, int screenIndex)
+    {
+        if (daysBack > 7) {
+            statusLabel->setText("Aucune image trouvée pour cette catégorie (7 derniers jours).");
+            statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
+            return;
+        }
+
+        QString previousDate = getPreviousDateString(daysBack);
+        QString url = QString("https://kazflow.com/wallpapers?category=%1&date=%2")
+                      .arg(categoryId)
+                      .arg(QString(previousDate).replace("/", "%2F"));
+
+        QNetworkRequest request{QUrl(url)};
+        QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, categoryId, daysBack, screenIndex]() {
+            if (reply->error() == QNetworkReply::NoError) {
+                QByteArray responseData = reply->readAll();
+                QJsonDocument doc = QJsonDocument::fromJson(responseData);
+                QJsonObject obj = doc.object();
+
+                if (obj["success"].toBool()) {
+                    QJsonArray wallpapers = obj["data"].toArray();
+
+                    if (wallpapers.isEmpty()) {
+                        // Essayer le jour précédent
+                        tryPreviousDateForCategory(categoryId, daysBack + 1, screenIndex);
+                        return;
+                    }
+
+                    // Sélectionner aléatoirement un wallpaper
+                    int randomIndex = QRandomGenerator::global()->bounded(wallpapers.size());
+                    QJsonObject wallpaper = wallpapers[randomIndex].toObject();
+                    QString filename = wallpaper["filename"].toString();
+
+                    // Télécharger et appliquer l'image
+                    downloadAndApplyWallpaper(filename, screenIndex);
+                }
+            }
+            reply->deleteLater();
+        });
+    }
+
+    void downloadAndApplyWallpaper(const QString &filename, int screenIndex)
+    {
+        QString url = QString("https://kazflow.com/get/%1").arg(filename);
+        QNetworkRequest request{QUrl(url)};
+        QNetworkReply *reply = networkManager->get(request);
+        setupSslErrorHandling(reply);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, screenIndex, filename]() {
+            if (reply->error() == QNetworkReply::NoError) {
+                QByteArray imageData = reply->readAll();
+                QPixmap pixmap;
+                if (pixmap.loadFromData(imageData)) {
+                    // Créer le chemin de sauvegarde
+                    QString screenId = getScreenUniqueId(screenIndex);
+                    QString wallpapersDir = getWallpapersDirectory();
+                    QString screenDir = wallpapersDir + "/" + screenId;
+
+                    // Créer le répertoire s'il n'existe pas
+                    QDir().mkpath(screenDir);
+
+                    QString savePath = screenDir + "/" + filename;
+
+                    if (pixmap.save(savePath)) {
+                        // Appliquer le wallpaper
+                        if (multiScreenToggle->isChecked() && QGuiApplication::screens().count() > 1) {
+                            // Mode multi-écrans : reconstruire le composite
+                            QMap<int, QString> wallpapers;
+                            wallpapers[screenIndex] = savePath;
+                            rebuildCompositeWallpaper(wallpapers);
+                        } else {
+                            // Mode simple : appliquer directement
+                            setWallpaperWithSmoothTransition(savePath);
+                        }
+
+                        statusLabel->setText("Fond d'écran appliqué avec succès !");
+                        statusLabel->setStyleSheet("color: #2196F3; font-weight: bold;");
+                    }
+                }
+            }
+            reply->deleteLater();
+        });
     }
 
     void updateCategoryRatingDisplay(const QString &categoryId, int rating)

@@ -9,6 +9,10 @@ bool CategoryHoverFilter::eventFilter(QObject *obj, QEvent *event)
 {
     if (obj == m_categoryFrame) {
         if (event->type() == QEvent::Enter) {
+            // Vérifier si la catégorie n'est pas interdite
+            QVariant ratingVariant = m_parent->property(("rating_" + m_categoryId).toLocal8Bit().constData());
+            int rating = ratingVariant.isValid() ? ratingVariant.toInt() : 1;
+
             // Afficher les contrôles de notation au survol
             QWidget *ratingWidget = m_categoryFrame->findChild<QWidget*>("ratingWidget_" + m_categoryId);
             QWidget *currentRating = m_categoryFrame->findChild<QWidget*>("currentRating_" + m_categoryId);
@@ -21,6 +25,14 @@ bool CategoryHoverFilter::eventFilter(QObject *obj, QEvent *event)
                 QLabel *disableIcon = m_categoryFrame->parentWidget()->findChild<QLabel*>("disableIcon_" + m_categoryId);
                 if (disableIcon) disableIcon->hide();
             }
+
+            // Afficher le bouton "Appliquer" uniquement si la catégorie n'est pas interdite
+            if (rating != -1) {
+                QPushButton *applyBtn = m_categoryFrame->findChild<QPushButton*>("applyBtn_" + m_categoryId);
+                if (applyBtn) {
+                    applyBtn->show();
+                }
+            }
         } else if (event->type() == QEvent::Leave) {
             // Masquer les contrôles de notation
             QWidget *ratingWidget = m_categoryFrame->findChild<QWidget*>("ratingWidget_" + m_categoryId);
@@ -32,11 +44,17 @@ bool CategoryHoverFilter::eventFilter(QObject *obj, QEvent *event)
 
                 // Réafficher l'icône "sens interdit" si la catégorie est désactivée
                 QVariant ratingVariant = m_parent->property(("rating_" + m_categoryId).toLocal8Bit().constData());
-                int currentRating = ratingVariant.isValid() ? ratingVariant.toInt() : 1;
-                if (currentRating == -1) {
+                int currentRatingValue = ratingVariant.isValid() ? ratingVariant.toInt() : 1;
+                if (currentRatingValue == -1) {
                     QLabel *disableIcon = m_categoryFrame->parentWidget()->findChild<QLabel*>("disableIcon_" + m_categoryId);
                     if (disableIcon) disableIcon->show();
                 }
+            }
+
+            // Masquer le bouton "Appliquer"
+            QPushButton *applyBtn = m_categoryFrame->findChild<QPushButton*>("applyBtn_" + m_categoryId);
+            if (applyBtn) {
+                applyBtn->hide();
             }
         }
     }
