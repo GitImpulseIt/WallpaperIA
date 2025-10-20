@@ -99,10 +99,14 @@ class WallpaperService {
                 ];
             }
 
+            // Ajouter le timestamp basé sur la modification du fichier CSV
+            $timestamp = file_exists($this->csv_file) ? filemtime($this->csv_file) : time();
+
             return [
                 'success' => true,
                 'data' => $categories,
-                'count' => count($categories)
+                'count' => count($categories),
+                'timestamp' => $timestamp
             ];
 
         } catch (Exception $e) {

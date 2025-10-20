@@ -92,7 +92,7 @@ class ModernWindow : public QWidget
 
 public:
 
-    ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false), retryCountdownSeconds(0), currentHistoryScreen(0), historyScrollOffset(0), dontShowMultiScreenWarning(false)
+    ModernWindow(QWidget *parent = nullptr) : QWidget(parent), networkManager(new QNetworkAccessManager(this)), isLoadingSettings(false), retryCountdownSeconds(0), currentHistoryScreen(0), historyScrollOffset(0), dontShowMultiScreenWarning(false), cachedCategoriesTimestamp(0)
     {
         qDebug() << "[INIT] Démarrage de WallpaperAI";
         qDebug() << "[INIT] QNetworkAccessManager créé:" << (networkManager != nullptr);
@@ -1508,16 +1508,32 @@ protected:
 
                 if (obj["success"].toBool()) {
                     QJsonArray apiCategories = obj["data"].toArray();
-                    qDebug() << "[API] Nombre de catégories reçues:" << apiCategories.size();
+                    qint64 apiTimestamp = obj["timestamp"].toVariant().toLongLong();
 
-                    // Vérifier s'il y a de nouvelles catégories
-                    if (cachedCategories.isEmpty() || apiCategories.size() != cachedCategories.size()) {
+                    qDebug() << "[API] Nombre de catégories reçues:" << apiCategories.size();
+                    qDebug() << "[API] Timestamp serveur:" << apiTimestamp;
+                    qDebug() << "[API] Timestamp cache:" << cachedCategoriesTimestamp;
+
+                    // Vérifier si le timestamp a changé ou si le cache est vide
+                    if (cachedCategories.isEmpty() || apiTimestamp != cachedCategoriesTimestamp) {
+                        qDebug() << "[CACHE] Mise à jour des catégories détectée - actualisation du cache";
+
                         cachedCategories = apiCategories;
+                        cachedCategoriesTimestamp = apiTimestamp;
+
+                        // Nettoyer le cache des miniatures car les catégories ont changé
+                        categoryThumbnailCache.clear();
+
                         saveCategoriesCache();
 
                         // Effacer l'affichage actuel et réafficher avec les nouvelles catégories
                         clearCategoriesDisplay();
                         displayCategories(apiCategories);
+
+                        // Nettoyer aussi le cache des miniatures sur disque
+                        cleanupThumbnailCache();
+                    } else {
+                        qDebug() << "[CACHE] Catégories à jour - pas de changement détecté";
                     }
                 } else {
                     qDebug() << "[API] Erreur: success=false dans la réponse JSON";
@@ -1543,6 +1559,9 @@ protected:
 
             cachedCategories = cacheObj["categories"].toArray();
 
+            // Charger le timestamp
+            cachedCategoriesTimestamp = cacheObj["timestamp"].toVariant().toLongLong();
+
             // Charger aussi le cache des miniatures
             QJsonObject thumbnails = cacheObj["thumbnails"].toObject();
             categoryThumbnailCache.clear();
@@ -1561,6 +1580,7 @@ protected:
             // Sauvegarder les catégories ET les filenames des miniatures
             QJsonObject cacheObj;
             cacheObj["categories"] = cachedCategories;
+            cacheObj["timestamp"] = cachedCategoriesTimestamp;
 
             // Sauvegarder le cache des miniatures
             QJsonObject thumbnails;
@@ -4389,6 +4409,7 @@ private:
     QJsonArray cachedCategories;
     QString categoriesCachePath;
     QMap<QString, QString> categoryThumbnailCache; // Map categoryId -> filename de la miniature
+    qint64 cachedCategoriesTimestamp; // Timestamp de la dernière modification du fichier CSV côté serveur
 
     // Historique des fonds d'écran par écran (max 8 images)
     QMap<int, QStringList> screenWallpaperHistory;
