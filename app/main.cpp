@@ -116,8 +116,8 @@ public:
         setupUI();
         applyModernStyle();
         setupSystemTray();
+        loadSettings();  // Charger les settings AVANT les catégories pour avoir les ratings
         loadCategories();
-        loadSettings();
 
         // Initialiser les états de désélection basés sur les logs
         initializeScreenDeselectionStates();
