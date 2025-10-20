@@ -118,6 +118,14 @@
 - **Évitement doublons** : Vérification historique avant sélection, filtrage doublons dans carrousel
 - **Exclusion temporaire** : Catégories épuisées exclues pour la session en cours
 
+### 🔄 Système de détection automatique des changements (Commit f49aeef)
+- **Timestamp côté API** : Basé sur la date de modification du fichier `wallpapers.csv` (filemtime)
+- **Timestamp côté Application** : Sauvegardé dans le cache local avec les catégories
+- **Comparaison automatique** : Au démarrage, l'app compare le timestamp API vs cache
+- **Actualisation intelligente** : Si différent, recharge les catégories + nettoie le cache thumbnails
+- **Logs détaillés** : `[CACHE] Mise à jour détectée` ou `[CACHE] Catégories à jour`
+- **Performance** : Évite les rechargements inutiles, actualise uniquement si nécessaire
+
 ### 🗂️ Architecture modulaire
 - **StartupManager** : Gestion du démarrage Windows (registre)
 - **PathHelper** : Gestion centralisée des chemins (AppConfigLocation)
@@ -125,9 +133,63 @@
 - **Cache unifié** : `/thumbnails` partagé (catégories + historique), limite 100 fichiers
 
 ## 🔧 API REST (Backend PHP)
-- **Endpoint `/categories`** : Retourne catégories avec miniature par défaut (wallpaper le plus récent)
-- **Endpoint `/wallpapers`** : Paramètres obligatoires `category` + `date` (DD/MM/YYYY)
-- **Endpoint `/mini/{filename}`** : Miniatures optimisées (204x115px)
+
+### Endpoints disponibles
+- **GET `/categories`** : Retourne catégories avec miniature par défaut (wallpaper le plus récent) + timestamp
+- **GET `/wallpapers`** : Paramètres obligatoires `category` + `date` (DD/MM/YYYY)
+- **GET `/get/{filename}`** : Téléchargement de fichier depuis FTP
+- **GET `/mini/{filename}`** : Miniatures optimisées (204x115px)
+- **POST `/wallpapers`** : Ajout de wallpaper (authentification requise)
+
+### Fonctionnalités
+- **Système de timestamp** : Détection automatique des changements dans wallpapers.csv
+- **Cache intelligent** : Application Qt compare le timestamp et actualise uniquement si nécessaire
 - **Optimisation** : Réduction drastique des appels API grâce aux thumbnails dans `/categories`
 - **Fallback intelligent** : Remontée automatique jusqu'à 7 jours en arrière si date vide
 - **Configuration Apache** : `Options -MultiViews` dans `.htaccess` pour résoudre conflit endpoint `/wallpapers` vs fichier `wallpapers.csv`
+
+### 🔒 Sécurité de l'API (Production-Ready)
+
+**Protection Path Traversal** (Critique - Corrigé)
+- Validation multi-niveaux dans Router, FtpService et ThumbnailService
+- Utilisation de `basename()` pour détecter les tentatives de path traversal
+- Regex stricte : `^[a-zA-Z0-9._-]+$`
+- Blocage de tous caractères dangereux : `/`, `\`, `..`
+
+**Protection CSV Injection** (Moyen - Corrigé)
+- Utilisation de `fputcsv()` au lieu de concaténation manuelle
+- Détection et rejet des formules dangereuses (`=`, `+`, `-`, `@`)
+- Validation préventive dans `validateEntry()`
+
+**Exposition d'informations** (Moyen - Corrigé)
+- `display_errors = 0` en mode production
+- Logs dirigés vers `api/logs/php_errors.log`
+- Mode développement/production configurable via `$is_production`
+
+**CORS sécurisé** (Faible - Corrigé)
+- Whitelist de domaines au lieu de wildcard `*`
+- Support intelligent : applications desktop (toujours autorisées) + domaines spécifiques
+- Domaines autorisés : kazflow.com, localhost (dev), null (fichiers locaux)
+
+**Rate Limiting** (Moyen - Corrigé)
+- Service `RateLimitService` avec stockage fichier performant
+- Protection par IP pour endpoints publics
+- Double protection (IP + username) pour endpoints authentifiés
+
+Limites configurées :
+- GET `/categories` : 100 req/min
+- GET `/wallpapers` : 200 req/min
+- GET `/get/{file}` : 300 req/min
+- GET `/mini/{file}` : 150 req/min (génération coûteuse)
+- POST `/wallpapers` : 20 req/heure par IP + 50 req/heure par username
+
+Headers standards : `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `Retry-After`
+Réponse HTTP 429 avec temps d'attente si limite dépassée
+
+**Architecture de sécurité**
+- Validation au niveau Router (première ligne de défense)
+- Validation au niveau Service (seconde ligne)
+- Rate limiting avec fenêtre glissante (sliding window)
+- Stockage sécurisé : hachage SHA256 des identifiants
+- Nettoyage automatique des fichiers expirés (24h)
+- Support proxies : Cloudflare, Nginx, X-Forwarded-For
