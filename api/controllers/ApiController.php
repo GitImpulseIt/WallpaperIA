@@ -4,6 +4,7 @@ require_once __DIR__ . '/../services/FtpService.php';
 require_once __DIR__ . '/../services/ThumbnailService.php';
 require_once __DIR__ . '/../services/AuthService.php';
 require_once __DIR__ . '/../services/CsvManager.php';
+require_once __DIR__ . '/../services/RateLimitService.php';
 require_once __DIR__ . '/../core/Router.php';
 
 /**
@@ -155,6 +156,25 @@ class ApiController {
             return [
                 'success' => false,
                 'error' => $authResult['error']
+            ];
+        }
+
+        // Rate limiting supplémentaire par username (après authentification)
+        // Cela empêche un utilisateur authentifié d'abuser de l'endpoint même avec plusieurs IPs
+        $rateLimiter = new RateLimitService();
+        $username = $authResult['username'];
+        $limit_check = $rateLimiter->checkLimit('add_wallpaper_user', $username);
+
+        RateLimitService::sendRateLimitHeaders($limit_check);
+
+        if (!$limit_check['allowed']) {
+            http_response_code(429);
+            return [
+                'success' => false,
+                'error' => 'Too many wallpaper additions. Please slow down.',
+                'retry_after' => $limit_check['retry_after'],
+                'limit' => $limit_check['limit'],
+                'window' => $limit_check['window'] . ' seconds'
             ];
         }
 

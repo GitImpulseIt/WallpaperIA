@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../services/RateLimitService.php';
+
 /**
  * Router pour gérer les requêtes et endpoints
  */
@@ -99,6 +101,31 @@ class Router {
     }
 
     /**
+     * Applique le rate limiting pour un endpoint
+     * @param string $endpoint_type Type d'endpoint pour le rate limiting
+     * @return array|null Retourne un tableau d'erreur si rate limit dépassé, null sinon
+     */
+    private function applyRateLimit($endpoint_type) {
+        $rateLimiter = new RateLimitService();
+        $client_ip = RateLimitService::getClientIp();
+
+        $limit_check = $rateLimiter->checkLimit($endpoint_type, $client_ip);
+
+        // Toujours envoyer les headers de rate limiting
+        RateLimitService::sendRateLimitHeaders($limit_check);
+
+        // Si la limite est dépassée, retourner une erreur
+        if (!$limit_check['allowed']) {
+            return [
+                'type' => 'error',
+                'response' => RateLimitService::getTooManyRequestsResponse($limit_check)
+            ];
+        }
+
+        return null; // Pas de limite dépassée
+    }
+
+    /**
      * Gère les requêtes GET
      */
     private function handleGetRequest() {
@@ -113,6 +140,13 @@ class Router {
                     ]
                 ];
             }
+
+            // Appliquer le rate limiting
+            $rate_limit_result = $this->applyRateLimit('file');
+            if ($rate_limit_result !== null) {
+                return $rate_limit_result;
+            }
+
             return [
                 'type' => 'file',
                 'filename' => $this->requested_filename
@@ -128,13 +162,32 @@ class Router {
                     ]
                 ];
             }
+
+            // Appliquer le rate limiting (thumbnail est plus coûteux)
+            $rate_limit_result = $this->applyRateLimit('thumbnail');
+            if ($rate_limit_result !== null) {
+                return $rate_limit_result;
+            }
+
             return [
                 'type' => 'thumbnail',
                 'filename' => $this->requested_filename
             ];
         } elseif ($this->endpoint === 'categories') {
+            // Appliquer le rate limiting
+            $rate_limit_result = $this->applyRateLimit('categories');
+            if ($rate_limit_result !== null) {
+                return $rate_limit_result;
+            }
+
             return ['type' => 'categories'];
         } elseif ($this->endpoint === 'wallpapers') {
+            // Appliquer le rate limiting
+            $rate_limit_result = $this->applyRateLimit('wallpapers');
+            if ($rate_limit_result !== null) {
+                return $rate_limit_result;
+            }
+
             $category = $_GET['category'] ?? null;
             $date = $_GET['date'] ?? null;
             return [
@@ -168,6 +221,13 @@ class Router {
      */
     private function handlePostRequest() {
         if ($this->endpoint === 'wallpapers') {
+            // Pour les endpoints authentifiés, on utilise l'IP comme identifiant initial
+            // L'ApiController appliquera un rate limit supplémentaire par username après auth
+            $rate_limit_result = $this->applyRateLimit('add_wallpaper');
+            if ($rate_limit_result !== null) {
+                return $rate_limit_result;
+            }
+
             // Parse JSON body
             $json = file_get_contents('php://input');
             $data = json_decode($json, true);
