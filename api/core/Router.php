@@ -17,6 +17,37 @@ class Router {
     }
 
     /**
+     * Valide le nom de fichier contre les attaques de path traversal
+     * @param string $filename
+     * @return bool
+     */
+    private function isValidFilename($filename) {
+        if (empty($filename)) {
+            return false;
+        }
+
+        // Utiliser basename pour extraire uniquement le nom de fichier
+        $sanitized = basename($filename);
+
+        // Vérifier que le fichier n'a pas été modifié par basename
+        if ($sanitized !== $filename) {
+            return false;
+        }
+
+        // Interdire les caractères dangereux
+        if (preg_match('/[\/\\\\]/', $filename)) {
+            return false;
+        }
+
+        // Vérifier le format avec regex stricte
+        if (!preg_match('/^[a-zA-Z0-9._-]+$/', $filename)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Parse la requête URI pour extraire l'endpoint
      */
     private function parseRequest() {
@@ -72,11 +103,31 @@ class Router {
      */
     private function handleGetRequest() {
         if ($this->is_file_request && $this->requested_filename) {
+            // Valider le filename contre les path traversal
+            if (!$this->isValidFilename($this->requested_filename)) {
+                return [
+                    'type' => 'error',
+                    'response' => [
+                        'success' => false,
+                        'error' => 'Invalid filename: path traversal or invalid characters detected'
+                    ]
+                ];
+            }
             return [
                 'type' => 'file',
                 'filename' => $this->requested_filename
             ];
         } elseif ($this->is_mini_request && $this->requested_filename) {
+            // Valider le filename contre les path traversal
+            if (!$this->isValidFilename($this->requested_filename)) {
+                return [
+                    'type' => 'error',
+                    'response' => [
+                        'success' => false,
+                        'error' => 'Invalid filename: path traversal or invalid characters detected'
+                    ]
+                ];
+            }
             return [
                 'type' => 'thumbnail',
                 'filename' => $this->requested_filename

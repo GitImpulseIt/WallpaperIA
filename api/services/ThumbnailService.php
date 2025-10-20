@@ -18,11 +18,30 @@ class ThumbnailService {
     }
 
     /**
-     * Valide le nom de fichier
+     * Valide le nom de fichier contre les attaques de path traversal
      */
     private function validateFilename($filename) {
+        // Interdire les chemins vides
+        if (empty($filename)) {
+            throw new Exception('Filename cannot be empty');
+        }
+
+        // Utiliser basename pour extraire uniquement le nom de fichier (supprime les path traversal)
+        $sanitized = basename($filename);
+
+        // Vérifier que le fichier n'a pas été modifié par basename (détection de path traversal)
+        if ($sanitized !== $filename) {
+            throw new Exception('Invalid filename: path traversal detected');
+        }
+
+        // Interdire les caractères dangereux supplémentaires
+        if (preg_match('/[\/\\\\]/', $filename)) {
+            throw new Exception('Invalid filename: directory separators not allowed');
+        }
+
+        // Vérifier le format avec regex stricte
         if (!preg_match('/^[a-zA-Z0-9._-]+$/', $filename)) {
-            throw new Exception('Invalid filename format');
+            throw new Exception('Invalid filename: only alphanumeric, dots, hyphens and underscores allowed');
         }
     }
 

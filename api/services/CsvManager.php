@@ -11,6 +11,32 @@ class CsvManager {
     }
 
     /**
+     * Échappe les caractères dangereux pour CSV Injection
+     * @param string $value
+     * @return string
+     */
+    private function escapeCsvValue($value) {
+        // Supprimer les formules potentiellement dangereuses
+        // Les formules commencent par =, +, -, @, tab, ou retour chariot
+        $dangerous_chars = ['=', '+', '-', '@', "\t", "\r"];
+
+        // Si la valeur commence par un caractère dangereux, préfixer avec '
+        if (in_array(substr($value, 0, 1), $dangerous_chars)) {
+            $value = "'" . $value;
+        }
+
+        // Échapper les guillemets doubles en les doublant (norme CSV)
+        $value = str_replace('"', '""', $value);
+
+        // Si la valeur contient une virgule, un guillemet ou un retour à la ligne, l'entourer de guillemets
+        if (preg_match('/[,"\n\r]/', $value)) {
+            $value = '"' . $value . '"';
+        }
+
+        return $value;
+    }
+
+    /**
      * Ajoute une nouvelle entrée au fichier CSV
      * @param string $category Nom de la catégorie
      * @param string $filename Nom du fichier (format flexible, plus seulement SHA256)
@@ -36,10 +62,6 @@ class CsvManager {
         // Calculer le prochain ID pour cette catégorie/date
         $nextId = $this->getNextId($category, $date);
 
-        // Préparer la ligne CSV manuellement (sans quotes autour des valeurs)
-        // Format: category,filename,date,id
-        $csvLine = $category . ',' . $filename . ',' . $date . ',' . $nextId . "\n";
-
         // Ouvrir le fichier en mode append
         $handle = fopen($this->csvFile, 'a');
         if ($handle === false) {
@@ -50,17 +72,19 @@ class CsvManager {
             ];
         }
 
-        // Ajouter la ligne
-        if (fwrite($handle, $csvLine) === false) {
-            fclose($handle);
+        // Utiliser fputcsv pour un échappement correct et sécurisé
+        // Format: category,filename,date,id
+        $result = fputcsv($handle, [$category, $filename, $date, $nextId], ',', '"', '\\');
+
+        fclose($handle);
+
+        if ($result === false) {
             return [
                 'success' => false,
                 'id' => null,
                 'error' => 'Failed to write to CSV file'
             ];
         }
-
-        fclose($handle);
 
         return [
             'success' => true,
@@ -91,11 +115,28 @@ class CsvManager {
             ];
         }
 
+        // Détecter les tentatives de CSV Injection dans la catégorie
+        $dangerous_chars = ['=', '+', '-', '@', "\t", "\r", "\n"];
+        if (in_array(substr($category, 0, 1), $dangerous_chars)) {
+            return [
+                'success' => false,
+                'error' => 'Category cannot start with formula characters (=, +, -, @)'
+            ];
+        }
+
         // Valider le filename (non vide, doit avoir une extension)
         if (empty($filename)) {
             return [
                 'success' => false,
                 'error' => 'Filename is required'
+            ];
+        }
+
+        // Détecter les tentatives de CSV Injection dans le filename
+        if (in_array(substr($filename, 0, 1), $dangerous_chars)) {
+            return [
+                'success' => false,
+                'error' => 'Filename cannot start with formula characters (=, +, -, @)'
             ];
         }
 

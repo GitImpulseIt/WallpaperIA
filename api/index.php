@@ -4,10 +4,24 @@
  * Version refactorisée avec architecture modulaire
  */
 
-// Activer l'affichage des erreurs pour le debug
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+// Configuration des erreurs selon l'environnement
+// En production, désactiver l'affichage des erreurs pour éviter l'exposition d'informations sensibles
+// En développement, activer pour le debug
+$is_production = true; // Mettre à false pour le développement local
+
+if ($is_production) {
+    // Mode production : logger les erreurs, ne pas les afficher
+    error_reporting(E_ALL);
+    ini_set('display_errors', 0);
+    ini_set('display_startup_errors', 0);
+    ini_set('log_errors', 1);
+    ini_set('error_log', __DIR__ . '/logs/php_errors.log');
+} else {
+    // Mode développement : afficher toutes les erreurs
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+}
 
 // Configuration des limites PHP (car php_value n'est pas supporté par tous les hébergeurs)
 ini_set('memory_limit', '1024M');

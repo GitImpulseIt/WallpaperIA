@@ -76,12 +76,45 @@ class FtpService {
     }
 
     /**
+     * Valide le nom de fichier contre les attaques de path traversal
+     * @param string $filename
+     * @throws Exception si le filename est invalide
+     */
+    private function validateFilename($filename) {
+        // Interdire les chemins vides
+        if (empty($filename)) {
+            throw new Exception('Filename cannot be empty');
+        }
+
+        // Utiliser basename pour extraire uniquement le nom de fichier (supprime les path traversal)
+        $sanitized = basename($filename);
+
+        // Vérifier que le fichier n'a pas été modifié par basename (détection de path traversal)
+        if ($sanitized !== $filename) {
+            throw new Exception('Invalid filename: path traversal detected');
+        }
+
+        // Interdire les caractères dangereux supplémentaires
+        if (preg_match('/[\/\\\\]/', $filename)) {
+            throw new Exception('Invalid filename: directory separators not allowed');
+        }
+
+        // Vérifier le format avec regex stricte
+        if (!preg_match('/^[a-zA-Z0-9._-]+$/', $filename)) {
+            throw new Exception('Invalid filename: only alphanumeric, dots, hyphens and underscores allowed');
+        }
+    }
+
+    /**
      * Télécharge un fichier directement depuis le FTP
      * @param string $filename Nom du fichier à télécharger
      * @return array ['success' => bool, 'content' => string|null, 'content_type' => string|null, 'filename' => string, 'error' => string|null]
      */
     public function getFileFromFtp($filename) {
         try {
+            // Valider le filename contre les path traversal
+            $this->validateFilename($filename);
+
             // Se connecter au FTP
             $ftpConnection = $this->connect();
 
@@ -135,6 +168,9 @@ class FtpService {
      */
     public function fileExists($filename) {
         try {
+            // Valider le filename contre les path traversal
+            $this->validateFilename($filename);
+
             $ftpConnection = $this->connect();
             $ftpDirectory = $this->ftp_config['directory'] ?? '/wallpapers';
             $remotePath = rtrim($ftpDirectory, '/') . '/' . $filename;
@@ -158,6 +194,9 @@ class FtpService {
      */
     public function getFileInfo($filename) {
         try {
+            // Valider le filename contre les path traversal
+            $this->validateFilename($filename);
+
             $ftpConnection = $this->connect();
             $ftpDirectory = $this->ftp_config['directory'] ?? '/wallpapers';
             $remotePath = rtrim($ftpDirectory, '/') . '/' . $filename;
