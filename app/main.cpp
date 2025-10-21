@@ -49,6 +49,9 @@
 #include <QPointer>
 #include <string>
 
+// Include du système de traduction
+#include "language.h"
+
 // Includes des modules séparés
 #include "src/utils/utils.h"
 #include "src/utils/path_helper.h"
@@ -100,7 +103,7 @@ public:
         qDebug() << "[INIT] Support SSL:" << QSslSocket::supportsSsl();
         qDebug() << "[INIT] Version SSL:" << QSslSocket::sslLibraryBuildVersionString();
 
-        setWindowTitle("WallpaperAI");
+        setWindowTitle(APP_NAME);
         setWindowIcon(QIcon(getImagePath("icon.png")));
         setFixedSize(725, 650);
 
@@ -169,31 +172,8 @@ private slots:
     }
 
     void updateFrequencyOptions() {
-        if (!frequencyCombo || isLoadingSettings) return;
-
-        int currentIndex = frequencyCombo->currentIndex();
-        bool startupEnabled = startupToggle->isChecked();
-
-        // Si "Démarrer avec Windows" est désactivé et "Au démarrage" est sélectionné
-        if (!startupEnabled && currentIndex == 7) { // index 7 = "Au démarrage de l'ordinateur"
-            // Basculer sur "Changement manuel uniquement"
-            frequencyCombo->setCurrentIndex(0);
-            onSettingsChanged(); // Marquer comme modifié
-        }
-
-        // Désactiver/activer l'option "Au démarrage" selon l'état du toggle
-        QStandardItemModel* model = qobject_cast<QStandardItemModel*>(frequencyCombo->model());
-        if (model) {
-            QStandardItem* item = model->item(7); // "Au démarrage de l'ordinateur"
-            if (item) {
-                item->setEnabled(startupEnabled);
-                if (!startupEnabled) {
-                    item->setData(QColor(128, 128, 128), Qt::ForegroundRole); // Grisé
-                } else {
-                    item->setData(QColor(255, 255, 255), Qt::ForegroundRole); // Normal
-                }
-            }
-        }
+        // Cette fonction n'est plus nécessaire car l'option "Au démarrage"
+        // a été retirée de la combobox et gérée par un toggle dédié
     }
 
     void handleStartupBehavior() {
@@ -253,7 +233,7 @@ private slots:
             } else {
                 screenSelector->hide();
                 // Remettre le statut par défaut
-                statusLabel->setText("Cliquez pour changer le fond d'écran");
+                statusLabel->setText(LBL_CLICK_TO_CHANGE);
             }
         }
 
@@ -292,22 +272,22 @@ private slots:
         QString explanation;
         switch (index) {
             case 0: // Remplir
-                explanation = "L'image conserve son ratio mais dépasse de l'écran pour le remplir";
+                explanation = EXPL_FILL;
                 break;
             case 1: // Ajuster
-                explanation = "L'image conserve son ratio mais des bandes noires sont ajoutées pour tenir dans l'écran";
+                explanation = EXPL_FIT;
                 break;
             case 2: // Étendre
-                explanation = "L'image s'étend sur plusieurs écrans";
+                explanation = EXPL_SPAN;
                 break;
             case 3: // Étirer
-                explanation = "L'image est étirée de façon à remplir tout l'écran mais le ratio n'est pas respecté";
+                explanation = EXPL_STRETCH;
                 break;
             case 4: // Mosaïque
-                explanation = "L'image se répète de façon à remplir tout l'écran et le ratio est conservé";
+                explanation = EXPL_TILE;
                 break;
             default:
-                explanation = "Mode d'ajustement sélectionné";
+                explanation = EXPL_DEFAULT;
                 break;
         }
 
@@ -329,8 +309,7 @@ private slots:
             case 4: seconds = 43200; break;    // 12h
             case 5: seconds = 86400; break;    // 24h
             case 6: seconds = 604800; break;   // 7j
-            case 7: seconds = 0; break;        // Au démarrage (pas de timer)
-            case 8: // Autre
+            case 7: // Autre (anciennement index 8)
                 {
                     int value = customValueSpinBox->value();
                     int unit = customUnitCombo->currentIndex();
@@ -355,7 +334,7 @@ private:
         mainLayout->setSpacing(10);
 
         // Titre principal
-        QLabel *titleLabel = new QLabel("WallpaperAI - Fonds d'écrans générés par IA");
+        QLabel *titleLabel = new QLabel(APP_TITLE);
         titleLabel->setObjectName("titleLabel");
         titleLabel->setAlignment(Qt::AlignCenter);
         mainLayout->addWidget(titleLabel);
@@ -408,7 +387,7 @@ private:
         containerLayout->addWidget(screenSelector);
 
         // Bouton "Changer Maintenant" sous le sélecteur, prend toute la largeur disponible
-        changeNowButton = new QPushButton("🖼️ Changer Maintenant");
+        changeNowButton = new QPushButton(BTN_CHANGE_NOW);
         changeNowButton->setFixedHeight(50);
         changeNowButton->setStyleSheet(
             "QPushButton {"
@@ -435,7 +414,7 @@ private:
         containerLayout->addWidget(changeNowButton);
 
         // Label pour le statut sous le bouton
-        statusLabel = new QLabel("Cliquez pour changer le fond d'écran");
+        statusLabel = new QLabel(LBL_CLICK_TO_CHANGE);
         statusLabel->setAlignment(Qt::AlignLeft);
         statusLabel->setWordWrap(true); // Permettre le retour à la ligne
         statusLabel->setStyleSheet("color: #ADD8E6; font-size: 11pt; margin: 10px 0px;");
@@ -450,7 +429,7 @@ private:
         rightCountdownLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
         // Titre pour le countdown
-        QLabel *countdownTitle = new QLabel("Prochain Changement");
+        QLabel *countdownTitle = new QLabel(LBL_NEXT_CHANGE);
         countdownTitle->setAlignment(Qt::AlignCenter);
         countdownTitle->setStyleSheet("color: #ffffff; font-size: 12pt; font-weight: bold;"); // Suppression du margin-bottom
         rightCountdownLayout->addWidget(countdownTitle);
@@ -507,6 +486,28 @@ private:
         errorAlertLabel->setWordWrap(true);
         errorAlertLayout->addWidget(errorAlertLabel, 1);
 
+        // Bouton "Détails"
+        errorDetailsButton = new QPushButton(ERR_BANNER_BTN_DETAILS);
+        errorDetailsButton->setFixedSize(80, 40);
+        errorDetailsButton->setStyleSheet(
+            "QPushButton {"
+            "   background-color: rgba(255, 255, 255, 0.2);"
+            "   color: white;"
+            "   border: 1px solid white;"
+            "   border-radius: 4px;"
+            "   font-size: 10pt;"
+            "   font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "   background-color: rgba(255, 255, 255, 0.3);"
+            "}"
+            "QPushButton:pressed {"
+            "   background-color: rgba(255, 255, 255, 0.1);"
+            "}"
+        );
+        connect(errorDetailsButton, &QPushButton::clicked, this, &ModernWindow::onShowErrorDetails);
+        errorAlertLayout->addWidget(errorDetailsButton);
+
         applicationLayout->addWidget(errorAlertWidget);
 
         // === CARROUSEL D'HISTORIQUE ===
@@ -517,14 +518,14 @@ private:
 
         // Titre et contrôles
         QHBoxLayout *historyHeaderLayout = new QHBoxLayout();
-        QLabel *historyTitle = new QLabel("Historique");
+        QLabel *historyTitle = new QLabel(LBL_HISTORY);
         historyTitle->setStyleSheet("color: #ffffff; font-size: 11pt; font-weight: bold;");
         historyHeaderLayout->addWidget(historyTitle);
 
         historyHeaderLayout->addStretch();
 
         // Bouton Appliquer
-        QPushButton *applyHistoryButton = new QPushButton("Appliquer");
+        QPushButton *applyHistoryButton = new QPushButton(BTN_APPLY);
         applyHistoryButton->setFixedWidth(100);
         applyHistoryButton->setStyleSheet(
             "QPushButton {"
@@ -556,7 +557,7 @@ private:
         carouselNavigationLayout->setSpacing(5);
 
         // Bouton précédent
-        historyPrevButton = new QPushButton("◀");
+        historyPrevButton = new QPushButton(BTN_PREV);
         historyPrevButton->setFixedSize(40, 120);
         historyPrevButton->setStyleSheet(
             "QPushButton {"
@@ -607,7 +608,7 @@ private:
         carouselNavigationLayout->addWidget(historyCarouselScrollArea, 1);
 
         // Bouton suivant
-        historyNextButton = new QPushButton("▶");
+        historyNextButton = new QPushButton(BTN_NEXT);
         historyNextButton->setFixedSize(40, 120);
         historyNextButton->setStyleSheet(
             "QPushButton {"
@@ -638,7 +639,7 @@ private:
 
         applicationLayout->addWidget(historyContainer);
 
-        tabWidget->addTab(applicationTab, "Fond d'écran");
+        tabWidget->addTab(applicationTab, TAB_WALLPAPER);
     }
 
     void setupCategoriesTab()
@@ -662,7 +663,7 @@ private:
         scrollArea->setWidget(categoriesWidget);
         categoriesLayout->addWidget(scrollArea);
 
-        tabWidget->addTab(categoriesTab, "Catégories");
+        tabWidget->addTab(categoriesTab, TAB_CATEGORIES);
     }
 
     void setupSettingsTab()
@@ -673,7 +674,7 @@ private:
         settingsLayout->setSpacing(15);
 
         // Groupe Fréquence de changement
-        QGroupBox *frequencyGroup = new QGroupBox("Fréquence de changement");
+        QGroupBox *frequencyGroup = new QGroupBox(GRP_FREQUENCY);
         frequencyGroup->setStyleSheet(
             "QGroupBox {"
             "font-weight: 600;"
@@ -704,14 +705,14 @@ private:
         frequencyCombo = new QComboBox();
         frequencyCombo->setObjectName("frequencyCombo");
         frequencyCombo->addItems({
-            "Changement manuel uniquement",
-            "1h",
-            "3h",
-            "6h",
-            "12h",
-            "24h",
-            "7j",
-            "Autre"
+            FREQ_MANUAL,
+            FREQ_1H,
+            FREQ_3H,
+            FREQ_6H,
+            FREQ_12H,
+            FREQ_24H,
+            FREQ_7D,
+            FREQ_CUSTOM
         });
         frequencyCombo->setFixedHeight(32);
         frequencyCombo->setStyleSheet(
@@ -874,7 +875,7 @@ private:
         // ComboBox pour l'unité de temps
         customUnitCombo = new QComboBox();
         customUnitCombo->setObjectName("customUnitCombo");
-        customUnitCombo->addItems({"minutes", "heures", "jours"});
+        customUnitCombo->addItems({UNIT_MINUTES, UNIT_HOURS, UNIT_DAYS});
         customUnitCombo->setFixedHeight(32);
         customUnitCombo->setFixedWidth(120);
         customUnitCombo->setStyleSheet(
@@ -981,7 +982,7 @@ private:
         leftColumnLayout->addWidget(frequencyGroup);
 
         // Groupe Mode d'ajustement de l'image
-        QGroupBox *adjustmentGroup = new QGroupBox("Mode d'ajustement de l'image");
+        QGroupBox *adjustmentGroup = new QGroupBox(GRP_ADJUSTMENT);
         adjustmentGroup->setMinimumHeight(320); // Hauteur minimale pour alignement avec les deux cadres de gauche
         adjustmentGroup->setFixedWidth(280); // Largeur fixe pour éviter les variations selon le contenu
         adjustmentGroup->setStyleSheet(
@@ -1040,7 +1041,7 @@ private:
         );
 
         // Texte par défaut pour "Remplir"
-        adjustmentExplanationLabel->setText("L'image conserve son ratio mais dépasse de l'écran pour le remplir");
+        adjustmentExplanationLabel->setText(EXPL_FILL);
 
         explanationLayout->addWidget(adjustmentExplanationLabel);
 
@@ -1059,11 +1060,11 @@ private:
         // ComboBox pour sélectionner le mode
         adjustmentCombo = new QComboBox();
         adjustmentCombo->setObjectName("adjustmentCombo");
-        adjustmentCombo->addItem("Remplir", "fill");
-        adjustmentCombo->addItem("Ajuster", "fit");
-        adjustmentCombo->addItem("Étendre", "span");
-        adjustmentCombo->addItem("Étirer", "stretch");
-        adjustmentCombo->addItem("Mosaïque", "tile");
+        adjustmentCombo->addItem(ADJ_FILL, "fill");
+        adjustmentCombo->addItem(ADJ_FIT, "fit");
+        adjustmentCombo->addItem(ADJ_SPAN, "span");
+        adjustmentCombo->addItem(ADJ_STRETCH, "stretch");
+        adjustmentCombo->addItem(ADJ_TILE, "tile");
         adjustmentCombo->setFixedHeight(32);
         adjustmentCombo->setFixedWidth(140);
         adjustmentCombo->setStyleSheet(
@@ -1175,7 +1176,7 @@ private:
         adjustmentLayout->addWidget(explanationWidget);
 
         // Groupe Options système
-        QGroupBox *systemGroup = new QGroupBox("Options système");
+        QGroupBox *systemGroup = new QGroupBox(GRP_SYSTEM_OPTIONS);
         systemGroup->setStyleSheet(
             "QGroupBox {"
             "font-weight: 600;"
@@ -1205,7 +1206,7 @@ private:
 
         // Option "Démarrer avec Windows"
         QHBoxLayout *startupLayout = new QHBoxLayout();
-        QLabel *startupLabel = new QLabel("Démarrer avec Windows");
+        QLabel *startupLabel = new QLabel(LBL_STARTUP_WINDOWS);
         startupLabel->setStyleSheet("color: #ffffff; font-size: 13px; background-color: transparent;");
 
         startupToggle = new ToggleSwitch();
@@ -1220,7 +1221,7 @@ private:
 
         // Option "Changer le fond d'écran au démarrage"
         QHBoxLayout *changeOnStartupLayout = new QHBoxLayout();
-        QLabel *changeOnStartupLabel = new QLabel("Changer le fond d'écran\nau démarrage de l'ordinateur");
+        QLabel *changeOnStartupLabel = new QLabel(LBL_CHANGE_ON_STARTUP);
         changeOnStartupLabel->setWordWrap(true);
         changeOnStartupLabel->setStyleSheet("color: #ffffff; font-size: 13px; background-color: transparent;");
 
@@ -1236,7 +1237,7 @@ private:
 
         // Option "Image différente sur chaque écran"
         QHBoxLayout *multiScreenLayout = new QHBoxLayout();
-        QLabel *multiScreenLabel = new QLabel("Image différente sur chaque écran");
+        QLabel *multiScreenLabel = new QLabel(LBL_MULTI_SCREEN);
         multiScreenLabel->setStyleSheet("color: #ffffff; font-size: 13px; background-color: transparent;");
 
         multiScreenToggle = new ToggleSwitch();
@@ -1274,7 +1275,7 @@ private:
         QHBoxLayout *applyLayout = new QHBoxLayout();
         applyLayout->addStretch();
 
-        applyButton = new QPushButton("Appliquer");
+        applyButton = new QPushButton(BTN_APPLY);
         applyButton->setObjectName("applyButton");
         applyButton->setFixedSize(120, 40);
         applyButton->setEnabled(false); // Désactivé par défaut
@@ -1305,7 +1306,7 @@ private:
 
         settingsLayout->addLayout(applyLayout);
 
-        tabWidget->addTab(settingsTab, "Paramètres");
+        tabWidget->addTab(settingsTab, TAB_SETTINGS);
     }
     
     void applyModernStyle()
@@ -1403,8 +1404,8 @@ private:
         // Créer le menu contextuel
         trayMenu = new QMenu(this);
 
-        QAction *showAction = new QAction("Afficher", this);
-        QAction *quitAction = new QAction("Quitter", this);
+        QAction *showAction = new QAction(TRAY_SHOW, this);
+        QAction *quitAction = new QAction(TRAY_QUIT, this);
 
         trayMenu->addAction(showAction);
         trayMenu->addSeparator();
@@ -1541,11 +1542,11 @@ protected:
                 }
             } else {
                 qDebug() << "[API] ERREUR categories:" << reply->errorString();
-                // Afficher l'erreur dans le statusLabel pour debug
-                if (statusLabel) {
-                    statusLabel->setText(QString("Erreur API: %1").arg(reply->errorString()));
-                    statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
-                }
+                // Stocker l'erreur pour le bouton "Détails"
+                lastApiError = QString(MSG_API_ERROR) + reply->errorString();
+                // Déclencher le bandeau d'erreur avec retry automatique
+                showApiErrorAlert();
+                startRetryTimer();
             }
             reply->deleteLater();
         });
@@ -1660,7 +1661,7 @@ protected:
         thumbnailLabel->setWordWrap(true);
 
         // Bouton "Appliquer" au centre de la miniature (masqué par défaut)
-        QPushButton *applyBtn = new QPushButton("Appliquer", thumbnailContainer);
+        QPushButton *applyBtn = new QPushButton(BTN_APPLY_THUMBNAIL, thumbnailContainer);
         applyBtn->setObjectName("applyBtn_" + id);
         applyBtn->setGeometry((165 - 90) / 2, (90 - 30) / 2, 90, 30); // Centré
         applyBtn->setStyleSheet(
@@ -1868,7 +1869,7 @@ protected:
     void applyThumbnailAsWallpaper(const QString &filename, int screenIndex)
     {
         if (filename.isEmpty()) {
-            QMessageBox::warning(this, "Erreur", "Aucune miniature disponible pour cette catégorie.");
+            QMessageBox::warning(this, APP_NAME, MSG_NO_THUMBNAIL);
             return;
         }
 
@@ -1905,19 +1906,10 @@ protected:
                             setWallpaperWithSmoothTransition(savePath);
                         }
 
-                        statusLabel->setText("Fond d'écran appliqué avec succès !");
+                        statusLabel->setText(MSG_WALLPAPER_APPLIED);
                         statusLabel->setStyleSheet("color: #2196F3; font-weight: bold;");
-                    } else {
-                        statusLabel->setText("Erreur lors de la sauvegarde de l'image.");
-                        statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
                     }
-                } else {
-                    statusLabel->setText("Erreur lors du chargement de l'image.");
-                    statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
                 }
-            } else {
-                statusLabel->setText("Erreur de téléchargement : " + reply->errorString());
-                statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
             }
             reply->deleteLater();
         });
@@ -1958,13 +1950,7 @@ protected:
 
                     // Télécharger et appliquer l'image
                     downloadAndApplyWallpaper(filename, screenIndex);
-                } else {
-                    statusLabel->setText("Aucune image disponible pour cette catégorie.");
-                    statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
                 }
-            } else {
-                statusLabel->setText("Erreur API : " + reply->errorString());
-                statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
             }
             reply->deleteLater();
         });
@@ -1973,8 +1959,7 @@ protected:
     void tryPreviousDateForCategory(const QString &categoryId, int daysBack, int screenIndex)
     {
         if (daysBack > 7) {
-            statusLabel->setText("Aucune image trouvée pour cette catégorie (7 derniers jours).");
-            statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
+            // Toutes les tentatives ont échoué sur 7 jours
             return;
         }
 
@@ -2481,15 +2466,15 @@ private slots:
         // Mettre à jour le statut pour indiquer les écrans sélectionnés
         if (screenSelector->screenCount() > 1) {
             if (selectedScreens.size() == 1) {
-                statusLabel->setText(QString("Écran sélectionné : %1").arg(selectedScreens.first() + 1));
+                statusLabel->setText(QString(MSG_SCREEN_SELECTED) + QString::number(selectedScreens.first() + 1));
             } else if (selectedScreens.size() > 1) {
                 QStringList screenNumbers;
                 for (int screen : selectedScreens) {
                     screenNumbers.append(QString::number(screen + 1));
                 }
-                statusLabel->setText(QString("Écrans sélectionnés : %1").arg(screenNumbers.join(", ")));
+                statusLabel->setText(QString(MSG_SCREENS_SELECTED_PLURAL) + screenNumbers.join(", "));
             } else {
-                statusLabel->setText("Aucun écran sélectionné\nSélectionnez au moins un écran");
+                statusLabel->setText(MSG_NO_SCREEN_SELECTED);
             }
         }
     }
@@ -2497,12 +2482,10 @@ private slots:
     void onScreenDeselectionBlocked(int screenIndex)
     {
         // Afficher un message explicatif quand l'utilisateur essaie de désélectionner un écran sans historique
-        QString message = QString("L'écran %1 ne peut pas être désélectionné car il n'a pas encore d'historique de fonds d'écran.\n\n"
-                                 "Appliquez d'abord au moins un fond d'écran sur cet écran pour pouvoir le désélectionner.")
-                         .arg(screenIndex + 1);
+        QString message = QString(MSG_SCREEN_NO_HISTORY).arg(screenIndex + 1);
 
         QMessageBox msgBox(this);
-        msgBox.setWindowTitle("Écran sans historique");
+        msgBox.setWindowTitle(MSG_SCREEN_NO_HISTORY_TITLE);
         msgBox.setText(message);
         msgBox.setIcon(QMessageBox::Information);
         msgBox.setStandardButtons(QMessageBox::Ok);
@@ -2559,9 +2542,9 @@ private slots:
         }
 
         if (targetScreens.size() == 1) {
-            statusLabel->setText("Récupération d'une image aléatoire...");
+            statusLabel->setText(MSG_FETCHING_RANDOM_IMAGE);
         } else {
-            statusLabel->setText(QString("Récupération de %1 images aléatoires...").arg(targetScreens.size()));
+            statusLabel->setText(QString(MSG_FETCHING_RANDOM_IMAGES).arg(targetScreens.size()));
         }
 
         getMultipleRandomWallpapers(targetScreens);
@@ -2742,7 +2725,7 @@ private:
                     handleMultiDownloadError(QString("Erreur API wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(obj["error"].toString()));
                 }
             } else {
-                handleMultiDownloadError(QString("Erreur de connexion wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(reply->errorString()));
+                handleMultiDownloadError(QString(MSG_CONNECTION_ERROR).arg(screenIndex + 1).arg(reply->errorString()));
             }
             reply->deleteLater();
         });
@@ -2824,7 +2807,7 @@ private:
                     handleMultiDownloadError(QString("Erreur API wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(obj["error"].toString()));
                 }
             } else {
-                handleMultiDownloadError(QString("Erreur de connexion wallpapers pour écran %1: %2").arg(screenIndex + 1).arg(reply->errorString()));
+                handleMultiDownloadError(QString(MSG_CONNECTION_ERROR).arg(screenIndex + 1).arg(reply->errorString()));
             }
             reply->deleteLater();
         });
@@ -3063,18 +3046,17 @@ private:
 
         // Réactiver le bouton
         changeNowButton->setEnabled(true);
-        changeNowButton->setText("🖼️ Changer Maintenant");
+        changeNowButton->setText(BTN_CHANGE_NOW);
 
-        // Afficher l'erreur détaillée dans le statusLabel
-        statusLabel->setText(error);
-        statusLabel->setStyleSheet("color: #d14836; font-weight: bold;");
+        // Stocker l'erreur pour le bouton "Détails"
+        lastApiError = error;
 
-        // Afficher l'alerte d'erreur API avec retry automatique
+        // Afficher l'alerte d'erreur API avec retry automatique (bandeau rouge)
         showApiErrorAlert();
         startRetryTimer();
 
-        // Aussi mettre un message court dans le statut
-        restoreButton(error);
+        // Remettre le bouton en état normal
+        restoreButton();
     }
 
     void showApiErrorAlert()
@@ -3088,6 +3070,29 @@ private:
         errorAlertWidget->hide();
         retryTimer->stop();
         retryCountdownSeconds = 0;
+    }
+
+    void onShowErrorDetails()
+    {
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle(ERR_BANNER_TITLE);
+        msgBox.setText(lastApiError.isEmpty() ? ERR_BANNER_CHECK_CONNECTION : lastApiError);
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setStyleSheet(
+            "QMessageBox { background-color: #2a2a2a; }"
+            "QLabel { color: white; font-size: 11pt; }"
+            "QPushButton { "
+            "   background-color: #2196F3; "
+            "   color: white; "
+            "   border: none; "
+            "   border-radius: 4px; "
+            "   padding: 8px 20px; "
+            "   font-size: 11pt; "
+            "}"
+            "QPushButton:hover { background-color: #1976D2; }"
+        );
+        msgBox.exec();
     }
 
     void startRetryTimer()
@@ -3121,10 +3126,14 @@ private:
         int minutes = retryCountdownSeconds / 60;
         int seconds = retryCountdownSeconds % 60;
 
-        QString message = QString(
-            "Erreur lors du téléchargement du fond d'écran\n"
-            "Prochaine tentative dans : %1:%2"
-        ).arg(minutes, 2, 10, QChar('0')).arg(seconds, 2, 10, QChar('0'));
+        QString timeStr = QString("%1:%2")
+            .arg(minutes, 2, 10, QChar('0'))
+            .arg(seconds, 2, 10, QChar('0'));
+
+        QString message = QString("%1\n%2%3")
+            .arg(ERR_BANNER_TITLE)
+            .arg(ERR_BANNER_RETRY)
+            .arg(timeStr);
 
         errorAlertLabel->setText(message);
     }
@@ -3483,7 +3492,7 @@ private:
     void onApplyHistoryClicked()
     {
         if (selectedHistoryImagePath.isEmpty()) {
-            QMessageBox::information(this, "Sélection requise", "Veuillez sélectionner une image de l'historique.");
+            QMessageBox::information(this, MSG_HISTORY_SELECTION_REQUIRED_TITLE, MSG_HISTORY_SELECTION_REQUIRED);
             return;
         }
 
@@ -3518,15 +3527,15 @@ private:
     void showMultiScreenWarningDialog(const QList<int> &selectedScreens)
     {
         QMessageBox msgBox(this);
-        msgBox.setWindowTitle("Application multi-écrans");
-        msgBox.setText(QString("Le fond d'écran sera appliqué sur %1 écrans sélectionnés.").arg(selectedScreens.size()));
-        msgBox.setInformativeText("Voulez-vous continuer ?");
+        msgBox.setWindowTitle(MSG_MULTISCREEN_WARNING_TITLE);
+        msgBox.setText(QString(MSG_WALLPAPER_APPLIED_SCREENS).arg(selectedScreens.size()));
+        msgBox.setInformativeText(MSG_MULTISCREEN_CONTINUE);
         msgBox.setIcon(QMessageBox::Question);
         msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
         msgBox.setDefaultButton(QMessageBox::Yes);
 
         // Ajouter une checkbox "Ne plus afficher"
-        QCheckBox *dontShowAgain = new QCheckBox("Ne plus afficher cet avertissement");
+        QCheckBox *dontShowAgain = new QCheckBox(MSG_MULTISCREEN_DONT_SHOW);
         msgBox.setCheckBox(dontShowAgain);
 
         msgBox.setStyleSheet(
@@ -3566,7 +3575,7 @@ private:
 
     void redownloadHistoryImage(const QString &filename)
     {
-        statusLabel->setText("Téléchargement de l'image depuis l'API...");
+        statusLabel->setText(MSG_DOWNLOADING_FROM_API);
 
         QString imageUrl = QString("https://kazflow.com/get/%1").arg(filename);
         QNetworkRequest request{QUrl(imageUrl)};
@@ -3590,15 +3599,10 @@ private:
                     file.close();
 
                     selectedHistoryImagePath = savedPath;
-                    statusLabel->setText("Image téléchargée, prête à être appliquée");
 
                     // Réessayer l'application
                     onApplyHistoryClicked();
-                } else {
-                    statusLabel->setText("Erreur lors de la sauvegarde de l'image");
                 }
-            } else {
-                statusLabel->setText("Erreur lors du téléchargement de l'image");
             }
             reply->deleteLater();
         });
@@ -3637,9 +3641,7 @@ private:
                 addToScreenHistory(screenIndex, selectedHistoryImagePath, "Historique");
             }
 
-            statusLabel->setText("Fond d'écran appliqué avec succès !");
-        } else {
-            statusLabel->setText("Erreur lors de l'application");
+            statusLabel->setText(MSG_WALLPAPER_APPLIED);
         }
     }
 
@@ -4047,7 +4049,7 @@ private:
     void restoreButton(const QString &message = "")
     {
         changeNowButton->setEnabled(true);
-        changeNowButton->setText("🖼️ Changer Maintenant");
+        changeNowButton->setText(BTN_CHANGE_NOW);
         if (!message.isEmpty()) {
             statusLabel->setText(message);
         }
@@ -4654,8 +4656,10 @@ private:
     // Widget d'alerte erreur API
     QWidget *errorAlertWidget;
     QLabel *errorAlertLabel;
+    QPushButton *errorDetailsButton;
     QTimer *retryTimer;
     int retryCountdownSeconds;
+    QString lastApiError; // Stocker le dernier message d'erreur pour les détails
 
     // Cache des catégories
     QJsonArray cachedCategories;

@@ -1,4 +1,5 @@
 #include "apply_category_dialog.h"
+#include "../../language.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -9,7 +10,7 @@ ApplyCategoryDialog::ApplyCategoryDialog(const QString &categoryId, const QStrin
     : QDialog(parent), m_categoryId(categoryId), m_categoryName(categoryName),
       m_thumbnailFilename(thumbnailFilename), m_multiScreenMode(multiScreenMode)
 {
-    setWindowTitle("Appliquer un fond d'écran");
+    setWindowTitle(DIALOG_APPLY_TITLE);
     setModal(true);
     setFixedWidth(400);
 
@@ -18,14 +19,14 @@ ApplyCategoryDialog::ApplyCategoryDialog(const QString &categoryId, const QStrin
     mainLayout->setContentsMargins(20, 20, 20, 20);
 
     // Titre
-    QLabel *titleLabel = new QLabel("Catégorie : " + categoryName);
+    QLabel *titleLabel = new QLabel(QString(DIALOG_CATEGORY) + categoryName);
     titleLabel->setStyleSheet("font-size: 14pt; font-weight: bold; color: #2196F3;");
     titleLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(titleLabel);
 
     // Sélecteur d'écran (uniquement si multi-écran activé)
     if (multiScreenMode && screenCount > 1) {
-        QLabel *screenLabel = new QLabel("Écran cible :");
+        QLabel *screenLabel = new QLabel(DIALOG_TARGET_SCREEN);
         screenLabel->setStyleSheet("color: white; font-size: 11pt;");
         mainLayout->addWidget(screenLabel);
 
@@ -52,7 +53,7 @@ ApplyCategoryDialog::ApplyCategoryDialog(const QString &categoryId, const QStrin
         );
 
         for (int i = 0; i < screenCount; i++) {
-            screenCombo->addItem(QString("Écran %1").arg(i + 1), i);
+            screenCombo->addItem(QString(DIALOG_SCREEN).arg(i + 1), i);
         }
         mainLayout->addWidget(screenCombo);
     } else {
@@ -62,7 +63,7 @@ ApplyCategoryDialog::ApplyCategoryDialog(const QString &categoryId, const QStrin
     mainLayout->addSpacing(10);
 
     // Bouton : Appliquer cette image (miniature)
-    applyThumbnailBtn = new QPushButton("Appliquer cette image");
+    applyThumbnailBtn = new QPushButton(DIALOG_APPLY_THIS_IMAGE);
     applyThumbnailBtn->setStyleSheet(
         "QPushButton {"
         "   background-color: #2196F3;"
@@ -84,7 +85,7 @@ ApplyCategoryDialog::ApplyCategoryDialog(const QString &categoryId, const QStrin
     mainLayout->addWidget(applyThumbnailBtn);
 
     // Bouton : Appliquer une image de cette catégorie (aléatoire)
-    applyRandomBtn = new QPushButton("Appliquer une image de cette catégorie");
+    applyRandomBtn = new QPushButton(DIALOG_APPLY_RANDOM_IMAGE);
     applyRandomBtn->setStyleSheet(
         "QPushButton {"
         "   background-color: #8b4513;"
@@ -108,7 +109,7 @@ ApplyCategoryDialog::ApplyCategoryDialog(const QString &categoryId, const QStrin
     mainLayout->addSpacing(10);
 
     // Bouton : Fermer
-    closeBtn = new QPushButton("Fermer");
+    closeBtn = new QPushButton(DIALOG_CLOSE);
     closeBtn->setStyleSheet(
         "QPushButton {"
         "   background-color: #555555;"

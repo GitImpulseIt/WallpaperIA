@@ -1,8 +1,13 @@
 @echo off
 setlocal
 
+REM Gestion du parametre de langue (par defaut: FR)
+set LANG=%1
+if "%LANG%"=="" set LANG=FR
+
 echo ========================================
 echo  Compilation WallpaperAI avec Qt/MinGW
+echo  Langue: %LANG%
 echo ========================================
 echo.
 
@@ -32,7 +37,8 @@ REM Definir le chemin vers Qt6 (ajustez selon votre installation)
 set Qt6_DIR=C:\Installation\Qt\6.9.2\mingw_64\lib\cmake\Qt6
 set CMAKE_PREFIX_PATH=C:\Installation\Qt\6.9.2\mingw_64
 
-cmake -G "MinGW Makefiles" -DQt6_DIR=%Qt6_DIR% -DCMAKE_PREFIX_PATH=%CMAKE_PREFIX_PATH% ..
+REM Passer la langue en tant que define a la compilation
+cmake -G "MinGW Makefiles" -DQt6_DIR=%Qt6_DIR% -DCMAKE_PREFIX_PATH=%CMAKE_PREFIX_PATH% -DCMAKE_CXX_FLAGS="-DLANG_%LANG%" ..
 
 if %errorlevel% neq 0 (
     echo ERREUR: Echec de la configuration CMake

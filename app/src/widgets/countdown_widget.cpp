@@ -1,5 +1,6 @@
 #include "countdown_widget.h"
 #include "../utils/utils.h"
+#include "../../language.h"
 
 CountdownWidget::CountdownWidget(QWidget *parent) : QWidget(parent), m_totalSeconds(3600), m_remainingSeconds(3600), m_isStartupMode(false), m_isNeverMode(false), m_isPaused(false)
 {
@@ -77,7 +78,7 @@ void CountdownWidget::paintEvent(QPaintEvent *)
         painter.setFont(QFont("Segoe UI", 10)); // Pas de gras
         QRect textRect(infoRect.left() + 60, infoRect.top() + 15, infoRect.width() - 65, infoRect.height() - 30);
         painter.drawText(textRect, Qt::AlignLeft | Qt::TextWordWrap,
-            "Changement de fond d'écran manuel seulement");
+            INFO_MANUAL);
         return;
     }
 
@@ -110,7 +111,7 @@ void CountdownWidget::paintEvent(QPaintEvent *)
         painter.setFont(QFont("Segoe UI", 10)); // Pas de gras
         QRect textRect(infoRect.left() + 60, infoRect.top() + 15, infoRect.width() - 65, infoRect.height() - 30);
         painter.drawText(textRect, Qt::AlignLeft | Qt::TextWordWrap,
-            "Changement de fond d'écran au prochain redémarrage de l'ordinateur");
+            INFO_STARTUP);
         return;
     }
 
