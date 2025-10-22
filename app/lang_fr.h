@@ -28,6 +28,9 @@
 #define MSG_DOWNLOADING_FROM_API "Téléchargement de l'image depuis l'API..."
 #define MSG_FETCHING_RANDOM_IMAGE "Récupération d'une image aléatoire..."
 #define MSG_FETCHING_RANDOM_IMAGES "Récupération de %1 images aléatoires..."
+#define MSG_CHANGING_IN_PROGRESS "🔄 Changement en cours..."
+#define MSG_APPLYING_WALLPAPERS "Application des fonds d'écran..."
+#define MSG_APPLYING_WALLPAPER "Application du fond d'écran..."
 #define MSG_CONNECTION_ERROR "Erreur de connexion wallpapers pour écran %1: %2"
 
 // Onglet Catégories
@@ -63,6 +66,7 @@
 
 // Onglet Paramètres - Multi-écrans
 #define LBL_MULTI_SCREEN "Image différente sur chaque écran"
+#define LBL_SCREEN_NAME "Écran %1"
 
 // Onglet Paramètres - Ajustement
 #define LBL_ADJUSTMENT "Ajustement de l'image"

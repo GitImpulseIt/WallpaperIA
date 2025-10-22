@@ -1,4 +1,5 @@
 #include "wallpaper_builder.h"
+#include "../../language.h"
 #include <QOperatingSystemVersion>
 
 #ifdef Q_OS_WIN
@@ -301,7 +302,7 @@ QString WallpaperBuilder::getScreenName(QScreen* screen, int index)
 {
     QString screenName = screen->name();
     if (screenName.isEmpty()) {
-        screenName = QString("Écran %1").arg(index + 1);
+        screenName = QString(LBL_SCREEN_NAME).arg(index + 1);
     }
     return screenName;
 }

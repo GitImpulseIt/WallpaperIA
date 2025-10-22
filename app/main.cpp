@@ -1140,7 +1140,7 @@ private:
             // Utiliser une taille beaucoup plus grande pour remplir vraiment l'espace
             adjustmentImageLabel->setPixmap(defaultPixmap.scaled(136, 150, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         } else {
-            adjustmentImageLabel->setText("Remplir");
+            adjustmentImageLabel->setText(ADJ_FILL);
             adjustmentImageLabel->setStyleSheet("QLabel { border: 1px solid #555; border-radius: 8px; background-color: #e8e8e8; padding: 0px; color: #333333; font-weight: bold; }");
         }
 
@@ -1657,7 +1657,7 @@ protected:
         thumbnailLabel->setObjectName("thumbnailLabel");
         thumbnailLabel->setFixedSize(165, 90);
         thumbnailLabel->setAlignment(Qt::AlignCenter);
-        thumbnailLabel->setText("Miniature\n" + name);
+        thumbnailLabel->setText(QString(LBL_THUMBNAIL) + name);
         thumbnailLabel->setWordWrap(true);
 
         // Bouton "Appliquer" au centre de la miniature (masqué par défaut)
@@ -2034,7 +2034,7 @@ protected:
                             setWallpaperWithSmoothTransition(savePath);
                         }
 
-                        statusLabel->setText("Fond d'écran appliqué avec succès !");
+                        statusLabel->setText(MSG_WALLPAPER_APPLIED);
                         statusLabel->setStyleSheet("color: #2196F3; font-weight: bold;");
                     }
                 }
@@ -2527,7 +2527,7 @@ private slots:
 
         // Désactiver le bouton pendant le processus
         changeNowButton->setEnabled(false);
-        changeNowButton->setText("🔄 Changement en cours...");
+        changeNowButton->setText(MSG_CHANGING_IN_PROGRESS);
 
         // Déterminer quels écrans cibler pour de nouvelles images
         QList<int> targetScreens;
@@ -2984,7 +2984,7 @@ private:
     {
         if (!currentMultiDownload) return;
 
-        statusLabel->setText("Application des fonds d'écran...");
+        statusLabel->setText(MSG_APPLYING_WALLPAPERS);
 
         // Construire une map complète avec nouvelles images + images historiques pour écrans non sélectionnés
         QMap<int, QString> completeImageMap = currentMultiDownload->downloadedImages;
@@ -3611,7 +3611,7 @@ private:
     void applyHistoryImageToScreens(const QList<int> &selectedScreens)
     {
         // Appliquer l'image sélectionnée sur les écrans choisis
-        statusLabel->setText("Application du fond d'écran...");
+        statusLabel->setText(MSG_APPLYING_WALLPAPER);
 
         // Construire une map complète avec l'image sélectionnée + images historiques pour écrans non sélectionnés
         QMap<int, QString> completeImageMap;

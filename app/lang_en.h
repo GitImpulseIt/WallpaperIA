@@ -28,6 +28,9 @@
 #define MSG_DOWNLOADING_FROM_API "Downloading image from API..."
 #define MSG_FETCHING_RANDOM_IMAGE "Fetching a random image..."
 #define MSG_FETCHING_RANDOM_IMAGES "Fetching %1 random images..."
+#define MSG_CHANGING_IN_PROGRESS "🔄 Changing in progress..."
+#define MSG_APPLYING_WALLPAPERS "Applying wallpapers..."
+#define MSG_APPLYING_WALLPAPER "Applying wallpaper..."
 #define MSG_CONNECTION_ERROR "Wallpaper connection error for screen %1: %2"
 
 // Categories Tab
@@ -63,6 +66,7 @@
 
 // Settings Tab - Multi-screen
 #define LBL_MULTI_SCREEN "Different image on each screen"
+#define LBL_SCREEN_NAME "Screen %1"
 
 // Settings Tab - Adjustment
 #define LBL_ADJUSTMENT "Image adjustment"
