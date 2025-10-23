@@ -1,6 +1,18 @@
 # WallpaperAI - Générateur d'installateur NSIS
 
-Ce répertoire contient les fichiers nécessaires pour générer un installateur Windows professionnel pour WallpaperAI.
+Ce répertoire contient les fichiers nécessaires pour générer des installateurs Windows professionnels pour WallpaperAI.
+
+## Types d'installateurs disponibles
+
+### 1. Installateur standard (`WallpaperAI.nsi`)
+- Installe une version mono-langue (selon le build de l'app)
+- Fichier généré : `WallpaperAI-Setup-1.0.1.exe`
+
+### 2. Installateur multilingue (`WallpaperAI_Multilang.nsi`) ⭐ RECOMMANDÉ
+- L'utilisateur choisit sa langue lors de l'installation
+- Installe uniquement l'exécutable de la langue choisie
+- 7 langues disponibles : FR, EN, ES, PT, IT, DE, RU
+- Fichier généré : `WallpaperAI-Setup-Multilang-1.0.2.exe`
 
 ## Prérequis
 
@@ -15,24 +27,51 @@ Ce répertoire contient les fichiers nécessaires pour générer un installateur
 
 ## Génération de l'installateur
 
-### Méthode 1 : Script automatique (recommandé)
+### Installateur multilingue (RECOMMANDÉ)
 
+**Étape 1 : Compiler tous les exécutables multilingues**
 ```bash
-cd installer
-build_installer.bat
+cd app
+build.bat ALL
+```
+
+Cela génère 7 exécutables dans `app/release/` : WallpaperAI_FR.exe, WallpaperAI_EN.exe, etc.
+
+**Étape 2 : Compiler l'installateur multilingue**
+```bash
+cd ..\installer
+build_multilang_installer.bat
 ```
 
 Le script va :
 - Vérifier que NSIS est installé
-- Vérifier que l'application est compilée dans `app/release/`
+- Vérifier que tous les 7 exécutables multilingues sont présents
 - Compiler l'installateur NSIS
-- Générer `WallpaperAI-Setup-1.0.0.exe`
+- Générer `WallpaperAI-Setup-Multilang-1.0.2.exe` (~20 MB)
 
-### Méthode 2 : Compilation manuelle
+### Installateur standard (mono-langue)
+
+**Étape 1 : Compiler l'application dans une langue spécifique**
+```bash
+cd app
+build.bat FR    # ou EN, ES, PT, IT, DE, RU
+```
+
+**Étape 2 : Compiler l'installateur**
+```bash
+cd ..\installer
+build_installer.bat
+```
+
+Génère `WallpaperAI-Setup-1.0.1.exe`
+
+### Compilation manuelle
 
 ```bash
 cd installer
-makensis WallpaperAI.nsi
+makensis WallpaperAI_Multilang.nsi   # Installateur multilingue
+# ou
+makensis WallpaperAI.nsi             # Installateur standard
 ```
 
 ## Structure de l'installateur
@@ -50,28 +89,55 @@ L'installateur NSIS généré :
 
 ### ✅ Fonctionnalités de l'installateur
 
+#### Installateur multilingue (`WallpaperAI_Multilang.nsi`)
+
+- **Sélection de langue interactive** : Page dédiée pour choisir la langue de l'application
+- **7 langues supportées** : Français, English, Español, Português, Italiano, Deutsch, Русский
+- **Installation intelligente** : Installe uniquement l'exécutable de la langue choisie
+- **Interface MUI2 multilingue** : L'installateur s'adapte à la langue du système Windows
+- **Taille optimisée** : ~20 MB avec compression LZMA (au lieu de ~70 MB × 7)
+- **Enregistrement de la langue** : Sauvegardée dans le registre pour référence
+
+#### Fonctionnalités communes
+
 - **Interface moderne** : MUI2 (Modern User Interface)
-- **Multilingue** : Français + Anglais
 - **Détection de version** : Désinstalle automatiquement l'ancienne version si présente
 - **Arrêt automatique** : Ferme l'application en cours d'exécution avant installation
 - **Registre Windows** : Enregistrement dans Programmes et fonctionnalités
 - **Désinstallateur** : Complet avec nettoyage des raccourcis et du registre
 - **Préservation des données** : Les paramètres utilisateur dans AppData sont conservés lors de la désinstallation
-- **Compression LZMA** : Taille optimisée de l'installateur
+- **Compression LZMA** : Taille optimisée avec compression Solid (~13.5% de la taille originale)
 
 ## Workflow complet de release
 
+### Release multilingue (recommandé)
+
 ```bash
-# 1. Compiler l'application (version FR ou EN)
+# 1. Compiler l'application pour toutes les langues
 cd app
-build.bat
+build.bat ALL
+
+# 2. Générer l'installateur multilingue
+cd ..\installer
+build_multilang_installer.bat
+
+# 3. Tester l'installateur
+WallpaperAI-Setup-Multilang-1.0.2.exe
+```
+
+### Release mono-langue
+
+```bash
+# 1. Compiler l'application (version FR, EN, etc.)
+cd app
+build.bat FR
 
 # 2. Générer l'installateur
 cd ..\installer
 build_installer.bat
 
 # 3. Tester l'installateur
-WallpaperAI-Setup-1.0.0.exe
+WallpaperAI-Setup-1.0.1.exe
 ```
 
 ## Configuration de la version
@@ -146,8 +212,16 @@ signtool sign /f certificat.pfx /p motdepasse /t http://timestamp.digicert.com W
 
 ## Fichiers générés
 
-- `WallpaperAI-Setup-1.0.0.exe` : Installateur autonome (~70 MB)
-- Taille compressée grâce à LZMA
+### Installateurs disponibles
+
+- `WallpaperAI-Setup-Multilang-1.0.2.exe` : Installateur multilingue (~20 MB)
+  - Contient les 7 versions linguistiques
+  - L'utilisateur choisit sa langue à l'installation
+  - Optimisé avec compression LZMA Solid
+
+- `WallpaperAI-Setup-1.0.1.exe` : Installateur mono-langue (~3 MB)
+  - Une seule langue intégrée
+  - Plus léger mais moins flexible
 
 ## Licence
 
