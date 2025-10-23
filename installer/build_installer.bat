@@ -64,14 +64,13 @@ if %errorlevel% equ 0 (
     echo ========================================
     echo.
     echo L'installateur se trouve dans:
-    echo %cd%\WallpaperAI-Setup-1.0.0.exe
-    echo.
 
-    REM Afficher la taille du fichier
-    for %%A in ("WallpaperAI-Setup-1.0.0.exe") do (
-        set size=%%~zA
+    REM Trouver le fichier généré (WallpaperAI-Setup-*.exe)
+    for %%F in ("WallpaperAI-Setup-*.exe") do (
+        echo %cd%\%%F
+        echo.
+        echo Taille: %%~zF octets (%%~zF bytes)
     )
-    echo Taille: %size% octets
     echo.
 ) else (
     echo.

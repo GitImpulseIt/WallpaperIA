@@ -3,6 +3,10 @@
 ; Créé avec Claude Code
 
 ;--------------------------------
+; Encodage Unicode
+Unicode true
+
+;--------------------------------
 ; Includes
 
 !include "MUI2.nsh"
@@ -13,7 +17,7 @@
 ; Configuration générale
 
 !define APP_NAME "WallpaperAI"
-!define APP_VERSION "1.0.0"
+!define APP_VERSION "1.0.1"
 !define APP_PUBLISHER "WallpaperAI Team"
 !define APP_WEBSITE "https://github.com/kazuya/wallpaperai"
 !define APP_EXE "WallpaperAI.exe"
@@ -65,8 +69,6 @@ SetCompressorDictSize 64
 ; Page de fin avec option de lancement
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP_EXE}"
 !define MUI_FINISHPAGE_RUN_TEXT "Lancer ${APP_NAME}"
-!define MUI_FINISHPAGE_SHOWREADME ""
-!define MUI_FINISHPAGE_SHOWREADME_NOTCHECKED
 !define MUI_FINISHPAGE_TITLE "Installation terminée"
 !define MUI_FINISHPAGE_TEXT "${APP_NAME} a été installé avec succès sur votre ordinateur.$\r$\n$\r$\nCliquez sur Terminer pour quitter l'assistant."
 !insertmacro MUI_PAGE_FINISH
