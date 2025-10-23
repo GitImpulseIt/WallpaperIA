@@ -1897,9 +1897,20 @@ protected:
                     if (pixmap.save(savePath)) {
                         // Appliquer le wallpaper
                         if (multiScreenToggle->isChecked() && QGuiApplication::screens().count() > 1) {
-                            // Mode multi-écrans : reconstruire le composite
+                            // Mode multi-écrans : construire une map complète avec les wallpapers existants
                             QMap<int, QString> wallpapers;
                             wallpapers[screenIndex] = savePath;
+
+                            // Pour les autres écrans, utiliser l'image la plus récente de l'historique
+                            for (int i = 0; i < screenSelector->screenCount(); i++) {
+                                if (i != screenIndex) {
+                                    // Écran non modifié, récupérer la dernière image de l'historique
+                                    if (screenWallpaperHistory.contains(i) && !screenWallpaperHistory[i].isEmpty()) {
+                                        wallpapers[i] = screenWallpaperHistory[i].first(); // Premier = le plus récent
+                                    }
+                                }
+                            }
+
                             rebuildCompositeWallpaper(wallpapers);
                         } else {
                             // Mode simple : appliquer directement
@@ -2025,9 +2036,20 @@ protected:
                     if (pixmap.save(savePath)) {
                         // Appliquer le wallpaper
                         if (multiScreenToggle->isChecked() && QGuiApplication::screens().count() > 1) {
-                            // Mode multi-écrans : reconstruire le composite
+                            // Mode multi-écrans : construire une map complète avec les wallpapers existants
                             QMap<int, QString> wallpapers;
                             wallpapers[screenIndex] = savePath;
+
+                            // Pour les autres écrans, utiliser l'image la plus récente de l'historique
+                            for (int i = 0; i < screenSelector->screenCount(); i++) {
+                                if (i != screenIndex) {
+                                    // Écran non modifié, récupérer la dernière image de l'historique
+                                    if (screenWallpaperHistory.contains(i) && !screenWallpaperHistory[i].isEmpty()) {
+                                        wallpapers[i] = screenWallpaperHistory[i].first(); // Premier = le plus récent
+                                    }
+                                }
+                            }
+
                             rebuildCompositeWallpaper(wallpapers);
                         } else {
                             // Mode simple : appliquer directement
