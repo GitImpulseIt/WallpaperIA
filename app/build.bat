@@ -5,6 +5,47 @@ REM Gestion du parametre de langue (par defaut: FR)
 set LANG=%1
 if "%LANG%"=="" set LANG=FR
 
+REM Si le parametre est ALL, compiler pour toutes les langues
+if /I "%LANG%"=="ALL" (
+    echo ========================================
+    echo  Compilation WallpaperAI - TOUTES LES LANGUES
+    echo ========================================
+    echo.
+
+    REM Creer le repertoire release s'il n'existe pas
+    if not exist "release" mkdir release
+
+    REM Liste des langues supportees
+    for %%L in (FR EN ES PT IT DE RU) do (
+        echo.
+        echo ========================================
+        echo  Compilation pour la langue: %%L
+        echo ========================================
+        set BUILD_ALL_MODE=1
+        call "%~f0" %%L
+        if errorlevel 1 (
+            echo ERREUR: Echec de la compilation pour %%L
+            pause
+            exit /b 1
+        )
+
+        REM Renommer l'executable et le deplacer
+        echo Deplacement de WallpaperAI_%%L.exe...
+        move /y "release\WallpaperAI.exe" "release\WallpaperAI_%%L.exe"
+    )
+
+    echo.
+    echo ========================================
+    echo  COMPILATION REUSSIE POUR TOUTES LES LANGUES !
+    echo ========================================
+    echo.
+    echo Executables crees:
+    dir /b "release\WallpaperAI_*.exe"
+    echo.
+    pause
+    exit /b 0
+)
+
 echo ========================================
 echo  Compilation WallpaperAI avec Qt/MinGW
 echo  Langue: %LANG%
@@ -69,12 +110,17 @@ echo Creation du repertoire release...
 REM Revenir au repertoire parent pour creer release
 cd ..
 
-REM Supprimer et recreer le repertoire release
-if exist "release" (
-    echo Suppression de l'ancien repertoire release...
-    rmdir /s /q "release"
+REM Supprimer et recreer le repertoire release (sauf en mode BUILD_ALL)
+if "%BUILD_ALL_MODE%"=="1" (
+    REM En mode ALL, ne pas supprimer release pour conserver les executables precedents
+    if not exist "release" mkdir release
+) else (
+    if exist "release" (
+        echo Suppression de l'ancien repertoire release...
+        rmdir /s /q "release"
+    )
+    mkdir release
 )
-mkdir release
 
 echo Copie de l'executable...
 copy "build\WallpaperAI.exe" "release\"
