@@ -1,11 +1,11 @@
-; WallpaperAI - Script d'installation NSIS
+﻿; WallpaperAI - Script d'installation NSIS
 ; Générateur d'installateur pour WallpaperAI
 ; Créé avec Claude Code
 
 ;--------------------------------
 ; Configuration de l'encodage
-; Utilisation d'ANSI avec la page de code Windows-1252 (ISO-8859-15 compatible)
-Unicode false
+; Encodage UTF-8 avec BOM pour support correct de l'Unicode
+Unicode true
 
 ;--------------------------------
 ; Includes
