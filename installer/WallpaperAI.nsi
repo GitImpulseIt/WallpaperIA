@@ -3,8 +3,9 @@
 ; Créé avec Claude Code
 
 ;--------------------------------
-; Encodage Unicode
-Unicode true
+; Configuration de l'encodage
+; Utilisation d'ANSI avec la page de code Windows-1252 (ISO-8859-15 compatible)
+Unicode false
 
 ;--------------------------------
 ; Includes
