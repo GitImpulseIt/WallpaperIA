@@ -1,4 +1,4 @@
-; WallpaperAI - Script d'installation NSIS Multilingue
+﻿; WallpaperAI - Script d'installation NSIS Multilingue
 ; Installateur intelligent qui installe uniquement le binaire de la langue choisie
 ; Créé avec Claude Code
 
