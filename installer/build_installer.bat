@@ -1,84 +1,94 @@
 @echo off
-REM Script de génération de l'installateur WallpaperAI avec NSIS
-REM Créé avec Claude Code
+setlocal
 
 echo ========================================
-echo  Generation de l'installateur WallpaperAI
+echo  Build WallpaperAI Multilang Installer
 echo ========================================
 echo.
 
-REM Vérifier que NSIS est installé
+REM Chemin vers NSIS
 set "NSIS_PATH=C:\Installation\NSIS\makensis.exe"
 
-REM Essayer d'abord le chemin par défaut
+REM Verifier si NSIS est disponible dans le PATH
 if exist "%NSIS_PATH%" (
     set "MAKENSIS=%NSIS_PATH%"
     goto nsis_found
 )
 
-REM Sinon, chercher dans le PATH
 where makensis >nul 2>&1
 if %errorlevel% equ 0 (
     set "MAKENSIS=makensis"
     goto nsis_found
 )
 
-REM NSIS non trouvé
 echo ERREUR: NSIS n'est pas installe ou introuvable
 echo.
-echo Telechargez NSIS depuis: https://nsis.sourceforge.io/Download
-echo Installez NSIS dans C:\Installation\NSIS ou ajoutez-le au PATH
-echo Exemple: C:\Program Files (x86)\NSIS
-echo.
+echo Installez NSIS depuis https://nsis.sourceforge.io/Download
+echo Ou ajoutez NSIS au PATH systeme
 pause
 exit /b 1
 
 :nsis_found
+echo NSIS trouve: %MAKENSIS%
+echo.
 
-REM Vérifier que le répertoire release existe
-if not exist "..\app\release\WallpaperAI.exe" (
-    echo ERREUR: Le repertoire release n'existe pas ou est vide
+REM Afficher la version de NSIS
+echo Version de NSIS:
+"%MAKENSIS%" /VERSION
+echo.
+
+REM Verifier que les executables multilingues existent
+echo Verification des executables sources...
+set "MISSING=0"
+
+for %%L in (FR EN ES PT IT DE RU) do (
+    if not exist "..\app\release\WallpaperAI_%%L.exe" (
+        echo ERREUR: WallpaperAI_%%L.exe introuvable
+        set "MISSING=1"
+    ) else (
+        echo [OK] WallpaperAI_%%L.exe
+    )
+)
+
+echo.
+
+if "%MISSING%"=="1" (
     echo.
-    echo Veuillez compiler l'application d'abord avec:
-    echo   cd ..\app
-    echo   build.bat
+    echo ERREUR: Certains executables sont manquants
+    echo Veuillez compiler tous les executables avec: cd ..\app ^&^& build.bat ALL
     echo.
     pause
     exit /b 1
 )
 
-echo Verification de l'environnement...
-echo - NSIS trouve: OK
-echo - Application compilee: OK
+echo Tous les executables sont presents
 echo.
 
-REM Compiler l'installateur
-echo Compilation de l'installateur NSIS...
+REM Compiler le script NSIS
+echo Compilation de l'installateur multilingue...
 echo.
 "%MAKENSIS%" /V3 WallpaperAI.nsi
 
-if %errorlevel% equ 0 (
+if %errorlevel% neq 0 (
     echo.
-    echo ========================================
-    echo  INSTALLATEUR GENERE AVEC SUCCES !
-    echo ========================================
-    echo.
-    echo L'installateur se trouve dans:
-
-    REM Trouver le fichier généré (WallpaperAI-Setup-*.exe)
-    for %%F in ("WallpaperAI-Setup-*.exe") do (
-        echo %cd%\%%F
-        echo.
-        echo Taille: %%~zF octets (%%~zF bytes)
-    )
-    echo.
-) else (
-    echo.
-    echo ERREUR: La compilation de l'installateur a echoue
-    echo Consultez les messages d'erreur ci-dessus
-    echo.
+    echo ERREUR: La compilation NSIS a echoue
     pause
     exit /b 1
 )
 
+echo.
+echo ========================================
+echo  BUILD REUSSI !
+echo ========================================
+echo.
+
+REM Afficher les informations sur l'installateur
+if exist "WallpaperAI-Setup-Multilang-1.0.3.exe" (
+    echo Installateur cree: WallpaperAI-Setup-Multilang-1.0.3.exe
+    for %%F in ("WallpaperAI-Setup-Multilang-1.0.3.exe") do echo Taille: %%~zF octets
+) else (
+    echo AVERTISSEMENT: Le fichier installateur n'a pas ete trouve
+)
+
+echo.
 pause
