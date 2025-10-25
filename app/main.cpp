@@ -49,6 +49,9 @@
 #include <QPointer>
 #include <string>
 
+// Include de la configuration
+#include "config.h"
+
 // Include du système de traduction
 #include "language.h"
 
@@ -1491,7 +1494,7 @@ protected:
         }
 
         // Tenter de charger depuis l'API en arrière-plan
-        QUrl apiUrl("https://kazflow.com/categories");
+        QUrl apiUrl(QString(API_BASE_URL) + "/categories");
         qDebug() << "[API] Requête categories vers:" << apiUrl.toString();
         QNetworkRequest request(apiUrl);
         QNetworkReply *reply = networkManager->get(request);
@@ -1874,7 +1877,7 @@ protected:
         }
 
         // Télécharger l'image complète depuis l'API
-        QString url = QString("https://kazflow.com/get/%1").arg(filename);
+        QString url = QString(API_BASE_URL "/get/%1").arg(filename);
         QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
         setupSslErrorHandling(reply);
@@ -1931,7 +1934,7 @@ protected:
         // Réutiliser la logique existante de sélection aléatoire
         // mais pour une seule catégorie spécifique
         QString currentDate = getCurrentDateString();
-        QString url = QString("https://kazflow.com/wallpapers?category=%1&date=%2")
+        QString url = QString(API_BASE_URL "/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(currentDate).replace("/", "%2F"));
 
@@ -1975,7 +1978,7 @@ protected:
         }
 
         QString previousDate = getPreviousDateString(daysBack);
-        QString url = QString("https://kazflow.com/wallpapers?category=%1&date=%2")
+        QString url = QString(API_BASE_URL "/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(previousDate).replace("/", "%2F"));
 
@@ -2013,7 +2016,7 @@ protected:
 
     void downloadAndApplyWallpaper(const QString &filename, int screenIndex)
     {
-        QString url = QString("https://kazflow.com/get/%1").arg(filename);
+        QString url = QString(API_BASE_URL "/get/%1").arg(filename);
         QNetworkRequest request{QUrl(url)};
         QNetworkReply *reply = networkManager->get(request);
         setupSslErrorHandling(reply);
@@ -2164,7 +2167,7 @@ protected:
 
         // Sinon, charger depuis l'API
         QString currentDate = getCurrentDateString();
-        QString url = QString("https://kazflow.com/wallpapers?category=%1&date=%2")
+        QString url = QString(API_BASE_URL "/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(currentDate).replace("/", "%2F"));
 
@@ -2208,7 +2211,7 @@ protected:
         }
 
         QString previousDate = getPreviousDateString(daysBack);
-        QString url = QString("https://kazflow.com/wallpapers?category=%1&date=%2")
+        QString url = QString(API_BASE_URL "/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(previousDate).replace("/", "%2F"));
 
@@ -2263,7 +2266,7 @@ protected:
         }
 
         // Télécharger depuis l'API
-        QString miniUrl = QString("https://kazflow.com/mini/%1").arg(filename);
+        QString miniUrl = QString(API_BASE_URL "/mini/%1").arg(filename);
 
         QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
@@ -2296,7 +2299,7 @@ protected:
     void loadThumbnailImageFallback(const QString &filename, QLabel *thumbnailLabel, const QString &cachedThumbnailPath)
     {
         // Méthode de fallback avec l'image complète (pour compatibilité)
-        QNetworkRequest request(QUrl(QString("https://kazflow.com/get/%1").arg(filename)));
+        QNetworkRequest request(QUrl(QString(API_BASE_URL "/get/%1").arg(filename)));
         QNetworkReply *reply = networkManager->get(request);
         setupSslErrorHandling(reply);
 
@@ -2677,7 +2680,7 @@ private:
         QString targetDate = (daysBack == 0) ? getCurrentDateString() : getPreviousDateString(daysBack);
 
         // Appeler l'API avec la catégorie et la date
-        QString url = QString("https://kazflow.com/wallpapers?category=%1&date=%2")
+        QString url = QString(API_BASE_URL "/wallpapers?category=%1&date=%2")
                       .arg(selectedCategoryId)
                       .arg(QString(targetDate).replace("/", "%2F")); // URL encode les "/"
 
@@ -2761,7 +2764,7 @@ private:
         }
 
         // Appeler l'API avec la catégorie et la date spécifique
-        QString url = QString("https://kazflow.com/wallpapers?category=%1&date=%2")
+        QString url = QString(API_BASE_URL "/wallpapers?category=%1&date=%2")
                       .arg(categoryId)
                       .arg(QString(date).replace("/", "%2F"));
 
@@ -2900,7 +2903,7 @@ private:
         }
 
         // Construire l'URL complète pour le téléchargement
-        QString imageUrl = QString("https://kazflow.com/get/%1").arg(filename);
+        QString imageUrl = QString(API_BASE_URL "/get/%1").arg(filename);
 
         // Télécharger cette image pour cet écran
         downloadImageForScreen(imageUrl, screenIndex);
@@ -3438,7 +3441,7 @@ private:
         }
 
         // Sinon télécharger via l'API
-        QString miniUrl = QString("https://kazflow.com/mini/%1").arg(filename);
+        QString miniUrl = QString(API_BASE_URL "/mini/%1").arg(filename);
         QNetworkRequest request{QUrl(miniUrl)};
         QNetworkReply *reply = networkManager->get(request);
         setupSslErrorHandling(reply);
@@ -3599,7 +3602,7 @@ private:
     {
         statusLabel->setText(MSG_DOWNLOADING_FROM_API);
 
-        QString imageUrl = QString("https://kazflow.com/get/%1").arg(filename);
+        QString imageUrl = QString(API_BASE_URL "/get/%1").arg(filename);
         QNetworkRequest request{QUrl(imageUrl)};
         QNetworkReply *reply = networkManager->get(request);
         setupSslErrorHandling(reply);
