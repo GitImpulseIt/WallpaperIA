@@ -1,0 +1,166 @@
+---
+import { getTranslation } from '../i18n';
+
+const { lang } = Astro.props;
+const t = getTranslation(lang);
+---
+
+<section class="download" id="download">
+  <div class="download-background"></div>
+  <div class="container">
+    <div class="download-content">
+      <h2 class="download-title">{t.download.title}</h2>
+      <p class="download-subtitle">{t.download.subtitle}</p>
+
+      <a href="#" class="btn btn-download">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        {t.download.downloadButton}
+      </a>
+
+      <div class="download-info">
+        <div class="info-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"></path>
+            <circle cx="12" cy="2" r="1"></circle>
+          </svg>
+          <span>{t.download.version}</span>
+        </div>
+        <div class="info-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span>{t.download.windows}</span>
+        </div>
+        <div class="info-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          </svg>
+          <span>{t.download.size}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .download {
+    position: relative;
+    padding: 8rem 0;
+    overflow: hidden;
+  }
+
+  .download-background {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    z-index: -1;
+  }
+
+  .download-background::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 30% 50%, rgba(33, 150, 243, 0.2) 0%, transparent 50%),
+      radial-gradient(circle at 70% 50%, rgba(139, 69, 19, 0.15) 0%, transparent 50%);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  .download-content {
+    max-width: 700px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .download-title {
+    font-size: 3rem;
+    font-weight: 800;
+    color: white;
+    margin-bottom: 1.5rem;
+    line-height: 1.2;
+  }
+
+  .download-subtitle {
+    font-size: 1.25rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 3rem;
+  }
+
+  .btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 3rem;
+    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-decoration: none;
+    border-radius: 12px;
+    transition: all 0.3s;
+    box-shadow: 0 10px 40px rgba(33, 150, 243, 0.4);
+  }
+
+  .btn-download:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px rgba(33, 150, 243, 0.6);
+  }
+
+  .download-info {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    margin-top: 3rem;
+    flex-wrap: wrap;
+  }
+
+  .info-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.95rem;
+  }
+
+  .info-item svg {
+    color: #2196F3;
+  }
+
+  @media (max-width: 768px) {
+    .download {
+      padding: 4rem 0;
+    }
+
+    .download-title {
+      font-size: 2rem;
+    }
+
+    .download-subtitle {
+      font-size: 1rem;
+    }
+
+    .btn-download {
+      padding: 1rem 2rem;
+      font-size: 1.125rem;
+    }
+
+    .download-info {
+      gap: 1.5rem;
+    }
+
+    .info-item {
+      font-size: 0.875rem;
+    }
+  }
+</style>

@@ -1,0 +1,71 @@
+{
+  "lang": "es",
+  "langName": "Español",
+  "meta": {
+    "title": "WallpaperAI - Fondos de pantalla IA ilimitados",
+    "description": "Transforma tu escritorio diariamente con fondos de pantalla impresionantes generados por IA. Miles de categorías, posibilidades infinitas. Gratis y sin publicidad."
+  },
+  "header": {
+    "downloadNow": "Descargar"
+  },
+  "hero": {
+    "title": "Transforma tu escritorio con la magia de la IA",
+    "subtitle": "Fondos de pantalla impresionantes generados por inteligencia artificial, que cambian cada día",
+    "description": "Experimenta el futuro de la personalización de escritorio con WallpaperAI. Obtén fondos de pantalla frescos y deslumbrantes automáticamente - desde paisajes fotorrealistas hasta mundos futuristas.",
+    "downloadButton": "Descargar para Windows",
+    "free": "100% Gratis",
+    "noAds": "Sin Anuncios",
+    "unlimited": "Fondos Ilimitados"
+  },
+  "features": {
+    "title": "¿Por qué elegir WallpaperAI?",
+    "subtitle": "La experiencia definitiva de personalización de escritorio",
+    "feature1": {
+      "title": "Variedad Infinita",
+      "description": "Impulsado por IA de vanguardia, disfruta de un flujo interminable de fondos de pantalla únicos. Desde fotografía hiperrealista hasta arte imaginativo, escenas futuristas a pinturas clásicas - hay algo para todos."
+    },
+    "feature2": {
+      "title": "Actualizaciones diarias automáticas",
+      "description": "Despierta con un escritorio nuevo cada mañana. Configura WallpaperAI para cambiar tu fondo de pantalla diariamente, cada hora o a intervalos personalizados. Nunca veas el mismo fondo dos veces."
+    },
+    "feature3": {
+      "title": "Cientos de categorías",
+      "description": "Elige entre diversas categorías: naturaleza, espacio, arquitectura, animales, fantasía, ciencia ficción y más. Nuevas categorías añadidas regularmente para mantener tu escritorio emocionante."
+    },
+    "feature4": {
+      "title": "Soporte multi-pantalla",
+      "description": "Perfecto para configuraciones de múltiples pantallas. Muestra diferentes fondos en cada monitor o crea impresionantes panoramas en todo tu espacio de trabajo."
+    },
+    "feature5": {
+      "title": "Completamente gratis",
+      "description": "Sin costos ocultos, sin suscripciones, sin anuncios. WallpaperAI es 100% gratis y siempre lo será. Fondos hermosos para todos, para siempre."
+    },
+    "feature6": {
+      "title": "Ligero y rápido",
+      "description": "Recursos mínimos del sistema, máximo impacto visual. WallpaperAI funciona silenciosamente en segundo plano, listo cuando necesites un nuevo look."
+    }
+  },
+  "screenshots": {
+    "title": "Interfaz hermosa e intuitiva",
+    "subtitle": "Funciones potentes, fácil de usar"
+  },
+  "categories": {
+    "title": "Explora nuestras categorías",
+    "subtitle": "Descubre miles de fondos de pantalla generados por IA en temas diversos",
+    "loadingError": "No se pueden cargar las categorías. Inténtalo de nuevo más tarde.",
+    "rating": "calificación de estrellas"
+  },
+  "download": {
+    "title": "¿Listo para transformar tu escritorio?",
+    "subtitle": "Únete a miles de usuarios disfrutando de nuevos fondos cada día",
+    "downloadButton": "Descargar WallpaperAI",
+    "version": "Versión 1.0.3",
+    "windows": "Windows 10/11",
+    "size": "~20 MB"
+  },
+  "footer": {
+    "madeWith": "Hecho con",
+    "by": "por",
+    "rights": "Todos los derechos reservados"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "lang": "de",
+  "langName": "Deutsch",
+  "meta": {
+    "title": "WallpaperAI - Unbegrenzte KI-Hintergrundbilder",
+    "description": "Verwandeln Sie Ihren Desktop täglich mit atemberaubenden KI-generierten Hintergrundbildern. Tausende Kategorien, unendliche Möglichkeiten. Kostenlos und werbefrei."
+  },
+  "header": {
+    "downloadNow": "Herunterladen"
+  },
+  "hero": {
+    "title": "Verwandeln Sie Ihren Desktop mit KI-Magie",
+    "subtitle": "Atemberaubende Hintergrundbilder, generiert von künstlicher Intelligenz, die sich jeden Tag ändern",
+    "description": "Erleben Sie die Zukunft der Desktop-Personalisierung mit WallpaperAI. Erhalten Sie automatisch frische, atemberaubende Hintergrundbilder - von fotorealistischen Landschaften bis zu futuristischen Welten.",
+    "downloadButton": "Für Windows herunterladen",
+    "free": "100% Kostenlos",
+    "noAds": "Keine Werbung",
+    "unlimited": "Unbegrenzte Hintergrundbilder"
+  },
+  "features": {
+    "title": "Warum WallpaperAI wählen?",
+    "subtitle": "Das ultimative Desktop-Anpassungserlebnis",
+    "feature1": {
+      "title": "Unendliche Vielfalt",
+      "description": "Angetrieben von modernster KI, genießen Sie einen endlosen Strom einzigartiger Hintergrundbilder. Von hyperrealistischer Fotografie bis hin zu fantasievoller Kunst, futuristischen Szenen bis zu klassischen Gemälden - für jeden ist etwas dabei."
+    },
+    "feature2": {
+      "title": "Automatische tägliche Updates",
+      "description": "Wachen Sie jeden Morgen mit einem frischen Desktop auf. Konfigurieren Sie WallpaperAI, um Ihr Hintergrundbild täglich, stündlich oder in benutzerdefinierten Intervallen zu ändern. Sehen Sie niemals zweimal denselben Hintergrund."
+    },
+    "feature3": {
+      "title": "Hunderte von Kategorien",
+      "description": "Wählen Sie aus verschiedenen Kategorien: Natur, Weltraum, Architektur, Tiere, Fantasy, Science-Fiction und mehr. Neue Kategorien werden regelmäßig hinzugefügt, um Ihren Desktop spannend zu halten."
+    },
+    "feature4": {
+      "title": "Multi-Monitor-Unterstützung",
+      "description": "Perfekt für Multi-Screen-Setups. Zeigen Sie verschiedene Hintergrundbilder auf jedem Monitor an oder erstellen Sie atemberaubende Panoramen über Ihren gesamten Arbeitsbereich."
+    },
+    "feature5": {
+      "title": "Völlig kostenlos",
+      "description": "Keine versteckten Kosten, keine Abonnements, keine Werbung. WallpaperAI ist 100% kostenlos und wird es immer sein. Schöne Hintergrundbilder für alle, für immer."
+    },
+    "feature6": {
+      "title": "Leicht und schnell",
+      "description": "Minimale Systemressourcen, maximale visuelle Wirkung. WallpaperAI läuft leise im Hintergrund, bereit, wenn Sie einen neuen Look brauchen."
+    }
+  },
+  "screenshots": {
+    "title": "Schöne, intuitive Oberfläche",
+    "subtitle": "Leistungsstarke Funktionen, einfach zu bedienen"
+  },
+  "categories": {
+    "title": "Erkunden Sie unsere Kategorien",
+    "subtitle": "Entdecken Sie Tausende von KI-generierten Hintergrundbildern in verschiedenen Themen",
+    "loadingError": "Kategorien können nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "rating": "Sternebewertung"
+  },
+  "download": {
+    "title": "Bereit, Ihren Desktop zu verwandeln?",
+    "subtitle": "Schließen Sie sich Tausenden von Benutzern an, die jeden Tag frische Hintergrundbilder genießen",
+    "downloadButton": "WallpaperAI herunterladen",
+    "version": "Version 1.0.3",
+    "windows": "Windows 10/11",
+    "size": "~20 MB"
+  },
+  "footer": {
+    "madeWith": "Gemacht mit",
+    "by": "von",
+    "rights": "Alle Rechte vorbehalten"
+  }
+}

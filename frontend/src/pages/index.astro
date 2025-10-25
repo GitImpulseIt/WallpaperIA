@@ -1,0 +1,8 @@
+---
+import { config } from '../config';
+
+// Redirect to default language
+const defaultLang = config.defaultLanguage;
+
+return Astro.redirect(`/${defaultLang}`);
+---

@@ -1,0 +1,111 @@
+---
+import { getTranslation } from '../i18n';
+
+const { lang } = Astro.props;
+const t = getTranslation(lang);
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <img src="/img/icon.png" alt="WallpaperAI" class="footer-logo" />
+        <span class="footer-name">WallpaperAI</span>
+      </div>
+
+      <div class="footer-text">
+        <p>
+          {t.footer.madeWith} <span class="heart">♥</span> {t.footer.by} <a href="https://kazflow.com" target="_blank" rel="noopener">Kazflow</a>
+        </p>
+        <p class="copyright">
+          © {currentYear} WallpaperAI. {t.footer.rights}
+        </p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: #0f172a;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 3rem 0;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  .footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .footer-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+  }
+
+  .footer-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white;
+  }
+
+  .footer-text {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.95rem;
+  }
+
+  .footer-text p {
+    margin: 0.5rem 0;
+  }
+
+  .footer-text a {
+    color: #2196F3;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer-text a:hover {
+    color: #42a5f5;
+  }
+
+  .heart {
+    color: #d14836;
+    animation: heartbeat 1.5s ease-in-out infinite;
+  }
+
+  @keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    10%, 30% { transform: scale(1.1); }
+    20%, 40% { transform: scale(1); }
+  }
+
+  .copyright {
+    font-size: 0.875rem;
+  }
+
+  @media (max-width: 768px) {
+    .footer {
+      padding: 2rem 0;
+    }
+
+    .footer-text {
+      font-size: 0.875rem;
+    }
+  }
+</style>

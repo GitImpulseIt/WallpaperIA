@@ -1,0 +1,29 @@
+---
+import { config } from '../config';
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Hero from '../components/Hero.astro';
+import Features from '../components/Features.astro';
+import Categories from '../components/Categories.astro';
+import Download from '../components/Download.astro';
+import Footer from '../components/Footer.astro';
+
+export function getStaticPaths() {
+  return config.supportedLanguages.map(lang => ({
+    params: { lang }
+  }));
+}
+
+const { lang } = Astro.params;
+---
+
+<Layout lang={lang}>
+  <Header lang={lang} />
+  <main>
+    <Hero lang={lang} />
+    <Features lang={lang} />
+    <Categories lang={lang} />
+    <Download lang={lang} />
+  </main>
+  <Footer lang={lang} />
+</Layout>

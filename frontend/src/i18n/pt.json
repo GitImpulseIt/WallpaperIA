@@ -1,0 +1,71 @@
+{
+  "lang": "pt",
+  "langName": "Português",
+  "meta": {
+    "title": "WallpaperAI - Papéis de parede IA ilimitados",
+    "description": "Transforme sua área de trabalho diariamente com papéis de parede deslumbrantes gerados por IA. Milhares de categorias, possibilidades infinitas. Grátis e sem anúncios."
+  },
+  "header": {
+    "downloadNow": "Baixar"
+  },
+  "hero": {
+    "title": "Transforme sua área de trabalho com a magia da IA",
+    "subtitle": "Papéis de parede deslumbrantes gerados por inteligência artificial, mudando a cada dia",
+    "description": "Experimente o futuro da personalização de área de trabalho com WallpaperAI. Obtenha papéis de parede frescos e impressionantes automaticamente - de paisagens fotorrealistas a mundos futuristas.",
+    "downloadButton": "Baixar para Windows",
+    "free": "100% Grátis",
+    "noAds": "Sem Anúncios",
+    "unlimited": "Papéis Ilimitados"
+  },
+  "features": {
+    "title": "Por que escolher WallpaperAI?",
+    "subtitle": "A experiência definitiva de personalização de área de trabalho",
+    "feature1": {
+      "title": "Variedade Infinita",
+      "description": "Alimentado por IA de ponta, desfrute de um fluxo infinito de papéis de parede únicos. De fotografia hiper-realista a arte imaginativa, cenas futuristas a pinturas clássicas - há algo para todos."
+    },
+    "feature2": {
+      "title": "Atualizações diárias automáticas",
+      "description": "Acorde com uma nova área de trabalho todas as manhãs. Configure WallpaperAI para mudar seu papel de parede diariamente, a cada hora ou em intervalos personalizados. Nunca veja o mesmo fundo duas vezes."
+    },
+    "feature3": {
+      "title": "Centenas de categorias",
+      "description": "Escolha entre diversas categorias: natureza, espaço, arquitetura, animais, fantasia, ficção científica e mais. Novas categorias adicionadas regularmente para manter sua área de trabalho emocionante."
+    },
+    "feature4": {
+      "title": "Suporte multi-tela",
+      "description": "Perfeito para configurações de múltiplas telas. Exiba diferentes papéis de parede em cada monitor ou crie panoramas impressionantes em todo o seu espaço de trabalho."
+    },
+    "feature5": {
+      "title": "Completamente grátis",
+      "description": "Sem custos ocultos, sem assinaturas, sem anúncios. WallpaperAI é 100% grátis e sempre será. Papéis de parede lindos para todos, para sempre."
+    },
+    "feature6": {
+      "title": "Leve e rápido",
+      "description": "Recursos mínimos do sistema, máximo impacto visual. WallpaperAI funciona silenciosamente em segundo plano, pronto quando você precisar de um novo visual."
+    }
+  },
+  "screenshots": {
+    "title": "Interface linda e intuitiva",
+    "subtitle": "Recursos poderosos, fácil de usar"
+  },
+  "categories": {
+    "title": "Explore nossas categorias",
+    "subtitle": "Descubra milhares de papéis de parede gerados por IA em temas diversos",
+    "loadingError": "Não foi possível carregar as categorias. Tente novamente mais tarde.",
+    "rating": "classificação de estrelas"
+  },
+  "download": {
+    "title": "Pronto para transformar sua área de trabalho?",
+    "subtitle": "Junte-se a milhares de usuários desfrutando de novos papéis de parede todos os dias",
+    "downloadButton": "Baixar WallpaperAI",
+    "version": "Versão 1.0.3",
+    "windows": "Windows 10/11",
+    "size": "~20 MB"
+  },
+  "footer": {
+    "madeWith": "Feito com",
+    "by": "por",
+    "rights": "Todos os direitos reservados"
+  }
+}
