@@ -61,6 +61,19 @@ const t = getTranslation(lang);
     document.addEventListener('click', () => {
       langDropdown.classList.remove('active');
     });
+
+    // Mémoriser la préférence de langue dans un cookie quand l'utilisateur change
+    const langLinks = langDropdown.querySelectorAll('.lang-option');
+    langLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        const href = (e.target as HTMLAnchorElement).getAttribute('href');
+        if (href) {
+          const lang = href.replace('/', '');
+          // Cookie valide 1 an
+          document.cookie = `preferred_language=${lang}; path=/; max-age=31536000; SameSite=Lax`;
+        }
+      });
+    });
   }
 </script>
 

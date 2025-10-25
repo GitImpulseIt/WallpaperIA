@@ -92,8 +92,24 @@ Le fichier [src/config.ts](src/config.ts) contient :
 
 - `apiBaseUrl` : URL de base de l'API REST (actuellement `https://kazflow.com`)
 - `thumbnailsPath` : Chemin des miniatures (actuellement `/wallpaperai/api/miniatures/`)
-- `supportedLanguages` : Liste des langues supportées
+- `supportedLanguages` : Liste des langues supportées (EN, FR, ES, PT, IT, DE, RU)
 - `defaultLanguage` : Langue par défaut (`en`)
+
+### 🌐 Détection automatique de la langue
+
+Le site utilise **index.php** pour détecter automatiquement la langue du visiteur :
+
+1. **Priorité 1** : Vérifie si l'utilisateur a un cookie `preferred_language`
+2. **Priorité 2** : Analyse le header `Accept-Language` du navigateur
+3. **Fallback** : Redirige vers l'anglais (`en`) si aucune langue supportée n'est détectée
+
+Le fichier [public/index.php](public/index.php) gère cette logique et redirige vers `/{lang}/`.
+
+**Configuration Apache (.htaccess)** :
+- Redirige la racine `/` vers `index.php` pour détection
+- Sert les fichiers HTML statiques pour `/en/`, `/fr/`, etc.
+- Active la compression gzip et le cache pour les assets
+- Headers de sécurité (XSS, clickjacking, MIME sniffing)
 
 ## 🎨 Sections de la landing page
 
