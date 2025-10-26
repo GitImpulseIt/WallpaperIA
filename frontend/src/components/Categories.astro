@@ -27,36 +27,49 @@ const t = getTranslation(lang);
       <p>{t.categories.loadingError}</p>
     </div>
 
-    <!-- Categories grid -->
-    <div class="categories-grid" id="categoriesGrid" style="display: none;"></div>
+    <!-- Categories Carousel -->
+    <div class="categories-carousel" id="categoriesCarousel" style="display: none;">
+      <div class="carousel-wrapper">
+        <button class="carousel-btn carousel-prev" id="prevCategoriesBtn" aria-label="Previous">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+
+        <div class="carousel-container">
+          <div class="carousel-slides" id="carouselSlides"></div>
+        </div>
+
+        <button class="carousel-btn carousel-next" id="nextCategoriesBtn" aria-label="Next">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </div>
+
+      <div class="carousel-dots" id="carouselDots"></div>
+
+      <div class="carousel-info" id="carouselInfo">
+        <span id="currentPage">1</span> / <span id="totalPages">1</span>
+      </div>
+    </div>
   </div>
 </section>
 
 <script is:inline define:vars={{ apiBaseUrl: config.apiBaseUrl, thumbnailsPath: config.thumbnailsPath }}>
-  // Fonction pour créer une étoile
-  function createStarSVG(filled) {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('class', filled ? 'star-filled' : 'star-empty');
-    svg.setAttribute('width', '16');
-    svg.setAttribute('height', '16');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', filled ? 'currentColor' : 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('stroke-width', '2');
-
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z');
-    svg.appendChild(path);
-
-    return svg;
-  }
+  // Configuration du carrousel
+  const ITEMS_PER_PAGE = 9;
+  let allCategories = [];
+  let currentPage = 0;
+  let totalPages = 0;
+  let touchStartX = 0;
+  let touchEndX = 0;
 
   // Fonction pour créer une carte de catégorie
   function createCategoryCard(category) {
     const card = document.createElement('div');
     card.className = 'category-card';
 
-    // Image container
     const imageDiv = document.createElement('div');
     imageDiv.className = 'category-image';
 
@@ -67,24 +80,6 @@ const t = getTranslation(lang);
 
     imageDiv.appendChild(img);
 
-    // Overlay avec étoiles (si rating disponible dans l'API)
-    if (category.rating) {
-      const overlay = document.createElement('div');
-      overlay.className = 'category-overlay';
-
-      const rating = document.createElement('div');
-      rating.className = 'category-rating';
-
-      // Créer les étoiles
-      for (let i = 0; i < 5; i++) {
-        rating.appendChild(createStarSVG(i < category.rating));
-      }
-
-      overlay.appendChild(rating);
-      imageDiv.appendChild(overlay);
-    }
-
-    // Info container
     const infoDiv = document.createElement('div');
     infoDiv.className = 'category-info';
 
@@ -93,24 +88,156 @@ const t = getTranslation(lang);
     name.textContent = category.name;
 
     infoDiv.appendChild(name);
-
     card.appendChild(imageDiv);
     card.appendChild(infoDiv);
 
     return card;
   }
 
+  // Créer une slide avec 9 catégories
+  function createSlide(categories, startIndex) {
+    const slide = document.createElement('div');
+    slide.className = 'carousel-slide';
+
+    const grid = document.createElement('div');
+    grid.className = 'categories-grid';
+
+    const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, categories.length);
+
+    for (let i = startIndex; i < endIndex; i++) {
+      const card = createCategoryCard(categories[i]);
+      grid.appendChild(card);
+    }
+
+    slide.appendChild(grid);
+    return slide;
+  }
+
+  // Mettre à jour le carrousel
+  function updateCarousel() {
+    const carouselSlides = document.getElementById('carouselSlides');
+    const carouselDots = document.getElementById('carouselDots');
+    const currentPageSpan = document.getElementById('currentPage');
+    const totalPagesSpan = document.getElementById('totalPages');
+
+    // Mettre à jour la position
+    const offset = -currentPage * 100;
+    carouselSlides.style.transform = `translateX(${offset}%)`;
+
+    // Mettre à jour les dots
+    const dots = carouselDots.querySelectorAll('.dot');
+    dots.forEach((dot, index) => {
+      dot.classList.toggle('active', index === currentPage);
+    });
+
+    // Mettre à jour l'info de pagination
+    currentPageSpan.textContent = currentPage + 1;
+    totalPagesSpan.textContent = totalPages;
+
+    // Activer/désactiver les boutons
+    const prevBtn = document.getElementById('prevCategoriesBtn');
+    const nextBtn = document.getElementById('nextCategoriesBtn');
+
+    prevBtn.disabled = currentPage === 0;
+    nextBtn.disabled = currentPage === totalPages - 1;
+  }
+
+  // Aller à une page spécifique
+  function goToPage(pageIndex) {
+    if (pageIndex < 0 || pageIndex >= totalPages) return;
+    currentPage = pageIndex;
+    updateCarousel();
+    console.log(`[Carousel] Navigated to page ${currentPage + 1}/${totalPages}`);
+  }
+
+  // Navigation
+  function nextPage() {
+    if (currentPage < totalPages - 1) {
+      goToPage(currentPage + 1);
+    }
+  }
+
+  function prevPage() {
+    if (currentPage > 0) {
+      goToPage(currentPage - 1);
+    }
+  }
+
+  // Gestion du swipe tactile
+  function handleTouchStart(e) {
+    touchStartX = e.changedTouches[0].screenX;
+  }
+
+  function handleTouchEnd(e) {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+  }
+
+  function handleSwipe() {
+    const swipeThreshold = 50;
+    const diff = touchStartX - touchEndX;
+
+    if (Math.abs(diff) > swipeThreshold) {
+      if (diff > 0) {
+        nextPage(); // Swipe gauche
+      } else {
+        prevPage(); // Swipe droite
+      }
+    }
+  }
+
+  // Initialiser le carrousel
+  function initCarousel(categories) {
+    const carouselSlides = document.getElementById('carouselSlides');
+    const carouselDots = document.getElementById('carouselDots');
+    const categoriesCarousel = document.getElementById('categoriesCarousel');
+
+    // Calculer le nombre de pages
+    totalPages = Math.ceil(categories.length / ITEMS_PER_PAGE);
+    console.log(`[Carousel] Total pages: ${totalPages}`);
+
+    // Créer les slides
+    carouselSlides.innerHTML = '';
+    for (let i = 0; i < totalPages; i++) {
+      const slide = createSlide(categories, i * ITEMS_PER_PAGE);
+      carouselSlides.appendChild(slide);
+    }
+
+    // Créer les dots
+    carouselDots.innerHTML = '';
+    for (let i = 0; i < totalPages; i++) {
+      const dot = document.createElement('button');
+      dot.className = 'dot';
+      if (i === 0) dot.classList.add('active');
+      dot.addEventListener('click', () => goToPage(i));
+      carouselDots.appendChild(dot);
+    }
+
+    // Ajouter les event listeners pour les boutons
+    document.getElementById('prevCategoriesBtn').addEventListener('click', prevPage);
+    document.getElementById('nextCategoriesBtn').addEventListener('click', nextPage);
+
+    // Ajouter les event listeners pour le swipe
+    const carouselContainer = document.querySelector('.carousel-container');
+    carouselContainer.addEventListener('touchstart', handleTouchStart, false);
+    carouselContainer.addEventListener('touchend', handleTouchEnd, false);
+
+    // Afficher le carrousel
+    categoriesCarousel.style.display = 'block';
+    updateCarousel();
+
+    console.log(`[Carousel] Initialized with ${categories.length} categories, ${totalPages} pages`);
+  }
+
   // Charger les catégories via AJAX
   async function loadCategories() {
     const loadingMessage = document.getElementById('loadingMessage');
     const errorMessage = document.getElementById('errorMessage');
-    const categoriesGrid = document.getElementById('categoriesGrid');
 
     try {
       console.log('[Categories] Fetching from API:', `${apiBaseUrl}/categories`);
 
       const response = await fetch(`${apiBaseUrl}/categories`);
-
       console.log('[Categories] Response status:', response.status);
 
       if (!response.ok) {
@@ -120,32 +247,23 @@ const t = getTranslation(lang);
       const data = await response.json();
       console.log('[Categories] Data received:', data);
 
-      // L'API retourne {success: true, data: [...]}
-      const categories = data.data || data.categories || [];
-      console.log('[Categories] Number of categories:', categories.length);
+      allCategories = data.data || data.categories || [];
+      console.log('[Categories] Number of categories:', allCategories.length);
 
-      if (categories.length === 0) {
+      if (allCategories.length === 0) {
         throw new Error('No categories found');
       }
 
       // Masquer le loading
       loadingMessage.style.display = 'none';
 
-      // Créer les cartes de catégories
-      categories.forEach(category => {
-        const card = createCategoryCard(category);
-        categoriesGrid.appendChild(card);
-      });
+      // Initialiser le carrousel
+      initCarousel(allCategories);
 
-      // Afficher la grille
-      categoriesGrid.style.display = 'grid';
-
-      console.log('[Categories] Successfully loaded', categories.length, 'categories');
+      console.log('[Categories] Successfully loaded and carousel initialized');
 
     } catch (error) {
       console.error('[Categories] Failed to load:', error);
-
-      // Afficher l'erreur
       loadingMessage.style.display = 'none';
       errorMessage.style.display = 'flex';
     }
@@ -229,9 +347,36 @@ const t = getTranslation(lang);
     font-size: 1.125rem;
   }
 
+  /* Carrousel */
+  .categories-carousel {
+    position: relative;
+  }
+
+  .carousel-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .carousel-container {
+    overflow: hidden;
+    flex: 1;
+  }
+
+  .carousel-slides {
+    display: flex;
+    transition: transform 0.5s ease-in-out;
+  }
+
+  .carousel-slide {
+    min-width: 100%;
+    flex-shrink: 0;
+  }
+
   .categories-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
   }
 
@@ -309,6 +454,71 @@ const t = getTranslation(lang);
     text-align: center;
   }
 
+  /* Boutons de navigation du carrousel */
+  .carousel-btn {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .carousel-btn:hover:not(:disabled) {
+    background: rgba(33, 150, 243, 0.3);
+    border-color: #2196F3;
+    transform: scale(1.1);
+  }
+
+  .carousel-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* Dots de navigation */
+  .carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s;
+    padding: 0;
+  }
+
+  .dot:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  .dot.active {
+    background: #2196F3;
+    width: 32px;
+    border-radius: 6px;
+  }
+
+  /* Info de pagination */
+  .carousel-info {
+    text-align: center;
+    margin-top: 1rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.95rem;
+  }
+
   @media (max-width: 768px) {
     .categories {
       padding: 3rem 0;
@@ -324,8 +534,17 @@ const t = getTranslation(lang);
     }
 
     .categories-grid {
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      grid-template-columns: 1fr;
       gap: 1.5rem;
+    }
+
+    .carousel-btn {
+      width: 40px;
+      height: 40px;
+    }
+
+    .carousel-wrapper {
+      gap: 0.5rem;
     }
   }
 </style>
