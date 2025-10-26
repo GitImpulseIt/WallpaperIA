@@ -104,6 +104,8 @@ const t = getTranslation(lang);
 
     const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, categories.length);
 
+    console.log(`[Carousel] Creating slide with ${endIndex - startIndex} categories (${startIndex}-${endIndex})`);
+
     for (let i = startIndex; i < endIndex; i++) {
       const card = createCategoryCard(categories[i]);
       grid.appendChild(card);
@@ -202,6 +204,10 @@ const t = getTranslation(lang);
       const slide = createSlide(categories, i * ITEMS_PER_PAGE);
       carouselSlides.appendChild(slide);
     }
+
+    // Définir la largeur totale du conteneur des slides
+    carouselSlides.style.width = `${totalPages * 100}%`;
+    console.log(`[Carousel] Slides container width set to ${totalPages * 100}%`);
 
     // Créer les dots
     carouselDots.innerHTML = '';
@@ -519,6 +525,13 @@ const t = getTranslation(lang);
     font-size: 0.95rem;
   }
 
+  @media (max-width: 1024px) {
+    .categories-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+  }
+
   @media (max-width: 768px) {
     .categories {
       padding: 3rem 0;
@@ -534,8 +547,8 @@ const t = getTranslation(lang);
     }
 
     .categories-grid {
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
     }
 
     .carousel-btn {
@@ -545,6 +558,13 @@ const t = getTranslation(lang);
 
     .carousel-wrapper {
       gap: 0.5rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .categories-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
     }
   }
 </style>
