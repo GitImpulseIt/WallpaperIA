@@ -29,9 +29,25 @@ const t = getTranslation(lang);
 
     <link rel="icon" type="image/png" href="/img/icon.png" />
     <title>{t.meta.title}</title>
+
+    <!-- jQuery -->
+    <script is:inline src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <!-- Carrousel CSS et JS isolés -->
+    <link rel="stylesheet" href="/carousel.css" />
+    <script is:inline src="/carousel.js"></script>
   </head>
   <body>
     <slot />
+
+    <!-- Modal plein écran pour les catégories -->
+    <div class="fullscreen-modal" id="fullscreenModal">
+      <div class="fullscreen-loader">
+        <div class="spinner"></div>
+        <p>Chargement du wallpaper...</p>
+      </div>
+      <img src="" alt="" id="fullscreenImage" style="display: none;">
+    </div>
   </body>
 </html>
 
@@ -91,5 +107,65 @@ const t = getTranslation(lang);
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 2rem;
+  }
+
+  /* Modal plein écran */
+  .fullscreen-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 9999;
+    cursor: pointer;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .fullscreen-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    color: white;
+  }
+
+  .fullscreen-loader p {
+    font-size: 1.125rem;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .fullscreen-modal img {
+    max-width: 95%;
+    max-height: 95%;
+    object-fit: contain;
+    animation: zoomIn 0.3s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes zoomIn {
+    from {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
 </style>

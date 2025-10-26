@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrousel Catégories - Test</title>
+    <link rel="stylesheet" href="carrousel.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2 class="section-title">Catégories de Wallpapers</h2>
+        <p class="section-subtitle">Découvrez nos collections</p>
+
+        <!-- Loading state -->
+        <div class="loading-message" id="loadingMessage">
+            <div class="spinner"></div>
+            <p>Chargement des catégories...</p>
+        </div>
+
+        <!-- Error state -->
+        <div class="error-message" id="errorMessage" style="display: none;">
+            <p>Impossible de charger les catégories</p>
+        </div>
+
+        <!-- Categories Carousel -->
+        <div class="categories-carousel" id="categoriesCarousel" style="display: none;">
+            <div class="carousel-wrapper">
+                <button class="carousel-btn carousel-prev" id="prevCategoriesBtn" aria-label="Précédent">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+
+                <div class="carousel-container">
+                    <div class="carousel-slides" id="carouselSlides"></div>
+                </div>
+
+                <button class="carousel-btn carousel-next" id="nextCategoriesBtn" aria-label="Suivant">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="carousel-dots" id="carouselDots"></div>
+
+            <div class="carousel-info" id="carouselInfo">
+                <span id="currentPage">1</span> / <span id="totalPages">1</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal plein écran -->
+    <div class="fullscreen-modal" id="fullscreenModal">
+        <div class="fullscreen-loader">
+            <div class="spinner"></div>
+            <p>Chargement du wallpaper...</p>
+        </div>
+        <img src="" alt="" id="fullscreenImage" style="display: none;">
+    </div>
+
+    <script src="carrousel.js"></script>
+</body>
+</html>

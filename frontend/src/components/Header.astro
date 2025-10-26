@@ -1,6 +1,6 @@
 ---
 import { config } from '../config';
-import { getTranslation, getLanguageName } from '../i18n';
+import { getTranslation, getLanguageName, getLanguageFlag } from '../i18n';
 
 const { lang } = Astro.props;
 const t = getTranslation(lang);
@@ -17,12 +17,8 @@ const t = getTranslation(lang);
       <nav class="nav">
         <div class="language-selector">
           <button class="lang-button" id="langButton">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-            </svg>
-            <span>{getLanguageName(lang)}</span>
+            <span class="flag">{getLanguageFlag(lang)}</span>
+            <span class="lang-name">{getLanguageName(lang)}</span>
             <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
@@ -34,7 +30,8 @@ const t = getTranslation(lang);
                 href={`/${language}`}
                 class={`lang-option ${language === lang ? 'active' : ''}`}
               >
-                {getLanguageName(language)}
+                <span class="flag">{getLanguageFlag(language)}</span>
+                <span>{getLanguageName(language)}</span>
               </a>
             ))}
           </div>
@@ -93,6 +90,11 @@ const t = getTranslation(lang);
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 2rem;
+  }
+
+  .flag {
+    font-size: 1.25rem;
+    line-height: 1;
   }
 
   .header-content {
@@ -182,7 +184,9 @@ const t = getTranslation(lang);
   }
 
   .lang-option {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     padding: 0.75rem 1rem;
     color: rgba(255, 255, 255, 0.8);
     text-decoration: none;
@@ -223,12 +227,17 @@ const t = getTranslation(lang);
   }
 
   @media (max-width: 768px) {
+    .container {
+      padding: 0 0.75rem;
+    }
+
     .header-content {
       height: 60px;
     }
 
     .logo {
       font-size: 1.25rem;
+      gap: 0.5rem;
     }
 
     .logo img {
@@ -237,12 +246,51 @@ const t = getTranslation(lang);
     }
 
     .nav {
-      gap: 1rem;
+      gap: 0.5rem;
+    }
+
+    .lang-button {
+      padding: 0.5rem;
+      min-width: 44px;
+    }
+
+    .lang-name,
+    .chevron {
+      display: none;
+    }
+
+    .flag {
+      font-size: 1.5rem;
     }
 
     .btn {
-      padding: 0.6rem 1.2rem;
-      font-size: 0.9rem;
+      padding: 0.6rem 1rem;
+      font-size: 0.85rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .container {
+      padding: 0 0.5rem;
+    }
+
+    .logo {
+      font-size: 1.1rem;
+      gap: 0.4rem;
+    }
+
+    .logo img {
+      width: 28px;
+      height: 28px;
+    }
+
+    .nav {
+      gap: 0.4rem;
+    }
+
+    .btn {
+      padding: 0.5rem 0.8rem;
+      font-size: 0.8rem;
     }
   }
 </style>

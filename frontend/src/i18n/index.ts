@@ -22,3 +22,16 @@ export function getLanguageName(lang: string): string {
   const t = getTranslation(lang);
   return t.langName;
 }
+
+export function getLanguageFlag(lang: string): string {
+  const flags: Record<string, string> = {
+    en: '🇬🇧',
+    fr: '🇫🇷',
+    es: '🇪🇸',
+    pt: '🇵🇹',
+    it: '🇮🇹',
+    de: '🇩🇪',
+    ru: '🇷🇺'
+  };
+  return flags[lang] || '🌐';
+}
