@@ -65,20 +65,24 @@ const t = getTranslation(lang);
     img.alt = category.name;
     img.loading = 'lazy';
 
-    const overlay = document.createElement('div');
-    overlay.className = 'category-overlay';
-
-    const rating = document.createElement('div');
-    rating.className = 'category-rating';
-
-    // Créer les étoiles
-    for (let i = 0; i < 5; i++) {
-      rating.appendChild(createStarSVG(i < category.rating));
-    }
-
-    overlay.appendChild(rating);
     imageDiv.appendChild(img);
-    imageDiv.appendChild(overlay);
+
+    // Overlay avec étoiles (si rating disponible dans l'API)
+    if (category.rating) {
+      const overlay = document.createElement('div');
+      overlay.className = 'category-overlay';
+
+      const rating = document.createElement('div');
+      rating.className = 'category-rating';
+
+      // Créer les étoiles
+      for (let i = 0; i < 5; i++) {
+        rating.appendChild(createStarSVG(i < category.rating));
+      }
+
+      overlay.appendChild(rating);
+      imageDiv.appendChild(overlay);
+    }
 
     // Info container
     const infoDiv = document.createElement('div');
@@ -116,7 +120,8 @@ const t = getTranslation(lang);
       const data = await response.json();
       console.log('[Categories] Data received:', data);
 
-      const categories = data.categories || [];
+      // L'API retourne {success: true, data: [...]}
+      const categories = data.data || data.categories || [];
       console.log('[Categories] Number of categories:', categories.length);
 
       if (categories.length === 0) {
