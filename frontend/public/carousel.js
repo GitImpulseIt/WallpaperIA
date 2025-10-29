@@ -38,8 +38,6 @@
 
         // Ouvrir l'image en plein écran (version taille réelle)
         function openFullscreen(thumbnailFilename, categoryName) {
-            console.log(`[Fullscreen] Loading full-size image for: ${thumbnailFilename}`);
-
             // Afficher le modal avec le loader
             const $modal = $('#fullscreenModal');
             const $loader = $('.fullscreen-loader');
@@ -60,7 +58,6 @@
                 $image.attr('src', fullImageUrl);
                 $image.attr('alt', categoryName);
                 $image.show();
-                console.log(`[Fullscreen] Displaying full-size: ${thumbnailFilename}`);
             };
             img.onerror = function() {
                 console.error(`[Fullscreen] Failed to load image: ${thumbnailFilename}`);
@@ -77,23 +74,12 @@
 
             // Réactiver le scroll du body
             $('body').css('overflow', '');
-
-            console.log('[Fullscreen] Closed');
         }
 
         // Créer une slide avec 6 ou 9 catégories selon la taille d'écran
         function createSlide(categories, startIndex) {
             const endIndex = Math.min(startIndex + itemsPerPage, categories.length);
-            let slideCategories = categories.slice(startIndex, endIndex);
-
-            // FORCER la limite : 9 max sur desktop, 6 max sur mobile
-            const maxItems = itemsPerPage;
-            if (slideCategories.length > maxItems) {
-                console.warn(`[Categories Carousel] Too many items (${slideCategories.length}), limiting to ${maxItems}`);
-                slideCategories = slideCategories.slice(0, maxItems);
-            }
-
-            console.log(`[Categories Carousel] Creating slide with ${slideCategories.length} items (itemsPerPage: ${itemsPerPage})`);
+            const slideCategories = categories.slice(startIndex, endIndex);
 
             let cardsHTML = '';
             slideCategories.forEach(category => {
@@ -127,8 +113,6 @@
             // Activer/désactiver les boutons
             $('#prevCategoriesBtn').prop('disabled', currentPage === 0);
             $('#nextCategoriesBtn').prop('disabled', currentPage === totalPages - 1);
-
-            console.log(`[Categories Carousel] Page ${currentPage + 1}/${totalPages}, offset: ${offset}px`);
         }
 
         // Aller à une page spécifique
@@ -154,8 +138,6 @@
         // Appliquer les largeurs du carrousel
         function applyCarouselWidths() {
             const containerWidth = $('.cat-carousel-container').width();
-            console.log(`[Categories Carousel] Applying widths, container: ${containerWidth}px`);
-
             const $carouselSlides = $('.cat-carousel-slides');
             $carouselSlides.css('width', `${totalPages * containerWidth}px`);
 
@@ -178,7 +160,6 @@
             // Calculer le nombre d'items par page selon la largeur de l'écran
             itemsPerPage = getItemsPerPage();
             totalPages = Math.ceil(categories.length / itemsPerPage);
-            console.log(`[Categories Carousel] Items per page: ${itemsPerPage}, Total pages: ${totalPages}`);
 
             const $carouselSlides = $('#carouselSlides');
             $carouselSlides.empty();
@@ -227,7 +208,6 @@
                 isDragging = true;
                 touchStartX = e.originalEvent.touches[0].clientX;
                 touchEndX = touchStartX;
-                console.log(`[Categories Carousel] Touch start at ${touchStartX}`);
             });
 
             $container.on('touchmove', function (e) {
@@ -250,14 +230,10 @@
                 const swipeThreshold = 50;
                 const diff = touchStartX - touchEndX;
 
-                console.log(`[Categories Carousel] Touch end: start=${touchStartX}, end=${touchEndX}, diff=${diff}`);
-
                 if (Math.abs(diff) > swipeThreshold) {
                     if (diff > 0) {
-                        console.log('[Categories Carousel] Swipe left -> next page');
                         nextPage();
                     } else {
-                        console.log('[Categories Carousel] Swipe right -> prev page');
                         prevPage();
                     }
                 }
@@ -271,11 +247,9 @@
                     // Recalculer le nombre d'items si on change de desktop à mobile ou vice-versa
                     const newItemsPerPage = getItemsPerPage();
                     if (newItemsPerPage !== itemsPerPage) {
-                        console.log(`[Categories Carousel] Items per page changed from ${itemsPerPage} to ${newItemsPerPage}, reinitializing...`);
                         initCarousel(allCategories);
                     } else {
                         applyCarouselWidths();
-                        console.log(`[Categories Carousel] Resized`);
                     }
                 }, 250);
             });
@@ -287,18 +261,14 @@
                     setTimeout(function () {
                         // Vérifier si le container a une largeur valide
                         let containerWidth = $('.cat-carousel-container').width();
-                        console.log(`[Categories Carousel] First check - container width: ${containerWidth}px`);
 
                         if (containerWidth === 0) {
                             // Réessayer après un délai supplémentaire
-                            console.log('[Categories Carousel] Container width is 0, retrying...');
                             setTimeout(function () {
                                 applyCarouselWidths();
-                                console.log(`[Categories Carousel] Initialized with ${categories.length} categories, ${totalPages} pages`);
                             }, 100);
                         } else {
                             applyCarouselWidths();
-                            console.log(`[Categories Carousel] Initialized with ${categories.length} categories, ${totalPages} pages`);
                         }
                     }, 150);
                 });
@@ -307,17 +277,12 @@
 
         // Charger les catégories via AJAX
         function loadCategories() {
-            console.log('[Categories] Fetching from API:', `${API_BASE_URL}/categories`);
-
             $.ajax({
                 url: `${API_BASE_URL}/categories`,
                 method: 'GET',
                 dataType: 'json',
                 success: function (data) {
-                    console.log('[Categories] Response received:', data);
-
                     allCategories = data.data || data.categories || [];
-                    console.log('[Categories] Number of categories:', allCategories.length);
 
                     if (allCategories.length === 0) {
                         throw new Error('No categories found');
@@ -328,8 +293,6 @@
 
                     // Initialiser le carrousel
                     initCarousel(allCategories);
-
-                    console.log('[Categories] Successfully loaded and carousel initialized');
                 },
                 error: function (xhr, status, error) {
                     console.error('[Categories] Failed to load:', error);

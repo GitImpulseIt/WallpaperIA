@@ -31,7 +31,6 @@
         // Fonction pour mettre à jour la rotation du carrousel
         function updateCarousel() {
             carousel.style.transform = `translateZ(-35vw) rotateY(${currentRotation}deg)`;
-            console.log(`[Screenshots 3D Carousel] Rotation: ${currentRotation}deg`);
         }
 
         // Navigation vers le slide suivant
@@ -99,7 +98,5 @@
 
         // Initialiser le carrousel
         updateCarousel();
-
-        console.log('[Screenshots 3D Carousel] Initialized with manual controls');
     }
 })();
