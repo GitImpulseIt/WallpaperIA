@@ -5,6 +5,19 @@ api/file_mappings.json
 ComfyUIBot/config.json
 ComfyUIBot/upload.log
 
+# Backups CSV
+api/wallpapers.csv.backup.*
+prompts/*.csv
+prompts/sync_*.csv
+prompts/insert_*.csv
+prompts/csv_*.csv
+
+# Logs et PID
+*.log
+*.pid
+dev.pid
+frontend/dev.log
+
 # Claude Code
 .claude/
 
@@ -54,3 +67,18 @@ ui_*.h
 *~
 *.tmp
 *.temp
+
+# Node modules et dépendances frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.astro/
+
+# Carrousels de debug/dev
+carrousel_*/
+debug_*/
+*.zip
+
+# Dossiers de travail prompts
+prompts/27_*/
+prompts/*_10_2025/

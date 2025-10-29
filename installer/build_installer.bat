@@ -91,4 +91,3 @@ if exist "WallpaperAI-Setup-Multilang-1.0.3.exe" (
 )
 
 echo.
-pause

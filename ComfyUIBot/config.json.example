@@ -1,0 +1,10 @@
+{
+  "comfyui_output_dir": "C:\\Installation\\ComfyUI\\output",
+  "ftp": {
+    "host": "ftpes://example.com:21",
+    "user": "your_ftp_username",
+    "password": "your_ftp_password",
+    "passive": true,
+    "remote_directory": "/wallpapers"
+  }
+}

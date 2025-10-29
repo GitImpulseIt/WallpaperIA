@@ -42,7 +42,6 @@ if /I "%LANG%"=="ALL" (
     echo Executables crees:
     dir /b "release\WallpaperAI_*.exe"
     echo.
-    pause
     exit /b 0
 )
 

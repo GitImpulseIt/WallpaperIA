@@ -1,5 +1,5 @@
-﻿; WallpaperAI - Script d'installation NSIS
-; Générateur d'installateur pour WallpaperAI
+﻿; WallpaperAI - Script d'installation NSIS Multilingue
+; Installateur intelligent qui installe uniquement le binaire de la langue choisie
 ; Créé avec Claude Code
 
 ;--------------------------------
@@ -18,7 +18,7 @@ Unicode true
 ; Configuration générale
 
 !define APP_NAME "WallpaperAI"
-!define APP_VERSION "1.0.1"
+!define APP_VERSION "1.0.3"
 !define APP_PUBLISHER "WallpaperAI Team"
 !define APP_WEBSITE "https://github.com/kazuya/wallpaperai"
 !define APP_EXE "WallpaperAI.exe"
@@ -27,7 +27,7 @@ Unicode true
 
 ; Nom de l'installateur
 Name "${APP_NAME} ${APP_VERSION}"
-OutFile "WallpaperAI-Setup-${APP_VERSION}.exe"
+OutFile "WallpaperAI-Setup-Multilang-${APP_VERSION}.exe"
 
 ; Dossier d'installation par défaut
 InstallDir "$PROGRAMFILES64\${APP_NAME}"
@@ -43,6 +43,12 @@ SetCompressor /SOLID lzma
 SetCompressorDictSize 64
 
 ;--------------------------------
+; Variables globales
+
+Var SelectedLanguage
+Var LanguageCode
+
+;--------------------------------
 ; Interface Moderne (MUI)
 
 !define MUI_ABORTWARNING
@@ -53,13 +59,11 @@ SetCompressorDictSize 64
 !define MUI_WELCOMEFINISHPAGE_BITMAP_NOSTRETCH
 !define MUI_UNWELCOMEFINISHPAGE_BITMAP_NOSTRETCH
 
-; Page de bienvenue
-!define MUI_WELCOMEPAGE_TITLE "Bienvenue dans l'installation de ${APP_NAME}"
-!define MUI_WELCOMEPAGE_TEXT "Cet assistant va vous guider dans l'installation de ${APP_NAME}.$\r$\n$\r$\nIl est recommandé de fermer toutes les instances de ${APP_NAME} avant de continuer.$\r$\n$\r$\nCliquez sur Suivant pour continuer."
-!insertmacro MUI_PAGE_WELCOME
+; Page de sélection de langue customisée
+Page custom LanguageSelectionPage LanguageSelectionLeave
 
-; Page de licence (optionnelle - décommentez si vous avez une licence)
-; !insertmacro MUI_PAGE_LICENSE "..\LICENSE.txt"
+; Page de bienvenue
+!insertmacro MUI_PAGE_WELCOME
 
 ; Page de choix du répertoire
 !insertmacro MUI_PAGE_DIRECTORY
@@ -69,9 +73,10 @@ SetCompressorDictSize 64
 
 ; Page de fin avec option de lancement
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP_EXE}"
-!define MUI_FINISHPAGE_RUN_TEXT "Lancer ${APP_NAME}"
-!define MUI_FINISHPAGE_TITLE "Installation terminée"
-!define MUI_FINISHPAGE_TEXT "${APP_NAME} a été installé avec succès sur votre ordinateur.$\r$\n$\r$\nCliquez sur Terminer pour quitter l'assistant."
+!define MUI_FINISHPAGE_RUN_TEXT_FRENCH "Lancer ${APP_NAME}"
+!define MUI_FINISHPAGE_RUN_TEXT_ENGLISH "Launch ${APP_NAME}"
+!define MUI_FINISHPAGE_TITLE_FRENCH "Installation terminée"
+!define MUI_FINISHPAGE_TITLE_ENGLISH "Installation Complete"
 !insertmacro MUI_PAGE_FINISH
 
 ; Pages de désinstallation
@@ -79,17 +84,64 @@ SetCompressorDictSize 64
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
 
-; Langues
+; Langues de l'installateur
 !insertmacro MUI_LANGUAGE "French"
 !insertmacro MUI_LANGUAGE "English"
+!insertmacro MUI_LANGUAGE "Spanish"
+!insertmacro MUI_LANGUAGE "Portuguese"
+!insertmacro MUI_LANGUAGE "Italian"
+!insertmacro MUI_LANGUAGE "German"
+!insertmacro MUI_LANGUAGE "Russian"
+
+;--------------------------------
+; Strings personnalisées pour la page de sélection de langue
+
+LangString PAGE_TITLE_LANG ${LANG_FRENCH} "Choix de la langue"
+LangString PAGE_TITLE_LANG ${LANG_ENGLISH} "Language Selection"
+LangString PAGE_TITLE_LANG ${LANG_SPANISH} "Selección de idioma"
+LangString PAGE_TITLE_LANG ${LANG_PORTUGUESE} "Seleção de idioma"
+LangString PAGE_TITLE_LANG ${LANG_ITALIAN} "Selezione della lingua"
+LangString PAGE_TITLE_LANG ${LANG_GERMAN} "Sprachauswahl"
+LangString PAGE_TITLE_LANG ${LANG_RUSSIAN} "Выбор языка"
+
+LangString PAGE_SUBTITLE_LANG ${LANG_FRENCH} "Choisissez la langue de l'application"
+LangString PAGE_SUBTITLE_LANG ${LANG_ENGLISH} "Choose the application language"
+LangString PAGE_SUBTITLE_LANG ${LANG_SPANISH} "Elija el idioma de la aplicación"
+LangString PAGE_SUBTITLE_LANG ${LANG_PORTUGUESE} "Escolha o idioma da aplicação"
+LangString PAGE_SUBTITLE_LANG ${LANG_ITALIAN} "Scegli la lingua dell'applicazione"
+LangString PAGE_SUBTITLE_LANG ${LANG_GERMAN} "Wählen Sie die Anwendungssprache"
+LangString PAGE_SUBTITLE_LANG ${LANG_RUSSIAN} "Выберите язык приложения"
+
+LangString LANG_SELECT_TEXT ${LANG_FRENCH} "Langue de l'application :"
+LangString LANG_SELECT_TEXT ${LANG_ENGLISH} "Application language:"
+LangString LANG_SELECT_TEXT ${LANG_SPANISH} "Idioma de la aplicación:"
+LangString LANG_SELECT_TEXT ${LANG_PORTUGUESE} "Idioma da aplicação:"
+LangString LANG_SELECT_TEXT ${LANG_ITALIAN} "Lingua dell'applicazione:"
+LangString LANG_SELECT_TEXT ${LANG_GERMAN} "Anwendungssprache:"
+LangString LANG_SELECT_TEXT ${LANG_RUSSIAN} "Язык приложения:"
 
 ;--------------------------------
 ; Fonctions
 
 Function .onInit
-    ; Vérifier si l'application est déjà en cours d'exécution
-    System::Call 'kernel32::CreateMutex(i 0, i 0, t "${APP_NAME}") i .r1 ?e'
-    Pop $R0
+    ; Initialiser la langue par défaut selon la langue de l'installateur
+    ${If} $LANGUAGE == ${LANG_FRENCH}
+        StrCpy $LanguageCode "FR"
+    ${ElseIf} $LANGUAGE == ${LANG_ENGLISH}
+        StrCpy $LanguageCode "EN"
+    ${ElseIf} $LANGUAGE == ${LANG_SPANISH}
+        StrCpy $LanguageCode "ES"
+    ${ElseIf} $LANGUAGE == ${LANG_PORTUGUESE}
+        StrCpy $LanguageCode "PT"
+    ${ElseIf} $LANGUAGE == ${LANG_ITALIAN}
+        StrCpy $LanguageCode "IT"
+    ${ElseIf} $LANGUAGE == ${LANG_GERMAN}
+        StrCpy $LanguageCode "DE"
+    ${ElseIf} $LANGUAGE == ${LANG_RUSSIAN}
+        StrCpy $LanguageCode "RU"
+    ${Else}
+        StrCpy $LanguageCode "EN"
+    ${EndIf}
 
     ; Vérifier si une version est déjà installée
     ReadRegStr $R0 HKLM "${UNINSTALL_KEY}" "UninstallString"
@@ -111,6 +163,80 @@ Function .onInit
     done:
 FunctionEnd
 
+; Page de sélection de langue
+Function LanguageSelectionPage
+    !insertmacro MUI_HEADER_TEXT "$(PAGE_TITLE_LANG)" "$(PAGE_SUBTITLE_LANG)"
+
+    nsDialogs::Create 1018
+    Pop $0
+    ${If} $0 == error
+        Abort
+    ${EndIf}
+
+    ; Texte d'explication
+    ${NSD_CreateLabel} 0 0 100% 12u "$(LANG_SELECT_TEXT)"
+    Pop $0
+
+    ; Liste déroulante des langues
+    ${NSD_CreateDropList} 0 20u 200u 80u ""
+    Pop $SelectedLanguage
+
+    ; Ajouter les langues disponibles
+    ${NSD_CB_AddString} $SelectedLanguage "Français (French)"
+    ${NSD_CB_AddString} $SelectedLanguage "English"
+    ${NSD_CB_AddString} $SelectedLanguage "Español (Spanish)"
+    ${NSD_CB_AddString} $SelectedLanguage "Português (Portuguese)"
+    ${NSD_CB_AddString} $SelectedLanguage "Italiano (Italian)"
+    ${NSD_CB_AddString} $SelectedLanguage "Deutsch (German)"
+    ${NSD_CB_AddString} $SelectedLanguage "Русский (Russian)"
+
+    ; Sélectionner la langue par défaut selon le code
+    ${If} $LanguageCode == "FR"
+        ${NSD_CB_SelectString} $SelectedLanguage "Français (French)"
+    ${ElseIf} $LanguageCode == "EN"
+        ${NSD_CB_SelectString} $SelectedLanguage "English"
+    ${ElseIf} $LanguageCode == "ES"
+        ${NSD_CB_SelectString} $SelectedLanguage "Español (Spanish)"
+    ${ElseIf} $LanguageCode == "PT"
+        ${NSD_CB_SelectString} $SelectedLanguage "Português (Portuguese)"
+    ${ElseIf} $LanguageCode == "IT"
+        ${NSD_CB_SelectString} $SelectedLanguage "Italiano (Italian)"
+    ${ElseIf} $LanguageCode == "DE"
+        ${NSD_CB_SelectString} $SelectedLanguage "Deutsch (German)"
+    ${ElseIf} $LanguageCode == "RU"
+        ${NSD_CB_SelectString} $SelectedLanguage "Русский (Russian)"
+    ${Else}
+        ${NSD_CB_SelectString} $SelectedLanguage "English"
+    ${EndIf}
+
+    nsDialogs::Show
+FunctionEnd
+
+Function LanguageSelectionLeave
+    ; Récupérer la langue sélectionnée
+    ${NSD_GetText} $SelectedLanguage $0
+
+    ${If} $0 == "Français (French)"
+        StrCpy $LanguageCode "FR"
+    ${ElseIf} $0 == "English"
+        StrCpy $LanguageCode "EN"
+    ${ElseIf} $0 == "Español (Spanish)"
+        StrCpy $LanguageCode "ES"
+    ${ElseIf} $0 == "Português (Portuguese)"
+        StrCpy $LanguageCode "PT"
+    ${ElseIf} $0 == "Italiano (Italian)"
+        StrCpy $LanguageCode "IT"
+    ${ElseIf} $0 == "Deutsch (German)"
+        StrCpy $LanguageCode "DE"
+    ${ElseIf} $0 == "Русский (Russian)"
+        StrCpy $LanguageCode "RU"
+    ${Else}
+        StrCpy $LanguageCode "EN"
+    ${EndIf}
+
+    DetailPrint "Langue sélectionnée : $LanguageCode"
+FunctionEnd
+
 ;--------------------------------
 ; Section d'installation
 
@@ -123,9 +249,32 @@ Section "Installation" SecInstall
     Pop $0
     Sleep 1000
 
-    ; Fichiers principaux
-    DetailPrint "Installation des fichiers principaux..."
-    File "..\app\release\${APP_EXE}"
+    ; Installer l'exécutable correspondant à la langue choisie
+    DetailPrint "Installation de l'exécutable ($LanguageCode)..."
+
+    ${If} $LanguageCode == "FR"
+        File /oname=${APP_EXE} "..\app\release\WallpaperAI_FR.exe"
+    ${ElseIf} $LanguageCode == "EN"
+        File /oname=${APP_EXE} "..\app\release\WallpaperAI_EN.exe"
+    ${ElseIf} $LanguageCode == "ES"
+        File /oname=${APP_EXE} "..\app\release\WallpaperAI_ES.exe"
+    ${ElseIf} $LanguageCode == "PT"
+        File /oname=${APP_EXE} "..\app\release\WallpaperAI_PT.exe"
+    ${ElseIf} $LanguageCode == "IT"
+        File /oname=${APP_EXE} "..\app\release\WallpaperAI_IT.exe"
+    ${ElseIf} $LanguageCode == "DE"
+        File /oname=${APP_EXE} "..\app\release\WallpaperAI_DE.exe"
+    ${ElseIf} $LanguageCode == "RU"
+        File /oname=${APP_EXE} "..\app\release\WallpaperAI_RU.exe"
+    ${Else}
+        File /oname=${APP_EXE} "..\app\release\WallpaperAI_EN.exe"
+    ${EndIf}
+
+    ; Enregistrer la langue choisie dans le registre pour référence
+    WriteRegStr HKLM "Software\${APP_NAME}" "Language" "$LanguageCode"
+
+    ; Fichiers communs (DLLs et ressources)
+    DetailPrint "Installation des dépendances Qt..."
     File "..\app\release\*.dll"
     File "..\app\release\*.png"
 
@@ -178,7 +327,7 @@ Section "Installation" SecInstall
     CreateShortCut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}"
     CreateShortCut "$SMPROGRAMS\${APP_NAME}\Désinstaller ${APP_NAME}.lnk" "$INSTDIR\Uninstall.exe"
 
-    ; Raccourci sur le bureau (optionnel)
+    ; Raccourci sur le bureau
     CreateShortCut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}"
 
     DetailPrint "Installation terminée avec succès !"

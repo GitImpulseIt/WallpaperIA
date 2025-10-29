@@ -1,6 +1,6 @@
 # ComfyUI Wallpaper Uploader
 
-Script PHP automatique pour uploader les wallpapers générés par ComfyUI vers le serveur de production.
+Script PHP automatique pour uploader les wallpapers générés par ComfyUI vers le serveur FTP.
 
 ## Fonctionnalités
 
@@ -8,7 +8,6 @@ Script PHP automatique pour uploader les wallpapers générés par ComfyUI vers 
 - Détection des catégories (sous-répertoires)
 - Extraction du nom de base des images (suppression des indices ComfyUI `_00001_`)
 - Upload FTP sécurisé (FTPES)
-- Enregistrement automatique dans l'API de production
 - Logging détaillé des opérations
 - Mode dry-run pour tester sans upload
 
@@ -29,11 +28,6 @@ cp config.json.example config.json
     "password": "your_ftp_password",
     "passive": true,
     "remote_directory": "/wallpapers"
-  },
-  "api": {
-    "url": "https://kazflow.com/wallpapers",
-    "username": "uploader",
-    "password": "your_api_password"
   }
 }
 ```
@@ -55,6 +49,11 @@ php uploader.php --dry-run
 php uploader.php --config=mon_config.json
 ```
 
+### Afficher l'aide
+```bash
+php uploader.php --help
+```
+
 ## Fonctionnement
 
 ### 1. Structure des fichiers ComfyUI
@@ -62,11 +61,11 @@ php uploader.php --config=mon_config.json
 ComfyUI génère des fichiers avec des noms comme :
 ```
 C:\Installation\ComfyUI\output\
-├── CYBERPUNK/FUTURISTIC\
+├── CYBERPUNK FUTURISTIC\
 │   ├── neon_city_night_00001_.png
 │   ├── neon_city_night_00002_.png
 │   └── cyberpunk_street_00001_.png
-└── NATURE/LANDSCAPES\
+└── NATURAL LANDSCAPES\
     ├── mountain_sunset_00001_.png
     └── forest_path_00001_.png
 ```
@@ -74,10 +73,9 @@ C:\Installation\ComfyUI\output\
 ### 2. Traitement
 
 Le script :
-- Détecte la catégorie : `CYBERPUNK/FUTURISTIC`
+- Détecte la catégorie : `CYBERPUNK FUTURISTIC`
 - Extrait le nom de base : `neon_city_night_00001_.png` → `neon_city_night.png`
 - Upload vers FTP : `/wallpapers/neon_city_night.png` (tous les fichiers regroupés dans le même répertoire)
-- Enregistre dans l'API avec la catégorie et la date du jour
 
 ### 3. Pattern de nom de fichier
 
@@ -92,7 +90,7 @@ Exemples de conversion :
 
 Le script vérifie si un fichier a déjà été uploadé dans la session en cours pour éviter les doublons (si plusieurs variantes `_00001_`, `_00002_` existent).
 
-**Important** : Tous les fichiers sont uploadés dans le même répertoire FTP (pas de sous-répertoires par catégorie). La catégorie est uniquement conservée pour l'enregistrement dans l'API.
+**Important** : Tous les fichiers sont uploadés dans le même répertoire FTP (pas de sous-répertoires par catégorie).
 
 ## Logs
 
@@ -100,10 +98,9 @@ Les opérations sont enregistrées dans `upload.log` :
 ```
 [2025-01-15 14:30:00] [INFO] Starting image processing from: C:\Installation\ComfyUI\output
 [2025-01-15 14:30:01] [INFO] Connected to FTP server: example.com
-[2025-01-15 14:30:02] [INFO] Processing category: CYBERPUNK/FUTURISTIC
-[2025-01-15 14:30:03] [INFO] Processing: neon_city_night_00001_.png -> neon_city_night.png (category: CYBERPUNK/FUTURISTIC)
+[2025-01-15 14:30:02] [INFO] Processing category: CYBERPUNK FUTURISTIC
+[2025-01-15 14:30:03] [INFO] [1/15] (6.7%) Processing: neon_city_night_00001_.png -> neon_city_night.png (category: CYBERPUNK FUTURISTIC)
 [2025-01-15 14:30:04] [INFO] Uploaded to FTP: /wallpapers/neon_city_night.png
-[2025-01-15 14:30:05] [INFO] Registered in API: CYBERPUNK/FUTURISTIC / neon_city_night.png
 [2025-01-15 14:30:06] [INFO] Processing completed: 15 files processed, 0 errors
 ```
 
@@ -140,7 +137,6 @@ Ajouter dans crontab :
 
 - PHP 7.4+
 - Extension PHP `ftp`
-- Extension PHP `curl`
 - Extension PHP `json`
 
 ## Troubleshooting
@@ -152,16 +148,18 @@ Vérifier :
 - Mode passif activé si derrière un firewall
 - Extension PHP FTP installée : `php -m | grep ftp`
 
-### Erreur d'authentification API
-
-Vérifier :
-- URL de l'API correcte
-- Username et password valides
-- Le serveur accepte HTTP Basic Auth
-
 ### Fichiers non traités
 
 Vérifier :
 - Extensions valides : `.png`, `.jpg`, `.jpeg`, `.webp`
 - Pattern de nom reconnu par `extractBaseName()`
 - Permissions de lecture sur les fichiers
+
+## Notes
+
+- Le script ne gère plus l'enregistrement dans l'API
+- Pour ajouter des wallpapers dans l'API, utiliser les scripts dans le répertoire `/prompts` :
+  - `merge_prompts.php` - Fusion des fichiers de prompts
+  - `sync_to_csv.php` - Synchronisation avec wallpapers.csv
+  - `generate_patch.php` - Génération de patch pour les collisions
+  - `apply_patch.php` - Application du patch

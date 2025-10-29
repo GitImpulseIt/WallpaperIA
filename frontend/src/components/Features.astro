@@ -51,36 +51,15 @@ const screenshots = [
       <h2 class="section-title">{t.screenshots.title}</h2>
       <p class="section-subtitle">{t.screenshots.subtitle}</p>
 
-      <div class="carousel">
-        <div class="carousel-container" id="carouselContainer">
+      <figure class="screenshots-carousel-3d">
+        <div class="screenshots-carousel-3d__content" id="screenshotsCarousel3D">
           {screenshots.map((screenshot, index) => (
-            <div class="carousel-slide" data-index={index}>
+            <div class="screenshots-carousel-3d__item" data-index={index}>
               <img src={screenshot} alt={`Screenshot ${index + 1}`} />
             </div>
           ))}
         </div>
-
-        <button class="carousel-btn carousel-prev" id="prevBtn">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-
-        <button class="carousel-btn carousel-next" id="nextBtn">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </button>
-
-        <div class="carousel-dots" id="carouselDots">
-          {screenshots.map((_, index) => (
-            <button
-              class={`dot ${index === 0 ? 'active' : ''}`}
-              data-index={index}
-            ></button>
-          ))}
-        </div>
-      </div>
+      </figure>
     </div>
   </div>
 
@@ -142,47 +121,6 @@ const screenshots = [
   </div>
 </section>
 
-<script>
-  let currentSlide = 0;
-  const slides = document.querySelectorAll('.carousel-slide');
-  const dots = document.querySelectorAll('.dot');
-  const prevBtn = document.getElementById('prevBtn');
-  const nextBtn = document.getElementById('nextBtn');
-  const container = document.getElementById('carouselContainer');
-
-  function updateCarousel() {
-    if (container) {
-      container.style.transform = `translateX(-${currentSlide * 100}%)`;
-    }
-
-    dots.forEach((dot, index) => {
-      dot.classList.toggle('active', index === currentSlide);
-    });
-  }
-
-  function nextSlide() {
-    currentSlide = (currentSlide + 1) % slides.length;
-    updateCarousel();
-  }
-
-  function prevSlide() {
-    currentSlide = (currentSlide - 1 + slides.length) % slides.length;
-    updateCarousel();
-  }
-
-  prevBtn?.addEventListener('click', prevSlide);
-  nextBtn?.addEventListener('click', nextSlide);
-
-  dots.forEach((dot) => {
-    dot.addEventListener('click', () => {
-      currentSlide = parseInt(dot.getAttribute('data-index') || '0');
-      updateCarousel();
-    });
-  });
-
-  // Auto-play
-  setInterval(nextSlide, 5000);
-</script>
 
 <style>
   .features {
@@ -219,91 +157,6 @@ const screenshots = [
     margin-bottom: 4rem;
   }
 
-  /* Carousel Styles */
-  .carousel {
-    position: relative;
-    max-width: 900px;
-    margin: 0 auto;
-    overflow: hidden;
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  }
-
-  .carousel-container {
-    display: flex;
-    transition: transform 0.5s ease-in-out;
-  }
-
-  .carousel-slide {
-    min-width: 100%;
-    flex-shrink: 0;
-  }
-
-  .carousel-slide img {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-
-  .carousel-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .carousel-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-50%) scale(1.1);
-  }
-
-  .carousel-prev {
-    left: 1rem;
-  }
-
-  .carousel-next {
-    right: 1rem;
-  }
-
-  .carousel-dots {
-    position: absolute;
-    bottom: 1.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 0.75rem;
-  }
-
-  .dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.4);
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .dot:hover {
-    background: rgba(255, 255, 255, 0.6);
-  }
-
-  .dot.active {
-    background: #2196F3;
-    width: 32px;
-    border-radius: 6px;
-  }
 
   /* Features Grid */
   .features-grid {
@@ -375,19 +228,6 @@ const screenshots = [
     .features-grid {
       grid-template-columns: 1fr;
       gap: 1.5rem;
-    }
-
-    .carousel-btn {
-      width: 40px;
-      height: 40px;
-    }
-
-    .carousel-prev {
-      left: 0.5rem;
-    }
-
-    .carousel-next {
-      right: 0.5rem;
     }
   }
 </style>

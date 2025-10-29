@@ -7,7 +7,7 @@
 
 // URL de base de l'API REST
 // Modifier cette valeur pour pointer vers une autre instance de l'API
-#define API_BASE_URL "https://kazflow.com"
+#define API_BASE_URL "https://kazflow.com/wallpaperai/api"
 
 // Endpoints disponibles :
 // - GET /categories           : Liste des catégories
