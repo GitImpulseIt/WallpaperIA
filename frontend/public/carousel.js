@@ -84,7 +84,16 @@
         // Créer une slide avec 6 ou 9 catégories selon la taille d'écran
         function createSlide(categories, startIndex) {
             const endIndex = Math.min(startIndex + itemsPerPage, categories.length);
-            const slideCategories = categories.slice(startIndex, endIndex);
+            let slideCategories = categories.slice(startIndex, endIndex);
+
+            // FORCER la limite : 9 max sur desktop, 6 max sur mobile
+            const maxItems = itemsPerPage;
+            if (slideCategories.length > maxItems) {
+                console.warn(`[Categories Carousel] Too many items (${slideCategories.length}), limiting to ${maxItems}`);
+                slideCategories = slideCategories.slice(0, maxItems);
+            }
+
+            console.log(`[Categories Carousel] Creating slide with ${slideCategories.length} items (itemsPerPage: ${itemsPerPage})`);
 
             let cardsHTML = '';
             slideCategories.forEach(category => {
@@ -92,7 +101,7 @@
             });
 
             return `
-                <div class="carousel-slide">
+                <div class="cat-carousel-slide">
                     <div class="categories-grid">
                         ${cardsHTML}
                     </div>
@@ -119,7 +128,7 @@
             $('#prevCategoriesBtn').prop('disabled', currentPage === 0);
             $('#nextCategoriesBtn').prop('disabled', currentPage === totalPages - 1);
 
-            console.log(`[Carousel] Page ${currentPage + 1}/${totalPages}, offset: ${offset}px`);
+            console.log(`[Categories Carousel] Page ${currentPage + 1}/${totalPages}, offset: ${offset}px`);
         }
 
         // Aller à une page spécifique
@@ -145,7 +154,7 @@
         // Appliquer les largeurs du carrousel
         function applyCarouselWidths() {
             const containerWidth = $('.cat-carousel-container').width();
-            console.log(`[Carousel] Applying widths, container: ${containerWidth}px`);
+            console.log(`[Categories Carousel] Applying widths, container: ${containerWidth}px`);
 
             const $carouselSlides = $('.cat-carousel-slides');
             $carouselSlides.css('width', `${totalPages * containerWidth}px`);
@@ -169,7 +178,7 @@
             // Calculer le nombre d'items par page selon la largeur de l'écran
             itemsPerPage = getItemsPerPage();
             totalPages = Math.ceil(categories.length / itemsPerPage);
-            console.log(`[Carousel] Items per page: ${itemsPerPage}, Total pages: ${totalPages}`);
+            console.log(`[Categories Carousel] Items per page: ${itemsPerPage}, Total pages: ${totalPages}`);
 
             const $carouselSlides = $('#carouselSlides');
             $carouselSlides.empty();
@@ -214,14 +223,16 @@
             const $container = $('.cat-carousel-container');
 
             $container.on('touchstart', function (e) {
+                e.stopPropagation(); // Éviter les conflits avec d'autres carrousels
                 isDragging = true;
                 touchStartX = e.originalEvent.touches[0].clientX;
                 touchEndX = touchStartX;
-                console.log(`[Carousel] Touch start at ${touchStartX}`);
+                console.log(`[Categories Carousel] Touch start at ${touchStartX}`);
             });
 
             $container.on('touchmove', function (e) {
                 if (!isDragging) return;
+                e.stopPropagation(); // Éviter les conflits avec d'autres carrousels
                 touchEndX = e.originalEvent.touches[0].clientX;
 
                 // Empêcher le scroll si swipe horizontal
@@ -233,19 +244,20 @@
 
             $container.on('touchend', function (e) {
                 if (!isDragging) return;
+                e.stopPropagation(); // Éviter les conflits avec d'autres carrousels
                 isDragging = false;
 
                 const swipeThreshold = 50;
                 const diff = touchStartX - touchEndX;
 
-                console.log(`[Carousel] Touch end: start=${touchStartX}, end=${touchEndX}, diff=${diff}`);
+                console.log(`[Categories Carousel] Touch end: start=${touchStartX}, end=${touchEndX}, diff=${diff}`);
 
                 if (Math.abs(diff) > swipeThreshold) {
                     if (diff > 0) {
-                        console.log('[Carousel] Swipe left -> next page');
+                        console.log('[Categories Carousel] Swipe left -> next page');
                         nextPage();
                     } else {
-                        console.log('[Carousel] Swipe right -> prev page');
+                        console.log('[Categories Carousel] Swipe right -> prev page');
                         prevPage();
                     }
                 }
@@ -259,11 +271,11 @@
                     // Recalculer le nombre d'items si on change de desktop à mobile ou vice-versa
                     const newItemsPerPage = getItemsPerPage();
                     if (newItemsPerPage !== itemsPerPage) {
-                        console.log(`[Carousel] Items per page changed from ${itemsPerPage} to ${newItemsPerPage}, reinitializing...`);
+                        console.log(`[Categories Carousel] Items per page changed from ${itemsPerPage} to ${newItemsPerPage}, reinitializing...`);
                         initCarousel(allCategories);
                     } else {
                         applyCarouselWidths();
-                        console.log(`[Carousel] Resized`);
+                        console.log(`[Categories Carousel] Resized`);
                     }
                 }, 250);
             });
@@ -275,18 +287,18 @@
                     setTimeout(function () {
                         // Vérifier si le container a une largeur valide
                         let containerWidth = $('.cat-carousel-container').width();
-                        console.log(`[Carousel] First check - container width: ${containerWidth}px`);
+                        console.log(`[Categories Carousel] First check - container width: ${containerWidth}px`);
 
                         if (containerWidth === 0) {
                             // Réessayer après un délai supplémentaire
-                            console.log('[Carousel] Container width is 0, retrying...');
+                            console.log('[Categories Carousel] Container width is 0, retrying...');
                             setTimeout(function () {
                                 applyCarouselWidths();
-                                console.log(`[Carousel] Initialized with ${categories.length} categories, ${totalPages} pages`);
+                                console.log(`[Categories Carousel] Initialized with ${categories.length} categories, ${totalPages} pages`);
                             }, 100);
                         } else {
                             applyCarouselWidths();
-                            console.log(`[Carousel] Initialized with ${categories.length} categories, ${totalPages} pages`);
+                            console.log(`[Categories Carousel] Initialized with ${categories.length} categories, ${totalPages} pages`);
                         }
                     }, 150);
                 });
