@@ -6,7 +6,19 @@ const t = getTranslation(lang);
 ---
 
 <section class="hero">
-  <div class="hero-background"></div>
+  <div class="hero-background">
+    <div class="hero-bg-slider">
+      <div class="hero-bg-image active" style="background-image: url('/img/bg1.jpg')"></div>
+      <div class="hero-bg-image" data-bg="/img/bg2.jpg"></div>
+      <div class="hero-bg-image" data-bg="/img/bg3.jpg"></div>
+      <div class="hero-bg-image" data-bg="/img/bg4.jpg"></div>
+      <div class="hero-bg-image" data-bg="/img/bg5.jpg"></div>
+      <div class="hero-bg-image" data-bg="/img/bg6.jpg"></div>
+      <div class="hero-bg-image" data-bg="/img/bg7.jpg"></div>
+      <div class="hero-bg-image" data-bg="/img/bg8.jpg"></div>
+      <div class="hero-bg-image" data-bg="/img/bg9.jpg"></div>
+    </div>
+  </div>
   <div class="container">
     <div class="hero-content">
       <h1 class="hero-title">{t.hero.title}</h1>
@@ -14,7 +26,7 @@ const t = getTranslation(lang);
       <p class="hero-description">{t.hero.description}</p>
 
       <div class="hero-actions">
-        <a href="#download" class="btn btn-primary btn-large">
+        <a href="/files/WallpaperAI-Setup.exe" class="btn btn-primary btn-large" download>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
@@ -62,11 +74,37 @@ const t = getTranslation(lang);
   .hero-background {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
     z-index: -1;
   }
 
+  .hero-bg-slider {
+    position: absolute;
+    inset: 0;
+  }
+
+  .hero-bg-image {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+  }
+
+  .hero-bg-image.active {
+    opacity: 1;
+  }
+
   .hero-background::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.75) 50%, rgba(15, 23, 42, 0.85) 100%);
+    z-index: 1;
+  }
+
+  .hero-background::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -74,6 +112,7 @@ const t = getTranslation(lang);
       radial-gradient(circle at 20% 50%, rgba(33, 150, 243, 0.15) 0%, transparent 50%),
       radial-gradient(circle at 80% 80%, rgba(139, 69, 19, 0.1) 0%, transparent 50%);
     animation: pulse 8s ease-in-out infinite;
+    z-index: 2;
   }
 
   @keyframes pulse {
@@ -85,6 +124,8 @@ const t = getTranslation(lang);
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 2rem;
+    position: relative;
+    z-index: 3;
   }
 
   .hero-content {
@@ -213,3 +254,82 @@ const t = getTranslation(lang);
     }
   }
 </style>
+
+<script>
+  (function() {
+    'use strict';
+
+    // Configuration
+    const TRANSITION_DURATION = 2000; // 2s de fondu
+    const DISPLAY_DURATION = 6000; // 6s d'affichage par image
+    const TOTAL_DURATION = TRANSITION_DURATION + DISPLAY_DURATION;
+
+    const images = document.querySelectorAll('.hero-bg-image');
+    if (images.length === 0) return;
+
+    let currentIndex = 0;
+    let isTransitioning = false;
+    const loadedImages = new Set([0]); // bg1.jpg est déjà préchargé
+
+    // Fonction pour précharger une image
+    function preloadImage(index: number): void {
+      if (index >= images.length || loadedImages.has(index)) return;
+
+      const img = images[index] as HTMLElement;
+      const bgUrl = img.getAttribute('data-bg');
+      if (!bgUrl) return;
+
+      const preloader = new Image();
+      preloader.onload = () => {
+        img.style.backgroundImage = `url('${bgUrl}')`;
+        loadedImages.add(index);
+      };
+      preloader.onerror = () => {
+        console.error(`Failed to load background image: ${bgUrl}`);
+      };
+      preloader.src = bgUrl;
+    }
+
+    // Fonction pour passer à l'image suivante
+    function nextImage(): void {
+      if (isTransitioning) return;
+      isTransitioning = true;
+
+      const currentImage = images[currentIndex] as HTMLElement;
+      const nextIndex = (currentIndex + 1) % images.length;
+      const nextImageElement = images[nextIndex] as HTMLElement;
+
+      // Précharger l'image suivante (n+2) en avance
+      const futureIndex = (nextIndex + 1) % images.length;
+      preloadImage(futureIndex);
+
+      // Vérifier que l'image suivante est chargée
+      if (!loadedImages.has(nextIndex)) {
+        // Si pas encore chargée, attendre un peu et réessayer
+        setTimeout(() => {
+          isTransitioning = false;
+          nextImage();
+        }, 500);
+        return;
+      }
+
+      // Effectuer la transition
+      currentImage.classList.remove('active');
+      nextImageElement.classList.add('active');
+
+      currentIndex = nextIndex;
+
+      // Permettre la prochaine transition après la fin du fondu
+      setTimeout(() => {
+        isTransitioning = false;
+      }, TRANSITION_DURATION);
+    }
+
+    // Précharger les 2-3 premières images au démarrage
+    setTimeout(() => preloadImage(1), 1000);
+    setTimeout(() => preloadImage(2), 2000);
+
+    // Démarrer le défilement automatique
+    setInterval(nextImage, TOTAL_DURATION);
+  })();
+</script>
