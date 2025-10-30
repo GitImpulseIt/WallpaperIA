@@ -159,8 +159,6 @@ category,filename,date,id
 RELAXATION,lavender_field_sunset.png,19/10/2025,1
 RELAXATION,raindrops_leaves_macro.png,19/10/2025,2
 RELAXATION,zen_garden_stones.png,19/10/2025,3
-"RETRO CARTOONS",cartoon_network_90s.png,19/10/2025,1
-"RETRO CARTOONS",saturday_morning_70s.png,19/10/2025,2
 "SPACE & COSMOS",earth_orbital_view.png,19/10/2025,1
 "SPACE & COSMOS",nebula_stellar_formation.png,19/10/2025,2
 STEAMPUNK,city_skyline_airships.png,19/10/2025,1
@@ -232,10 +230,16 @@ STEAMPUNK,inventor_workshop_brass.png,19/10/2025,2
 "MANGA & ANIME",mecha_robot_action.png,22/10/2025,4
 "MANGA & ANIME",magical_girl_transformation.png,22/10/2025,5
 "MANGA & ANIME",studio_ghibli_landscape.png,22/10/2025,6
-"RETRO CARTOONS 70s-2000s",scooby_doo_mystery_van.png,22/10/2025,1
-"RETRO CARTOONS 70s-2000s",90s_nickelodeon_aesthetic.png,22/10/2025,2
-"RETRO CARTOONS 70s-2000s",pokemon_original_style.png,22/10/2025,3
-"RETRO CARTOONS 70s-2000s",teen_titans_flat_design.png,22/10/2025,4
+"RETRO CARTOONS",cartoon_network_90s.png,19/10/2025,1
+"RETRO CARTOONS",saturday_morning_70s.png,19/10/2025,2
+"RETRO CARTOONS",scooby_doo_mystery_van.png,22/10/2025,1
+"RETRO CARTOONS",90s_nickelodeon_aesthetic.png,22/10/2025,2
+"RETRO CARTOONS",pokemon_original_style.png,22/10/2025,3
+"RETRO CARTOONS",teen_titans_flat_design.png,22/10/2025,4
+"RETRO CARTOONS",classic_animation_cel_style.png,27/10/2025,1
+"RETRO CARTOONS",saturday_morning_action_hero.png,27/10/2025,2
+"RETRO CARTOONS",90s_anime_aesthetic.png,27/10/2025,3
+"RETRO CARTOONS",2000s_flash_animation.png,27/10/2025,4
 "MAGICAL FANTASY",fairy_mushroom_village.png,22/10/2025,3
 "MAGICAL FANTASY",unicorn_rainbow_meadow.png,22/10/2025,4
 "MAGICAL FANTASY",phoenix_rising_flames.png,22/10/2025,5
@@ -278,10 +282,6 @@ STEAMPUNK,submarine_nautical.png,22/10/2025,6
 "OCEAN & MARINE",stormy_waves_lighthouse.png,27/10/2025,23
 RELAXATION,zen_garden_raked_sand.png,27/10/2025,4
 RELAXATION,spa_stones_bamboo_water.png,27/10/2025,5
-"RETRO CARTOONS",classic_animation_cel_style.png,27/10/2025,3
-"RETRO CARTOONS",saturday_morning_action_hero.png,27/10/2025,4
-"RETRO CARTOONS 70s-2000s",90s_anime_aesthetic.png,27/10/2025,6
-"RETRO CARTOONS 70s-2000s",2000s_flash_animation.png,27/10/2025,7
 "SPACE & COSMOS",nebula_star_cluster.png,27/10/2025,18
 "SPACE & COSMOS",earth_rise_lunar_surface.png,27/10/2025,19
 STEAMPUNK,clockwork_mechanism_workshop.png,27/10/2025,8
