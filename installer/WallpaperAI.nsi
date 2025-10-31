@@ -30,13 +30,13 @@ Name "${APP_NAME} ${APP_VERSION}"
 OutFile "WallpaperAI-Setup-Multilang-${APP_VERSION}.exe"
 
 ; Dossier d'installation par défaut
-InstallDir "$PROGRAMFILES64\${APP_NAME}"
+InstallDir "$LOCALAPPDATA\${APP_NAME}"
 
 ; Récupérer le dossier d'installation depuis le registre si disponible
-InstallDirRegKey HKLM "Software\${APP_NAME}" "InstallDir"
+InstallDirRegKey HKCU "Software\${APP_NAME}" "InstallDir"
 
-; Demander les privilèges administrateur
-RequestExecutionLevel admin
+; Demander les privilèges utilisateur
+RequestExecutionLevel user
 
 ; Compression
 SetCompressor /SOLID lzma
@@ -144,7 +144,7 @@ Function .onInit
     ${EndIf}
 
     ; Vérifier si une version est déjà installée
-    ReadRegStr $R0 HKLM "${UNINSTALL_KEY}" "UninstallString"
+    ReadRegStr $R0 HKCU "${UNINSTALL_KEY}" "UninstallString"
     StrCmp $R0 "" done
 
     MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION \
@@ -271,7 +271,7 @@ Section "Installation" SecInstall
     ${EndIf}
 
     ; Enregistrer la langue choisie dans le registre pour référence
-    WriteRegStr HKLM "Software\${APP_NAME}" "Language" "$LanguageCode"
+    WriteRegStr HKCU "Software\${APP_NAME}" "Language" "$LanguageCode"
 
     ; Fichiers communs (DLLs et ressources)
     DetailPrint "Installation des dépendances Qt..."
@@ -304,22 +304,22 @@ Section "Installation" SecInstall
 
     ; Enregistrer dans le registre
     DetailPrint "Enregistrement dans le registre Windows..."
-    WriteRegStr HKLM "Software\${APP_NAME}" "InstallDir" "$INSTDIR"
-    WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayName" "${APP_NAME}"
-    WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayVersion" "${APP_VERSION}"
-    WriteRegStr HKLM "${UNINSTALL_KEY}" "Publisher" "${APP_PUBLISHER}"
-    WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\${APP_EXE}"
-    WriteRegStr HKLM "${UNINSTALL_KEY}" "UninstallString" "$INSTDIR\Uninstall.exe"
-    WriteRegStr HKLM "${UNINSTALL_KEY}" "QuietUninstallString" "$INSTDIR\Uninstall.exe /S"
-    WriteRegStr HKLM "${UNINSTALL_KEY}" "URLInfoAbout" "${APP_WEBSITE}"
-    WriteRegStr HKLM "${UNINSTALL_KEY}" "InstallLocation" "$INSTDIR"
-    WriteRegDWORD HKLM "${UNINSTALL_KEY}" "NoModify" 1
-    WriteRegDWORD HKLM "${UNINSTALL_KEY}" "NoRepair" 1
+    WriteRegStr HKCU "Software\${APP_NAME}" "InstallDir" "$INSTDIR"
+    WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "${APP_NAME}"
+    WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "${APP_VERSION}"
+    WriteRegStr HKCU "${UNINSTALL_KEY}" "Publisher" "${APP_PUBLISHER}"
+    WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\${APP_EXE}"
+    WriteRegStr HKCU "${UNINSTALL_KEY}" "UninstallString" "$INSTDIR\Uninstall.exe"
+    WriteRegStr HKCU "${UNINSTALL_KEY}" "QuietUninstallString" "$INSTDIR\Uninstall.exe /S"
+    WriteRegStr HKCU "${UNINSTALL_KEY}" "URLInfoAbout" "${APP_WEBSITE}"
+    WriteRegStr HKCU "${UNINSTALL_KEY}" "InstallLocation" "$INSTDIR"
+    WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoModify" 1
+    WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
 
     ; Calculer la taille de l'installation
     ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
     IntFmt $0 "0x%08X" $0
-    WriteRegDWORD HKLM "${UNINSTALL_KEY}" "EstimatedSize" "$0"
+    WriteRegDWORD HKCU "${UNINSTALL_KEY}" "EstimatedSize" "$0"
 
     ; Créer des raccourcis dans le menu Démarrer
     DetailPrint "Création des raccourcis..."
@@ -378,8 +378,8 @@ Section "Uninstall"
 
     ; Supprimer du registre
     DetailPrint "Nettoyage du registre..."
-    DeleteRegKey HKLM "${UNINSTALL_KEY}"
-    DeleteRegKey HKLM "Software\${APP_NAME}"
+    DeleteRegKey HKCU "${UNINSTALL_KEY}"
+    DeleteRegKey HKCU "Software\${APP_NAME}"
 
     ; Note : Les données utilisateur dans AppData ne sont PAS supprimées
     ; pour préserver l'historique et les paramètres
