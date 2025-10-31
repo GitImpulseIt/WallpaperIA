@@ -94,7 +94,6 @@ class Config {
             'MYSTERIOUS GOTHIC' => 'mg',
             'NATURAL LANDSCAPES' => 'nl',
             'OCEAN & MARINE' => 'om',
-            'PARAGUAY' => 'py',
             'RELAXATION' => 'rx',
             'RETRO CARTOONS' => 'rc',
             'SPACE & COSMOS' => 'sc',
