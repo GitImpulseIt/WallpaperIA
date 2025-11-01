@@ -1,6 +1,11 @@
 ---
 import { getTranslation } from '../i18n';
 
+// Import des screenshots
+import screen1Img from '../img/screen-en-1.jpg';
+import screen2Img from '../img/screen-en-2.jpg';
+import screen3Img from '../img/screen-en-3.jpg';
+
 const { lang } = Astro.props;
 const t = getTranslation(lang);
 
@@ -38,9 +43,9 @@ const features = [
 ];
 
 const screenshots = [
-  '/img/screen-en-1.jpg',
-  '/img/screen-en-2.jpg',
-  '/img/screen-en-3.jpg'
+  screen1Img.src,
+  screen2Img.src,
+  screen3Img.src
 ];
 ---
 

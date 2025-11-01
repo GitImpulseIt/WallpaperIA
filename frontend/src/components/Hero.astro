@@ -1,22 +1,46 @@
 ---
 import { getTranslation } from '../i18n';
 
+// Import des images de fond
+import bg1Img from '../img/bg1.jpg';
+import bg2Img from '../img/bg2.jpg';
+import bg3Img from '../img/bg3.jpg';
+import bg4Img from '../img/bg4.jpg';
+import bg5Img from '../img/bg5.jpg';
+import bg6Img from '../img/bg6.jpg';
+import bg7Img from '../img/bg7.jpg';
+import bg8Img from '../img/bg8.jpg';
+import bg9Img from '../img/bg9.jpg';
+
 const { lang } = Astro.props;
 const t = getTranslation(lang);
+
+// URLs des images de fond
+const bgImages = [
+  bg1Img.src,
+  bg2Img.src,
+  bg3Img.src,
+  bg4Img.src,
+  bg5Img.src,
+  bg6Img.src,
+  bg7Img.src,
+  bg8Img.src,
+  bg9Img.src,
+];
 ---
 
 <section class="hero">
   <div class="hero-background">
     <div class="hero-bg-slider">
-      <div class="hero-bg-image active" style="background-image: url('/img/bg1.jpg')"></div>
-      <div class="hero-bg-image" data-bg="/img/bg2.jpg"></div>
-      <div class="hero-bg-image" data-bg="/img/bg3.jpg"></div>
-      <div class="hero-bg-image" data-bg="/img/bg4.jpg"></div>
-      <div class="hero-bg-image" data-bg="/img/bg5.jpg"></div>
-      <div class="hero-bg-image" data-bg="/img/bg6.jpg"></div>
-      <div class="hero-bg-image" data-bg="/img/bg7.jpg"></div>
-      <div class="hero-bg-image" data-bg="/img/bg8.jpg"></div>
-      <div class="hero-bg-image" data-bg="/img/bg9.jpg"></div>
+      <div class="hero-bg-image active" style={`background-image: url('${bgImages[0]}')`}></div>
+      <div class="hero-bg-image" data-bg={bgImages[1]}></div>
+      <div class="hero-bg-image" data-bg={bgImages[2]}></div>
+      <div class="hero-bg-image" data-bg={bgImages[3]}></div>
+      <div class="hero-bg-image" data-bg={bgImages[4]}></div>
+      <div class="hero-bg-image" data-bg={bgImages[5]}></div>
+      <div class="hero-bg-image" data-bg={bgImages[6]}></div>
+      <div class="hero-bg-image" data-bg={bgImages[7]}></div>
+      <div class="hero-bg-image" data-bg={bgImages[8]}></div>
     </div>
   </div>
   <div class="container">
@@ -280,11 +304,15 @@ const t = getTranslation(lang);
       const bgUrl = img.getAttribute('data-bg');
       if (!bgUrl) return;
 
+      // IMPORTANT: Appliquer le background-image AVANT de charger
+      // Cela permet au navigateur de n'effectuer qu'une seule requête
+      img.style.backgroundImage = `url('${bgUrl}')`;
+
+      // Marquer comme chargé immédiatement pour éviter les doublons
+      loadedImages.add(index);
+
+      // Précharger via Image pour forcer le chargement sans attendre l'affichage
       const preloader = new Image();
-      preloader.onload = () => {
-        img.style.backgroundImage = `url('${bgUrl}')`;
-        loadedImages.add(index);
-      };
       preloader.onerror = () => {
         console.error(`Failed to load background image: ${bgUrl}`);
       };
@@ -303,16 +331,6 @@ const t = getTranslation(lang);
       // Précharger l'image suivante (n+2) en avance
       const futureIndex = (nextIndex + 1) % images.length;
       preloadImage(futureIndex);
-
-      // Vérifier que l'image suivante est chargée
-      if (!loadedImages.has(nextIndex)) {
-        // Si pas encore chargée, attendre un peu et réessayer
-        setTimeout(() => {
-          isTransitioning = false;
-          nextImage();
-        }, 500);
-        return;
-      }
 
       // Effectuer la transition
       currentImage.classList.remove('active');

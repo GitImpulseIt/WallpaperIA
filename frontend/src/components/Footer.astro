@@ -1,5 +1,6 @@
 ---
 import { getTranslation } from '../i18n';
+import iconImg from '../img/icon.png';
 
 const { lang } = Astro.props;
 const t = getTranslation(lang);
@@ -10,7 +11,7 @@ const currentYear = new Date().getFullYear();
   <div class="container">
     <div class="footer-content">
       <div class="footer-brand">
-        <img src="/img/icon.png" alt="WallpaperAI" class="footer-logo" />
+        <img src={iconImg.src} alt="WallpaperAI" class="footer-logo" />
         <span class="footer-name">WallpaperAI</span>
       </div>
 

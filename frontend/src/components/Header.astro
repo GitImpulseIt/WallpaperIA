@@ -1,6 +1,7 @@
 ---
 import { config } from '../config';
 import { getTranslation, getLanguageName, getLanguageFlag } from '../i18n';
+import iconImg from '../img/icon.png';
 
 const { lang } = Astro.props;
 const t = getTranslation(lang);
@@ -10,7 +11,7 @@ const t = getTranslation(lang);
   <div class="container">
     <div class="header-content">
       <a href={`/${lang}`} class="logo">
-        <img src="/img/icon.png" alt="WallpaperAI" />
+        <img src={iconImg.src} alt="WallpaperAI" />
         <span>WallpaperAI</span>
       </a>
 

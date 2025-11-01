@@ -1,5 +1,6 @@
 ---
 import { getTranslation } from '../i18n';
+import iconImg from '../img/icon.png';
 
 interface Props {
   lang: string;
@@ -27,7 +28,7 @@ const t = getTranslation(lang);
     <meta name="twitter:title" content={t.meta.title} />
     <meta name="twitter:description" content={t.meta.description} />
 
-    <link rel="icon" type="image/png" href="/img/icon.png" />
+    <link rel="icon" type="image/png" href={iconImg.src} />
     <title>{t.meta.title}</title>
 
     <!-- Consent Management Platform -->
