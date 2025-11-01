@@ -1,0 +1,25 @@
+---
+// Import du script CMP (Consent Management Platform)
+import cmpScript from '../scripts/cmp.js?raw';
+---
+
+<script is:inline set:html={cmpScript}></script>
+<script is:inline>
+  // Auto-initialisation du CMP (attendre que le DOM soit prêt)
+  (function() {
+    const initCMP = function() {
+      if (typeof window !== 'undefined' && window.CookieConsentManager) {
+        const cmpInstance = new window.CookieConsentManager();
+        cmpInstance.init();
+        window.cmp = cmpInstance;
+      }
+    };
+
+    // Attendre que le DOM soit chargé
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initCMP);
+    } else {
+      initCMP();
+    }
+  })();
+</script>

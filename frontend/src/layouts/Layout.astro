@@ -1,6 +1,11 @@
 ---
 import { getTranslation } from '../i18n';
 import iconImg from '../img/icon.png';
+import '../styles/categories-carousel.css';
+import '../styles/screenshots-3d.css';
+import CMPScript from '../components/CMPScript.astro';
+import CategoriesCarouselScript from '../components/CategoriesCarouselScript.astro';
+import Screenshots3DScript from '../components/Screenshots3DScript.astro';
 
 interface Props {
   lang: string;
@@ -32,18 +37,10 @@ const t = getTranslation(lang);
     <title>{t.meta.title}</title>
 
     <!-- Consent Management Platform -->
-    <script is:inline src="/cmp.js" data-auto-init></script>
+    <CMPScript />
 
     <!-- jQuery -->
     <script is:inline src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
-    <!-- Carrousel des catégories CSS et JS -->
-    <link rel="stylesheet" href="/categories-carousel.css?v=20251101" />
-    <script is:inline src="/categories-carousel.js?v=20251101"></script>
-
-    <!-- Carrousel 3D Screenshots CSS et JS -->
-    <link rel="stylesheet" href="/screenshots-3d.css?v=20251101" />
-    <script is:inline src="/screenshots-3d.js?v=20251101"></script>
   </head>
   <body>
     <slot />
@@ -56,6 +53,10 @@ const t = getTranslation(lang);
       </div>
       <img src="" alt="" id="fullscreenImage" style="display: none;">
     </div>
+
+    <!-- Scripts des carrousels (chargés après jQuery) -->
+    <CategoriesCarouselScript />
+    <Screenshots3DScript />
   </body>
 </html>
 
