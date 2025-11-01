@@ -54,6 +54,7 @@
     "subtitle": "Découvrez des milliers de fonds d'écran générés par IA à travers des thèmes variés",
     "loadingError": "Impossible de charger les catégories. Veuillez réessayer plus tard.",
     "imageLoadError": "Erreur lors du chargement de l'image en taille réelle.",
+    "imageLoading": "Chargement du wallpaper...",
     "rating": "note étoiles"
   },
   "download": {

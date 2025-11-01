@@ -8,6 +8,7 @@
         // Configuration depuis window.CAROUSEL_CONFIG (défini par Astro)
         const API_BASE_URL = window.CAROUSEL_CONFIG?.apiBaseUrl || 'https://kazflow.com/wallpaperai/api';
         const THUMBNAILS_PATH = window.CAROUSEL_CONFIG?.thumbnailsPath || 'https://kazflow.com/wallpaperai/api/miniatures/';
+        const IMAGE_LOAD_ERROR = window.CAROUSEL_CONFIG?.imageLoadError || 'Error loading full-size image.';
 
         let allCategories = [];
         let currentPage = 0;
@@ -62,7 +63,7 @@
             img.onerror = function() {
                 console.error(`[Fullscreen] Failed to load image: ${thumbnailFilename}`);
                 closeFullscreen();
-                alert(`Erreur lors du chargement de l'image en taille réelle.`);
+                alert(IMAGE_LOAD_ERROR);
             };
             img.src = fullImageUrl;
         }

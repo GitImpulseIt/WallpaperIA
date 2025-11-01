@@ -54,6 +54,7 @@
     "subtitle": "Descubre miles de fondos de pantalla generados por IA en temas diversos",
     "loadingError": "No se pueden cargar las categorías. Inténtalo de nuevo más tarde.",
     "imageLoadError": "Error al cargar la imagen a tamaño completo.",
+    "imageLoading": "Cargando fondo de pantalla...",
     "rating": "calificación de estrellas"
   },
   "download": {

@@ -54,6 +54,7 @@
     "subtitle": "Descubra milhares de papéis de parede gerados por IA em temas diversos",
     "loadingError": "Não foi possível carregar as categorias. Tente novamente mais tarde.",
     "imageLoadError": "Erro ao carregar imagem em tamanho real.",
+    "imageLoading": "Carregando papel de parede...",
     "rating": "classificação de estrelas"
   },
   "download": {

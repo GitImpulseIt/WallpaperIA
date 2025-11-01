@@ -57,10 +57,11 @@ const t = getTranslation(lang);
 </section>
 
 <!-- Configuration pour le carrousel -->
-<script is:inline define:vars={{ apiBaseUrl: config.apiBaseUrl, thumbnailsPath: config.thumbnailsPath }}>
+<script is:inline define:vars={{ apiBaseUrl: config.apiBaseUrl, thumbnailsPath: config.thumbnailsPath, imageLoadError: t.categories.imageLoadError }}>
   // Expose configuration to carousel.js
   window.CAROUSEL_CONFIG = {
     apiBaseUrl: apiBaseUrl,
-    thumbnailsPath: thumbnailsPath
+    thumbnailsPath: thumbnailsPath,
+    imageLoadError: imageLoadError
   };
 </script>
