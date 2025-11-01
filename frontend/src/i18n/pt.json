@@ -53,6 +53,7 @@
     "title": "Explore nossas categorias",
     "subtitle": "Descubra milhares de papéis de parede gerados por IA em temas diversos",
     "loadingError": "Não foi possível carregar as categorias. Tente novamente mais tarde.",
+    "imageLoadError": "Erro ao carregar imagem em tamanho real.",
     "rating": "classificação de estrelas"
   },
   "download": {

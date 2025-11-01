@@ -53,6 +53,7 @@
     "title": "Explore Our Categories",
     "subtitle": "Discover thousands of AI-generated wallpapers across diverse themes",
     "loadingError": "Unable to load categories. Please try again later.",
+    "imageLoadError": "Error loading full-size image.",
     "rating": "star rating"
   },
   "download": {

@@ -53,6 +53,7 @@
     "title": "Esplora le nostre categorie",
     "subtitle": "Scopri migliaia di sfondi generati dall'IA attraverso temi diversi",
     "loadingError": "Impossibile caricare le categorie. Riprova più tardi.",
+    "imageLoadError": "Errore durante il caricamento dell'immagine a dimensione intera.",
     "rating": "valutazione stelle"
   },
   "download": {

@@ -53,6 +53,7 @@
     "title": "Erkunden Sie unsere Kategorien",
     "subtitle": "Entdecken Sie Tausende von KI-generierten Hintergrundbildern in verschiedenen Themen",
     "loadingError": "Kategorien können nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "imageLoadError": "Fehler beim Laden des Bildes in voller Größe.",
     "rating": "Sternebewertung"
   },
   "download": {
