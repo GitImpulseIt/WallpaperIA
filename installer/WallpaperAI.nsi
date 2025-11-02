@@ -27,7 +27,7 @@ Unicode true
 
 ; Nom de l'installateur
 Name "${APP_NAME} ${APP_VERSION}"
-OutFile "WallpaperAI-Setup-Multilang-${APP_VERSION}.exe"
+OutFile "WallpaperAI-Setup.exe"
 
 ; Dossier d'installation par défaut
 InstallDir "$LOCALAPPDATA\${APP_NAME}"
@@ -47,6 +47,8 @@ SetCompressorDictSize 64
 
 Var SelectedLanguage
 Var LanguageCode
+Var DeleteUserData
+Var DeleteUserDataCheckbox
 
 ;--------------------------------
 ; Interface Moderne (MUI)
@@ -80,6 +82,7 @@ Page custom LanguageSelectionPage LanguageSelectionLeave
 !insertmacro MUI_PAGE_FINISH
 
 ; Pages de désinstallation
+UninstPage custom un.UserDataPage un.UserDataPageLeave
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
@@ -119,6 +122,14 @@ LangString LANG_SELECT_TEXT ${LANG_PORTUGUESE} "Idioma da aplicação:"
 LangString LANG_SELECT_TEXT ${LANG_ITALIAN} "Lingua dell'applicazione:"
 LangString LANG_SELECT_TEXT ${LANG_GERMAN} "Anwendungssprache:"
 LangString LANG_SELECT_TEXT ${LANG_RUSSIAN} "Язык приложения:"
+
+LangString UNINSTALL_USERDATA_TEXT ${LANG_FRENCH} "Supprimer également les données utilisateur (historique, paramètres, cache)"
+LangString UNINSTALL_USERDATA_TEXT ${LANG_ENGLISH} "Also delete user data (history, settings, cache)"
+LangString UNINSTALL_USERDATA_TEXT ${LANG_SPANISH} "Eliminar también los datos de usuario (historial, configuración, caché)"
+LangString UNINSTALL_USERDATA_TEXT ${LANG_PORTUGUESE} "Excluir também os dados do usuário (histórico, configurações, cache)"
+LangString UNINSTALL_USERDATA_TEXT ${LANG_ITALIAN} "Elimina anche i dati utente (cronologia, impostazioni, cache)"
+LangString UNINSTALL_USERDATA_TEXT ${LANG_GERMAN} "Benutzerdaten ebenfalls löschen (Verlauf, Einstellungen, Cache)"
+LangString UNINSTALL_USERDATA_TEXT ${LANG_RUSSIAN} "Также удалить данные пользователя (история, настройки, кэш)"
 
 ;--------------------------------
 ; Fonctions
@@ -235,6 +246,38 @@ Function LanguageSelectionLeave
     ${EndIf}
 
     DetailPrint "Langue sélectionnée : $LanguageCode"
+FunctionEnd
+
+;--------------------------------
+; Fonctions de désinstallation
+
+Function un.onInit
+    ; Initialiser la variable à 0 (non cochée par défaut)
+    StrCpy $DeleteUserData "0"
+FunctionEnd
+
+Function un.UserDataPage
+    !insertmacro MUI_HEADER_TEXT "Options de désinstallation" "Choisissez les éléments à supprimer"
+
+    nsDialogs::Create 1018
+    Pop $0
+    ${If} $0 == error
+        Abort
+    ${EndIf}
+
+    ; Ajouter une case à cocher pour supprimer les données utilisateur
+    ${NSD_CreateCheckbox} 0 0 100% 12u "$(UNINSTALL_USERDATA_TEXT)"
+    Pop $DeleteUserDataCheckbox
+
+    ; Par défaut, ne pas cocher la case
+    ${NSD_SetState} $DeleteUserDataCheckbox ${BST_UNCHECKED}
+
+    nsDialogs::Show
+FunctionEnd
+
+Function un.UserDataPageLeave
+    ; Récupérer l'état de la case à cocher
+    ${NSD_GetState} $DeleteUserDataCheckbox $DeleteUserData
 FunctionEnd
 
 ;--------------------------------
@@ -381,9 +424,15 @@ Section "Uninstall"
     DeleteRegKey HKCU "${UNINSTALL_KEY}"
     DeleteRegKey HKCU "Software\${APP_NAME}"
 
-    ; Note : Les données utilisateur dans AppData ne sont PAS supprimées
-    ; pour préserver l'historique et les paramètres
-    DetailPrint "Désinstallation terminée."
-    DetailPrint "Note : Les paramètres utilisateur ont été conservés."
+    ; Supprimer les données utilisateur si l'utilisateur l'a demandé
+    ${If} $DeleteUserData == ${BST_CHECKED}
+        DetailPrint "Suppression des données utilisateur..."
+        RMDir /r "$LOCALAPPDATA\${APP_NAME}"
+        DetailPrint "Désinstallation terminée."
+        DetailPrint "Note : Les données utilisateur ont été supprimées."
+    ${Else}
+        DetailPrint "Désinstallation terminée."
+        DetailPrint "Note : Les paramètres utilisateur ont été conservés."
+    ${EndIf}
 
 SectionEnd
