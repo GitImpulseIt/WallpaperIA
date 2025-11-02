@@ -1,15 +1,23 @@
 ---
 // Import du script CMP (Consent Management Platform)
 import cmpScript from '../scripts/cmp.js?raw';
+
+interface Props {
+  lang: string;
+}
+
+const { lang } = Astro.props;
 ---
 
 <script is:inline set:html={cmpScript}></script>
-<script is:inline>
+<script is:inline define:vars={{ lang }}>
   // Auto-initialisation du CMP (attendre que le DOM soit prêt)
   (function() {
     const initCMP = function() {
       if (typeof window !== 'undefined' && window.CookieConsentManager) {
         const cmpInstance = new window.CookieConsentManager();
+        // Définir la langue avant l'initialisation
+        cmpInstance.setLanguage(lang);
         cmpInstance.init();
         window.cmp = cmpInstance;
       }

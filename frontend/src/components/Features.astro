@@ -31,7 +31,7 @@ const features = [
     description: t.features.feature4.description
   },
   {
-    icon: 'heart',
+    icon: 'star',
     title: t.features.feature5.title,
     description: t.features.feature5.description
   },
@@ -85,8 +85,8 @@ const screenshots = [
           <div class="feature-card">
             <div class="feature-icon">
               {feature.icon === 'infinity' && (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18.178 8c1.414 0 2.822.5 2.822 2 0 1.5-1.408 2-2.822 2-1.275 0-2.61-.5-3.678-1.5-1.068-1-2.062-1.5-3.678-1.5s-2.61.5-3.678 1.5C6.076 11.5 4.742 12 3.467 12 2.053 12 .645 11.5.645 10c0-1.5 1.408-2 2.822-2 1.275 0 2.61.5 3.678 1.5C8.213 10.5 9.207 11 10.822 11s2.61-.5 3.678-1.5c1.068-1 2.403-1.5 3.678-1.5z"/>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4Zm0 0c2 2.67 4 4 6 4a4 4 0 0 0 0-8c-2 0-4 1.33-6 4Z"></path>
                 </svg>
               )}
               {feature.icon === 'calendar' && (
@@ -112,9 +112,9 @@ const screenshots = [
                   <line x1="12" y1="17" x2="12" y2="21"></line>
                 </svg>
               )}
-              {feature.icon === 'heart' && (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              {feature.icon === 'star' && (
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
               )}
               {feature.icon === 'zap' && (
